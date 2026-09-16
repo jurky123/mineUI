@@ -1,0 +1,10 @@
+name: MineUI
+version: '${version}'
+main: com.mineui.paper.MineUiPlugin
+api-version: '26.2'
+description: MineUI 服务端核心（自定义 UI 框架）
+author: ubuntu
+permissions:
+  mineui.admin:
+    description: 允许 /mineui test
+    default: op

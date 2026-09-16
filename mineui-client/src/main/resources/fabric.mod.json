@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "mineui",
+	"version": "${version}",
+	"name": "MineUI",
+	"description": "MineUI 自定义 UI 客户端（Paper 服务端配套）",
+	"authors": [
+		"ubuntu"
+	],
+	"license": "All-Rights-Reserved",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.mineui.client.MineUiClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,4 @@
+allprojects {
+    group = 'com.mineui'
+    version = providers.gradleProperty('mineui_version').get()
+}
