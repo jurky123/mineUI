@@ -52,6 +52,12 @@ public final class MineUiCommand {
                             close(context.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
+                .then(Commands.literal("style")
+                        .requires(source -> source.getSender().hasPermission("mineui.admin"))
+                        .executes(context -> {
+                            style(context.getSource().getSender());
+                            return Command.SINGLE_SUCCESS;
+                        }))
                 .build();
 
         commands.register(node, "MineUI 主命令");
@@ -122,8 +128,31 @@ public final class MineUiCommand {
         player.sendMessage(Component.text("已打开 MineUI 测试界面（点按钮 +1，Esc 关闭）", NamedTextColor.GREEN));
     }
 
-    private void close(CommandSender sender) {
+    /** /mineui style：打开原版风格模板演示页（面板/按钮/输入框/滑块/滚动/弹窗）。 */
+    private void style(CommandSender sender) {
         if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.sessions().isModClient(player.getUniqueId())) {
+            sender.sendMessage(Component.text("你需要安装 MineUI 客户端 mod 才能查看原版风格模板", NamedTextColor.RED));
+            return;
+        }
+        UiSession session = plugin.uiSessions().open(player, "mineui", "vanilla");
+        session.state("query", "");
+        session.state("volume", 50);
+        session.state("dialog", false);
+        session.on("search", event -> session.state("query", event.string("text", "")));
+        session.on("clear_search", event -> session.state("query", ""));
+        session.on("volume_set", event -> session.state("volume", (int) Math.round(event.number("value", 50))));
+        session.on("open_dialog", event -> session.state("dialog", true));
+        session.on("close_dialog", event -> session.state("dialog", false));
+        session.on("ok", event -> session.close());
+        session.snapshot();
+        player.sendMessage(Component.text("已打开原版风格模板（/mineui style）", NamedTextColor.GREEN));
+    }
+
+    private void close(CommandSender sender) {        if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
             return;
         }

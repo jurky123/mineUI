@@ -13,6 +13,7 @@ import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.MeasureContext;
+import com.mineui.ui.tree.SliderNode;
 import com.mineui.ui.tree.TextMeasurer;
 import com.mineui.ui.tree.UiNode;
 import com.mineui.ui.util.ActionThrottle;
@@ -56,6 +57,7 @@ public final class UiScreen extends Screen {
     private UiNode tooltipNode;
     private long tooltipSinceNanos;
     private InputNode focusedInput;
+    private SliderNode draggingSlider;
 
     public UiScreen(UiDefinition definition) {
         super(Component.literal("MineUI " + definition.app() + "/" + definition.view()));
@@ -131,8 +133,7 @@ public final class UiScreen extends Screen {
         drawTooltip(graphics, mouseX, mouseY);
     }
 
-    private void drawTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        UiNode node = tooltipNode;
+    private void drawTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {        UiNode node = tooltipNode;
         if (node == null || !node.visibleNow()) {
             return;
         }
@@ -163,7 +164,14 @@ public final class UiScreen extends Screen {
         if (y + font.lineHeight + 6f > height) {
             y = height - font.lineHeight - 6f;
         }
-        new UiPainter(graphics).fillRounded(x - 4f, y - 3f, textWidth + 8f, font.lineHeight + 6f, 4f, 0xF0101018, 1f);
+        // 原版风格提示框：深色底 + 紫色上下边
+        int left = Math.round(x) - 4;
+        int right = Math.round(x) + textWidth + 4;
+        int top = Math.round(y) - 3;
+        int bottom = Math.round(y) + font.lineHeight + 3;
+        graphics.fill(left, top, right, bottom, 0xF0100010);
+        graphics.fill(left, top, right, top + 1, 0xFF5000FF);
+        graphics.fill(left, bottom - 1, right, bottom, 0xFF28007F);
         graphics.text(font, text, Math.round(x), Math.round(y), 0xFFFFFFFF, true);
     }
 
@@ -181,6 +189,11 @@ public final class UiScreen extends Screen {
         if (focusedInput != null) {
             focusedInput.blur();
             focusedInput = null;
+        }
+        if (hit instanceof SliderNode slider) {
+            draggingSlider = slider;
+            slider.beginDrag(event.x(), event.y());
+            return true;
         }
         if (hit != null && hit.clickable()) {
             playClickPop(hit);
@@ -216,6 +229,31 @@ public final class UiScreen extends Screen {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (draggingSlider != null) {
+            draggingSlider.dragTo(event.x());
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (draggingSlider != null) {
+            SliderNode slider = draggingSlider;
+            Double value = slider.finishDrag();
+            draggingSlider = null;
+            if (value != null && !slider.action().isEmpty()) {
+                JsonObject payload = new JsonObject();
+                payload.addProperty("value", value);
+                ProtocolClient.sendAction(slider.action(), payload);
+            }
+            return true;
+        }
+        return super.mouseReleased(event);
     }
 
     @Override

@@ -18,6 +18,7 @@ import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
 import com.mineui.ui.tree.RowNode;
 import com.mineui.ui.tree.ScrollViewNode;
+import com.mineui.ui.tree.SliderNode;
 import com.mineui.ui.tree.StackNode;
 import com.mineui.ui.tree.TextNode;
 import com.mineui.ui.tree.UiNode;
@@ -44,6 +45,8 @@ public final class UiSpecParser {
         if (++nodeCount[0] > MAX_NODES) {
             throw new UiSpecException("界面定义节点过多（上限 " + MAX_NODES + " 个）");
         }
+        // 原版风格皮肤：补齐默认字段，JSON 显式字段优先
+        json = VanillaSkins.apply(json);
         String type = requireString(json, "type");
         NodeStyle style = parseStyle(json);
 
@@ -89,6 +92,13 @@ public final class UiSpecParser {
                     optString(json, "action", ""),
                     parseColor(json.get("color"), 0xFFFFFFFF),
                     parseColor(json.get("placeholderColor"), 0xFF808080));
+            case "slider" -> new SliderNode(style,
+                    DoubleSpec.parse(json.get("value"), 0),
+                    optDouble(json, "min", 0),
+                    optDouble(json, "max", 100),
+                    optString(json, "action", ""),
+                    optString(json, "text", ""),
+                    parseColor(json.get("color"), 0xFFFFFFFF));
             default -> throw new UiSpecException("未知节点类型: " + type);
         };
 
@@ -165,7 +175,10 @@ public final class UiSpecParser {
                 optString(json, "tooltip", null),
                 optBool(json, "modal", false),
                 optString(json, "action", null),
-                optString(json, "hoverAction", null));
+                optString(json, "hoverAction", null),
+                optString(json, "sprite", null),
+                optString(json, "spriteHover", null),
+                optString(json, "spriteFocus", null));
     }
 
     /**
@@ -254,6 +267,11 @@ public final class UiSpecParser {
     private static int optInt(JsonObject json, String key, int fallback) {
         JsonElement element = json.get(key);
         return element == null || element.isJsonNull() ? fallback : element.getAsInt();
+    }
+
+    private static double optDouble(JsonObject json, String key, double fallback) {
+        JsonElement element = json.get(key);
+        return element == null || element.isJsonNull() ? fallback : element.getAsDouble();
     }
 
     private static boolean optBool(JsonObject json, String key, boolean fallback) {

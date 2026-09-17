@@ -1,0 +1,124 @@
+{
+  "type": "stack",
+  "id": "root",
+  "width": "100%",
+  "height": "100%",
+  "children": [
+    {
+      "type": "stack",
+      "width": "100%",
+      "height": "100%",
+      "align": "center",
+      "justify": "center",
+      "children": [
+        {
+          "type": "column",
+          "skin": "vanilla:panel",
+          "width": 360,
+          "gap": 10,
+          "align": "stretch",
+          "children": [
+            { "type": "text", "text": "原版风格模板", "color": "#FFFFFF", "align": "center" },
+            {
+              "type": "row",
+              "gap": 6,
+              "align": "center",
+              "children": [
+                { "type": "input", "skin": "vanilla:input", "id": "search", "placeholder": "搜索…", "action": "search", "width": 260 },
+                { "type": "button", "skin": "vanilla:button", "text": "清空", "action": "clear_search", "width": 56, "tooltip": "清空查询" }
+              ]
+            },
+            { "type": "text", "text": "查询: {state.query}", "color": "#A0A0A0" },
+            { "type": "slider", "skin": "vanilla:slider", "id": "volume", "min": 0, "max": 100,
+              "value": "{state.volume}", "text": "音量: {value}", "action": "volume_set" },
+            {
+              "type": "scroll",
+              "id": "list",
+              "height": 90,
+              "gap": 4,
+              "children": [
+                {
+                  "type": "column",
+                  "gap": 4,
+                  "children": [
+                    { "type": "row", "gap": 8, "align": "center", "children": [
+                        { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                        { "type": "text", "text": "列表项 1", "color": "#FFFFFF" } ] },
+                    { "type": "row", "gap": 8, "align": "center", "children": [
+                        { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                        { "type": "text", "text": "列表项 2", "color": "#FFFFFF" } ] },
+                    { "type": "row", "gap": 8, "align": "center", "children": [
+                        { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                        { "type": "text", "text": "列表项 3", "color": "#FFFFFF" } ] },
+                    { "type": "row", "gap": 8, "align": "center", "children": [
+                        { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                        { "type": "text", "text": "列表项 4", "color": "#FFFFFF" } ] },
+                    { "type": "row", "gap": 8, "align": "center", "children": [
+                        { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                        { "type": "text", "text": "列表项 5", "color": "#FFFFFF" } ] },
+                    { "type": "row", "gap": 8, "align": "center", "children": [
+                        { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                        { "type": "text", "text": "列表项 6", "color": "#FFFFFF" } ] }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "row",
+              "gap": 6,
+              "align": "center",
+              "justify": "center",
+              "children": [
+                { "type": "button", "skin": "vanilla:button", "text": "打开弹窗", "action": "open_dialog", "width": 110 },
+                { "type": "button", "skin": "vanilla:button", "text": "关闭", "action": "ok", "width": 80 }
+              ]
+            },
+            { "type": "text", "text": "Esc 关闭 · F9 重载 · /mineui style 重开", "color": "#707070", "align": "center" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "stack",
+      "id": "dialog",
+      "z": 10,
+      "modal": true,
+      "visible": "{state.dialog}",
+      "width": "100%",
+      "height": "100%",
+      "children": [
+        { "type": "box", "width": "100%", "height": "100%", "background": "#80000000" },
+        {
+          "type": "stack",
+          "width": "100%",
+          "height": "100%",
+          "align": "center",
+          "justify": "center",
+          "children": [
+            {
+              "type": "column",
+              "skin": "vanilla:panel",
+              "width": 280,
+              "gap": 10,
+              "align": "stretch",
+              "children": [
+                { "type": "text", "text": "原版风格弹窗", "color": "#FFFFFF", "align": "center" },
+                { "type": "text", "text": "面板使用原版 popup 九宫格贴图", "color": "#A0A0A0", "align": "center" },
+                {
+                  "type": "row",
+                  "gap": 6,
+                  "align": "center",
+                  "justify": "center",
+                  "children": [
+                    { "type": "button", "skin": "vanilla:button", "text": "确定", "action": "close_dialog", "width": 110 },
+                    { "type": "button", "skin": "vanilla:button", "text": "取消", "action": "close_dialog", "width": 110 }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

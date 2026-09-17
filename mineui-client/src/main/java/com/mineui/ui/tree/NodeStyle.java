@@ -22,6 +22,9 @@ import com.mineui.ui.spec.BooleanSpec;
  * @param modal         模态：显示时阻挡下层节点的交互
  * @param action        点击动作 id（任意节点可点击；空/null 表示不可点击。ButtonNode 使用自身 action）
  * @param hoverAction   鼠标进入该节点时发送的动作 id（null 无；用于悬浮预览等）
+ * @param sprite        背景精灵（原版九宫格贴图 id，如 minecraft:widget/button；null 用纯色背景）
+ * @param spriteHover   悬停时的背景精灵（null 表示不变）
+ * @param spriteFocus   聚焦时的背景精灵（输入框用；null 表示不变）
  */
 public record NodeStyle(
         String id,
@@ -46,13 +49,17 @@ public record NodeStyle(
         String tooltip,
         boolean modal,
         String action,
-        String hoverAction) {
+        String hoverAction,
+        String sprite,
+        String spriteHover,
+        String spriteFocus) {
 
     /** Phase 2 兼容构造器（无视觉扩展）。 */
     public NodeStyle(String id, SizeSpec width, SizeSpec height, Insets padding, Integer background,
                      CrossAlign align, MainAlign justify, float gap) {
         this(id, width, height, padding, background, align, justify, gap,
-                0f, null, 0f, null, 0f, 0f, null, 0, false, false, BooleanSpec.TRUE, null, false, null, null);
+                0f, null, 0f, null, 0f, 0f, null, 0, false, false, BooleanSpec.TRUE, null, false, null, null,
+                null, null, null);
     }
 
     public static NodeStyle defaults() {

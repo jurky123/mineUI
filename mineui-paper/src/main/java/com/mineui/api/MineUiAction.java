@@ -25,4 +25,16 @@ public interface MineUiAction {
         }
         return fallback;
     }
+
+    /** 读取载荷中的数值字段（无则返回默认值），滑块提交等场景使用。 */
+    default double number(String key, double fallback) {
+        JsonElement payload = payload();
+        if (payload != null && payload.isJsonObject()) {
+            JsonElement value = payload.getAsJsonObject().get(key);
+            if (value != null && value.isJsonPrimitive()) {
+                return value.getAsDouble();
+            }
+        }
+        return fallback;
+    }
 }

@@ -12,12 +12,14 @@ import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
 import com.mineui.ui.tree.ScrollViewNode;
+import com.mineui.ui.tree.SliderNode;
 import com.mineui.ui.tree.StateAccess;
 import com.mineui.ui.tree.TextNode;
 import com.mineui.ui.tree.UiNode;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
@@ -125,6 +127,7 @@ public final class UiTreeRenderer {
             case EntityViewNode entityView -> renderEntityPreview(entityView);
             case PlayerViewNode playerView -> renderPlayerPreview(playerView);
             case InputNode input -> renderInput(input, opacity);
+            case SliderNode slider -> renderSlider(slider, opacity);
             case BoxNode box -> drawSurface(box, opacity);
             default -> {
             }
@@ -138,13 +141,45 @@ public final class UiTreeRenderer {
         }
     }
 
-    // ---------- 表面（背景/描边/阴影/渐变） ----------
+    // ---------- 表面（背景/描边/阴影/渐变/原版精灵） ----------
+
+    /** 按状态选择背景精灵：聚焦 > 悬停 > 普通。 */
+    private String effectiveSprite(UiNode node) {
+        NodeStyle style = node.style();
+        if (node instanceof InputNode input) {
+            if (input.focused() && style.spriteFocus() != null) {
+                return style.spriteFocus();
+            }
+        }
+        if (node.hovered() && style.spriteHover() != null) {
+            return style.spriteHover();
+        }
+        return style.sprite();
+    }
+
+    private boolean drawSpriteBackground(UiNode node) {
+        String sprite = effectiveSprite(node);
+        if (sprite == null || sprite.isEmpty()) {
+            return false;
+        }
+        Identifier id = Identifier.tryParse(sprite);
+        if (id == null) {
+            return false;
+        }
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, id,
+                Math.round(node.x()), Math.round(node.y()),
+                Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
+        return true;
+    }
 
     private void drawSurface(UiNode node, float opacity) {
         NodeStyle style = node.style();
         if (style.shadowColor() != null && style.shadowSize() > 0f) {
             painter.shadow(node.x(), node.y(), node.width(), node.height(), style.radius(),
                     style.shadowColor(), style.shadowSize(), style.shadowOffsetY(), opacity);
+        }
+        if (drawSpriteBackground(node)) {
+            return;
         }
         if (style.borderColor() != null && style.borderWidth() > 0f) {
             painter.fillRounded(node.x(), node.y(), node.width(), node.height(), style.radius(),
@@ -170,12 +205,15 @@ public final class UiTreeRenderer {
     }
 
     private void drawButtonBackground(ButtonNode node, float opacity) {
-        int background = UiColors.lerp(node.background(), node.hoverBackground(), node.hoverProgress());
         NodeStyle style = node.style();
         if (style.shadowColor() != null && style.shadowSize() > 0f) {
             painter.shadow(node.x(), node.y(), node.width(), node.height(), style.radius(),
                     style.shadowColor(), style.shadowSize(), style.shadowOffsetY(), opacity);
         }
+        if (drawSpriteBackground(node)) {
+            return;
+        }
+        int background = UiColors.lerp(node.background(), node.hoverBackground(), node.hoverProgress());
         painter.fillRounded(node.x(), node.y(), node.width(), node.height(), style.radius(), background, opacity);
     }
 
@@ -339,27 +377,67 @@ public final class UiTreeRenderer {
                 Math.max(1, Math.round(scale)), 0.0625f, lookX, lookY, entity);
     }
 
-    // ---------- 滚动条 ----------
+    // ---------- 滑块（原版贴图） ----------
+
+    private static final Identifier SLIDER_SPRITE = Identifier.withDefaultNamespace("widget/slider");
+    private static final Identifier SLIDER_HIGHLIGHTED_SPRITE = Identifier.withDefaultNamespace("widget/slider_highlighted");
+    private static final Identifier SLIDER_HANDLE_SPRITE = Identifier.withDefaultNamespace("widget/slider_handle");
+    private static final Identifier SLIDER_HANDLE_HIGHLIGHTED_SPRITE = Identifier.withDefaultNamespace("widget/slider_handle_highlighted");
+
+    private void renderSlider(SliderNode node, float opacity) {
+        if (node.width() <= 0 || node.height() <= 0) {
+            return;
+        }
+        boolean active = node.dragging() || node.hovered();
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED,
+                active ? SLIDER_HIGHLIGHTED_SPRITE : SLIDER_SPRITE,
+                Math.round(node.x()), Math.round(node.y()),
+                Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
+
+        float handleWidth = 8f;
+        float ratio = (float) Math.max(0.0, Math.min(1.0, node.ratio(state)));
+        float handleX = node.x() + ratio * (node.width() - handleWidth);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED,
+                active ? SLIDER_HANDLE_HIGHLIGHTED_SPRITE : SLIDER_HANDLE_SPRITE,
+                Math.round(handleX), Math.round(node.y()),
+                Math.round(handleWidth), Math.round(node.height()), 0xFFFFFFFF);
+
+        String label = node.label(state);
+        if (!label.isEmpty()) {
+            int textWidth = font.width(label);
+            graphics.text(font, label,
+                    Math.round(node.x() + (node.width() - textWidth) / 2f),
+                    Math.round(node.y() + (node.height() - font.lineHeight) / 2f),
+                    UiColors.withOpacity(node.textColor(), opacity), true);
+        }
+    }
+
+    // ---------- 滑动条（滚动条） ----------
+
+    private static final Identifier SCROLLER_TRACK_SPRITE = Identifier.withDefaultNamespace("widget/scroller_background");
+    private static final Identifier SCROLLER_THUMB_SPRITE = Identifier.withDefaultNamespace("widget/scroller");
 
     private void drawScrollbar(ScrollViewNode node, float opacity) {
         if (!node.scrollable()) {
             return;
         }
-        float trackWidth = 3f;
-        float x = node.x() + node.width() - trackWidth - 2f;
-        float y = node.y() + 2f;
-        float trackHeight = node.height() - 4f;
-        if (trackHeight <= 6f) {
+        float barWidth = 6f;
+        float x = node.x() + node.width() - barWidth;
+        float y = node.y();
+        float trackHeight = node.height();
+        if (trackHeight <= 8f) {
             return;
         }
-        painter.fillRounded(x, y, trackWidth, trackHeight, trackWidth / 2f, 0x50000000, opacity);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_TRACK_SPRITE,
+                Math.round(x), Math.round(y), Math.round(barWidth), Math.round(trackHeight), 0xFFFFFFFF);
 
         float ratio = node.height() / node.contentHeight();
-        float thumbHeight = Math.max(10f, trackHeight * ratio);
+        float thumbHeight = Math.max(8f, trackHeight * ratio);
         float maxScroll = node.contentHeight() - node.height();
         float t = maxScroll <= 0f ? 0f : node.scrollOffset() / maxScroll;
         float thumbY = y + (trackHeight - thumbHeight) * t;
-        painter.fillRounded(x, thumbY, trackWidth, thumbHeight, trackWidth / 2f, 0xC0A8C8E8, opacity);
+        graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_THUMB_SPRITE,
+                Math.round(x), Math.round(thumbY), Math.round(barWidth), Math.round(thumbHeight), 0xFFFFFFFF);
     }
 
     // ---------- 裁剪栈 ----------

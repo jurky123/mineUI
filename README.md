@@ -49,6 +49,26 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 
 ---
 
+## 原版风格模板
+
+界面可直接套用原版控件贴图（按钮 / 输入框 / 滑块 / 滚动条 / 面板），业务插件只写语义与布局：
+
+```json
+{ "type": "button", "skin": "vanilla:button", "text": "确定", "action": "ok" }
+{ "type": "input",  "skin": "vanilla:input",  "placeholder": "搜索…", "action": "search" }
+{ "type": "slider", "skin": "vanilla:slider", "min": 0, "max": 100,
+  "value": "{state.volume}", "text": "音量: {value}", "action": "volume_set" }
+{ "type": "column", "skin": "vanilla:panel",  "children": [ ] }
+```
+
+- 内置皮肤：`vanilla:button` / `vanilla:input` / `vanilla:slider` / `vanilla:panel` / `vanilla:dialog` / `vanilla:slot`；
+  写 `"skin": "vanilla"` 时按节点类型自动选择
+- 皮肤只补默认值，JSON 里显式写的尺寸/颜色优先
+- 滑块拖动结束提交 `{"value": <数值>}`（服务端用 `action.number("value", 0)` 取值）
+- 内置完整示例页 `mineui/vanilla`，管理员可用 `/mineui style` 打开预览
+
+---
+
 ## 玩家安装
 
 需要 **Minecraft 26.2**（Java 版）+ **Fabric Loader** + **Fabric API**。
@@ -67,6 +87,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 |---|---|
 | `/mineui status` | 查看自己的客户端状态与在线 MineUI 玩家 |
 | `/mineui test` | 打开测试界面（验证客户端是否生效） |
+| `/mineui style` | 打开原版风格模板预览（面板/按钮/输入框/滑块/滚动/弹窗） |
 | `/mineui close` | 关闭当前 MineUI 界面 |
 
 ---
@@ -76,7 +97,8 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 通信与版本协商、会话（session/revision）、限流与安全校验
 - ✅ 界面定义：mod 内置 / 开发目录覆盖 / 业务插件随 OPEN 下发（客户端严格校验）
 - ✅ 布局引擎、基础与 3D 控件、视觉、动画、滚动/网格/弹窗/Tooltip、显隐与数据绑定
-- ✅ 点击与悬浮动作、输入框、F9 热重载 / F10 导出
+- ✅ 点击与悬浮动作、输入框、滑块、F9 热重载 / F10 导出
+- ✅ 原版风格模板（按钮/输入框/滑块/滚动条/面板/弹窗，像素级对齐原版贴图）
 - ✅ 业务 API `com.mineui.api`（含 `server_ui` 能力协商与 owner 生命周期）
 - ⏳ HUD Overlay、标签页/下拉框/滑块等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
