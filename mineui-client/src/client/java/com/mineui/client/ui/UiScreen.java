@@ -156,11 +156,9 @@ public final class UiScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         UiNode hit = root.mouseClicked(event.x(), event.y(), event.button());
-        if (hit instanceof ButtonNode button) {
-            playClickPop(button);
-            if (!button.action().isEmpty()) {
-                ProtocolClient.sendAction(button.action());
-            }
+        if (hit != null && hit.clickable()) {
+            playClickPop(hit);
+            ProtocolClient.sendAction(hit.action());
             return true;
         }
         return super.mouseClicked(event, doubled);

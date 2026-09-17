@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
 java {
@@ -48,4 +49,13 @@ jar {
     // 把纯 Java 协议模块内嵌进插件 jar（不引入额外依赖）
     from { project(':mineui-protocol').sourceSets.main.output }
     dependsOn ':mineui-protocol:classes'
+}
+
+// 供业务插件（compileOnly）依赖：./gradlew :mineui-paper:publishToMavenLocal
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+        }
+    }
 }

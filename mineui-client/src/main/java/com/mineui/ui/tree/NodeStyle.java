@@ -20,6 +20,7 @@ import com.mineui.ui.spec.BooleanSpec;
  * @param visible       可见性（支持状态绑定；不可见时不参与布局/渲染/交互）
  * @param tooltip       悬停提示文本（支持 {state.x} 绑定；null 无）
  * @param modal         模态：显示时阻挡下层节点的交互
+ * @param action        点击动作 id（任意节点可点击；空/null 表示不可点击。ButtonNode 使用自身 action）
  */
 public record NodeStyle(
         String id,
@@ -42,13 +43,14 @@ public record NodeStyle(
         boolean pulse,
         BooleanSpec visible,
         String tooltip,
-        boolean modal) {
+        boolean modal,
+        String action) {
 
     /** Phase 2 兼容构造器（无视觉扩展）。 */
     public NodeStyle(String id, SizeSpec width, SizeSpec height, Insets padding, Integer background,
                      CrossAlign align, MainAlign justify, float gap) {
         this(id, width, height, padding, background, align, justify, gap,
-                0f, null, 0f, null, 0f, 0f, null, 0, false, false, BooleanSpec.TRUE, null, false);
+                0f, null, 0f, null, 0f, 0f, null, 0, false, false, BooleanSpec.TRUE, null, false, null);
     }
 
     public static NodeStyle defaults() {

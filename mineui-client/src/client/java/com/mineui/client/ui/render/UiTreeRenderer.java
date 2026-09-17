@@ -274,7 +274,19 @@ public final class UiTreeRenderer {
     }
 
     private void renderPlayerPreview(PlayerViewNode node) {
-        AbstractClientPlayer player = EntityPreviews.player(node);
+        String value = null;
+        String signature = null;
+        if (node.hasSkin()) {
+            value = Bindings.resolve(node.skinValue(), state);
+            signature = node.skinSignature() == null ? null : Bindings.resolve(node.skinSignature(), state);
+            if (value == null || value.isEmpty()) {
+                return;
+            }
+            if (signature != null && signature.isBlank()) {
+                signature = null;
+            }
+        }
+        AbstractClientPlayer player = EntityPreviews.player(node, value, signature);
         if (player == null) {
             return;
         }

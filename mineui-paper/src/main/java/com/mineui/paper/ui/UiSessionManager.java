@@ -6,6 +6,7 @@ import com.mineui.protocol.JsonCodec;
 import com.mineui.protocol.ProtocolException;
 import com.mineui.protocol.msg.Action;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.Map;
 import java.util.UUID;
@@ -29,8 +30,13 @@ public final class UiSessionManager {
 
     /** 打开新会话（会先关闭该玩家已有会话），发送 OPEN。业务代码随后设置 state 并 snapshot()。 */
     public UiSession open(Player player, String app, String view) {
+        return open(plugin, player, app, view);
+    }
+
+    /** 以指定 owner 打开新会话（owner 停用时由 {@link #closeOwned(Plugin)} 统一关闭）。 */
+    public UiSession open(Plugin owner, Player player, String app, String view) {
         close(player);
-        UiSession session = new UiSession(plugin, player, nextId.getAndIncrement(), app, view);
+        UiSession session = new UiSession(plugin, owner, player, nextId.getAndIncrement(), app, view);
         active.put(player.getUniqueId(), session);
         session.open();
         return session;
@@ -84,6 +90,15 @@ public final class UiSessionManager {
     /** 仅当映射的仍是该会话时移除（防止旧会话关闭时误删新会话）。 */
     void remove(UiSession session) {
         active.remove(session.playerId(), session);
+    }
+
+    /** 关闭某 owner 的所有会话（owner 插件停用/重载时调用）。 */
+    public void closeOwned(Plugin owner) {
+        for (UiSession session : active.values()) {
+            if (session.owner() == owner) {
+                session.close();
+            }
+        }
     }
 
     /** 玩家退出：静默作废，不发包。 */

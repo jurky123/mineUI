@@ -3,6 +3,8 @@ package com.mineui.client.ui.render;
 import com.mineui.client.MineUiClient;
 import com.mineui.ui.tree.EntityViewNode;
 import com.mineui.ui.tree.PlayerViewNode;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -15,17 +17,25 @@ import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.UUID;
 import java.util.WeakHashMap;
 
 /**
  * 3D 预览用的假实体（不真正进世界）。
- * 实体在渲染线程惰性创建并按节点缓存。
+ * 实体在渲染线程惰性创建并按节点缓存；玩家预览的皮肤/名字变化时会重建缓存。
  */
 public final class EntityPreviews {
 
     private static final Map<EntityViewNode, LivingEntity> ENTITIES = new WeakHashMap<>();
-    private static final Map<PlayerViewNode, AbstractClientPlayer> PLAYERS = new WeakHashMap<>();
+    private static final Map<PlayerViewNode, CachedPlayer> PLAYERS = new WeakHashMap<>();
+
+    /** GameProfile 纹理属性名。 */
+    private static final String TEXTURES = "textures";
+
+    private record CachedPlayer(String key, AbstractClientPlayer player) {
+    }
 
     private EntityPreviews() {
     }
@@ -65,49 +75,76 @@ public final class EntityPreviews {
         return living;
     }
 
-    public static AbstractClientPlayer player(PlayerViewNode node) {
-        AbstractClientPlayer cached = PLAYERS.get(node);
-        if (cached != null) {
-            return cached;
+    /**
+     * 玩家预览实体。
+     *
+     * @param node              节点（决定 {@code @self}/在线玩家名）
+     * @param resolvedSkinValue 已解析的皮肤 value（null 表示按玩家名取皮）
+     * @param signature         已解析的皮肤 signature（可空）
+     */
+    public static AbstractClientPlayer player(PlayerViewNode node,
+                                              String resolvedSkinValue, String signature) {
+        String key = resolvedSkinValue == null
+                ? "name:" + node.player()
+                : "skin:" + resolvedSkinValue + "|" + (signature == null ? "" : signature);
+        CachedPlayer cached = PLAYERS.get(node);
+        if (cached != null && cached.key().equals(key)) {
+            return cached.player();
         }
+
+        AbstractClientPlayer created = resolvedSkinValue == null
+                ? byName(node.player())
+                : byProperty(resolvedSkinValue, signature);
+        if (created == null) {
+            return null;
+        }
+        PLAYERS.put(node, new CachedPlayer(key, created));
+        return created;
+    }
+
+    private static AbstractClientPlayer byName(String name) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientLevel level = minecraft.level;
         if (level == null) {
             return null;
         }
-
-        String name = node.player();
         if (name.equals("@self")) {
-            AbstractClientPlayer self = minecraft.player;
-            if (self != null) {
-                PLAYERS.put(node, self);
-            }
-            return self;
+            return minecraft.player;
         }
-
-        AbstractClientPlayer result = null;
         for (AbstractClientPlayer player : level.players()) {
             if (player.getGameProfile().name().equalsIgnoreCase(name)) {
-                result = player;
-                break;
+                return player;
             }
         }
-        if (result == null && minecraft.getConnection() != null) {
+        if (minecraft.getConnection() != null) {
             PlayerInfo info = minecraft.getConnection().getPlayerInfoIgnoreCase(name);
             if (info != null && info.getProfile().name() != null) {
-                RemotePlayer remote = new RemotePlayer(level, info.getProfile());
-                injectPlayerInfo(remote, info);
-                place(remote);
-                remote.setOldPosAndRot();
-                result = remote;
+                return fromProfile(info.getProfile());
             }
         }
-        if (result == null) {
-            MineUiClient.LOGGER.warn("PlayerView 找不到在线玩家: {}", name);
+        MineUiClient.LOGGER.warn("PlayerView 找不到在线玩家: {}", name);
+        return null;
+    }
+
+    /** 用皮肤 value/signature 构造一个离线假玩家，皮肤由原版 SkinManager 异步加载。 */
+    private static AbstractClientPlayer byProperty(String value, String signature) {
+        UUID id = UUID.nameUUIDFromBytes(("mineui:" + value).getBytes(StandardCharsets.UTF_8));
+        GameProfile profile = new GameProfile(id, "MineUI");
+        profile.properties().put(TEXTURES, new Property(TEXTURES, value, signature));
+        return fromProfile(profile);
+    }
+
+    private static AbstractClientPlayer fromProfile(GameProfile profile) {
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientLevel level = minecraft.level;
+        if (level == null) {
             return null;
         }
-        PLAYERS.put(node, result);
-        return result;
+        RemotePlayer remote = new RemotePlayer(level, profile);
+        injectPlayerInfo(remote, new PlayerInfo(profile, false));
+        place(remote);
+        remote.setOldPosAndRot();
+        return remote;
     }
 
     private static void place(Entity entity) {

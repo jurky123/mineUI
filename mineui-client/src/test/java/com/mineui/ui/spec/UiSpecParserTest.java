@@ -10,8 +10,11 @@ import com.mineui.ui.tree.UiNode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiSpecParserTest {
 
@@ -105,6 +108,35 @@ class UiSpecParserTest {
         assertThrows(UiSpecException.class, () -> UiSpecParser.parse(json("""
                 { "type": "box", "background": "not-a-color" }
                 """)));
+    }
+
+    @Test
+    void parsesActionOnAnyNode() throws Exception {
+        UiNode root = UiSpecParser.parse(json("""
+                { "type": "box", "width": 100, "height": 20, "action": "slot_0" }
+                """));
+        assertTrue(root.clickable());
+        assertEquals("slot_0", root.action());
+    }
+
+    @Test
+    void plainNodeIsNotClickable() throws Exception {
+        UiNode root = UiSpecParser.parse(json("""
+                { "type": "box", "width": 10, "height": 10 }
+                """));
+        assertFalse(root.clickable());
+    }
+
+    @Test
+    void clickableContainerIsHitWhenChildIsNotInteractive() throws Exception {
+        UiNode root = UiSpecParser.parse(json("""
+                { "type": "row", "width": 100, "height": 20, "action": "slot_0",
+                  "children": [ { "type": "text", "text": "x" } ] }
+                """));
+        root.overrideWidth(100);
+        root.overrideHeight(20);
+        root.layout(0, 0);
+        assertSame(root, root.mouseClicked(5, 5, 0));
     }
 
     @Test

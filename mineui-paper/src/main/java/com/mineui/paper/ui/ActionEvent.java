@@ -2,10 +2,11 @@ package com.mineui.paper.ui;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mineui.api.MineUiAction;
 import org.bukkit.entity.Player;
 
 /** 业务插件收到的用户操作事件。 */
-public final class ActionEvent {
+public final class ActionEvent implements MineUiAction {
 
     private final Player player;
     private final String id;

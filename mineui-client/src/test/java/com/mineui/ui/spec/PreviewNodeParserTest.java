@@ -125,6 +125,37 @@ class PreviewNodeParserTest {
     }
 
     @Test
+    void parsesPlayerSkinProperties() throws Exception {
+        PlayerViewNode player = assertInstanceOf(PlayerViewNode.class, UiSpecParser.parse(json("""
+                { "type": "player",
+                  "skin": { "value": "{state.preview.value}", "signature": "{state.preview.signature}" } }
+                """)));
+        assertTrue(player.hasSkin());
+        assertEquals("{state.preview.value}", player.skinValue());
+        assertEquals("{state.preview.signature}", player.skinSignature());
+    }
+
+    @Test
+    void playerSkinRequiresValue() {
+        try {
+            UiSpecParser.parse(json("""
+                    { "type": "player", "skin": { "signature": "sig" } }
+                    """));
+            throw new AssertionError("应当抛出 UiSpecException");
+        } catch (UiSpecException expected) {
+            // ok
+        }
+    }
+
+    @Test
+    void playerWithoutSkinUsesName() throws Exception {
+        PlayerViewNode player = assertInstanceOf(PlayerViewNode.class, UiSpecParser.parse(json("""
+                { "type": "player", "player": "Notch" }
+                """)));
+        assertFalse(player.hasSkin());
+    }
+
+    @Test
     void entityRequiresEntityField() {
         try {
             UiSpecParser.parse(json("""

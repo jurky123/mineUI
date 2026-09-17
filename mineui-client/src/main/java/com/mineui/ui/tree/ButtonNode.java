@@ -23,8 +23,9 @@ public final class ButtonNode extends UiNode {
         return template;
     }
 
+    @Override
     public String action() {
-        return action;
+        return action.isEmpty() ? super.action() : action;
     }
 
     public int background() {

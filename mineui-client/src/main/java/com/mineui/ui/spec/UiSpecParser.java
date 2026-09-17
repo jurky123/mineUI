@@ -66,10 +66,7 @@ public final class UiSpecParser {
                     optFloat(json, "yaw", 0f),
                     optFloat(json, "bodyYaw", optFloat(json, "yaw", 0f)),
                     optFloat(json, "pitch", 0f));
-            case "player" -> new PlayerViewNode(style,
-                    optString(json, "player", "@self"),
-                    optFloat(json, "scale", 30f),
-                    optBool(json, "followMouse", true));
+            case "player" -> parsePlayer(json, style);
             default -> throw new UiSpecException("未知节点类型: " + type);
         };
 
@@ -144,7 +141,34 @@ public final class UiSpecParser {
                 optBool(json, "pulse", false),
                 BooleanSpec.parse(json.get("visible")),
                 optString(json, "tooltip", null),
-                optBool(json, "modal", false));
+                optBool(json, "modal", false),
+                optString(json, "action", null));
+    }
+
+    /**
+     * 玩家 3D 预览：
+     * <ul>
+     *   <li>{@code player}：{@code "@self"} 或在线玩家名；</li>
+     *   <li>{@code skin}：{@code {"value": "{state.x}", "signature": "{state.y}"}} 任意皮肤属性
+     *       （服务端下发 value/signature，客户端直接按该皮肤渲染，无需玩家在线）。</li>
+     * </ul>
+     */
+    private static PlayerViewNode parsePlayer(JsonObject json, NodeStyle style) throws UiSpecException {
+        String skinValue = null;
+        String skinSignature = null;
+        if (json.has("skin") && json.get("skin").isJsonObject()) {
+            JsonObject skin = json.getAsJsonObject("skin");
+            skinValue = optString(skin, "value", null);
+            skinSignature = optString(skin, "signature", null);
+            if (skinValue == null || skinValue.isEmpty()) {
+                throw new UiSpecException("player.skin 缺少 value");
+            }
+        }
+        return new PlayerViewNode(style,
+                optString(json, "player", "@self"),
+                optFloat(json, "scale", 30f),
+                optBool(json, "followMouse", true),
+                skinValue, skinSignature);
     }
 
     private static ImageNode parseImage(JsonObject json, NodeStyle style) throws UiSpecException {

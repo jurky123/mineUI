@@ -6,12 +6,17 @@ import com.mineui.protocol.MessageType;
 import com.mineui.protocol.ProtocolException;
 import com.mineui.protocol.msg.Hello;
 import com.mineui.protocol.msg.HelloAck;
+import com.mineui.api.MineUiProvider;
+import com.mineui.paper.api.PaperMineUi;
 import com.mineui.paper.command.MineUiCommand;
 import com.mineui.paper.ui.UiSessionManager;
 import com.mineui.protocol.session.RateWindow;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.server.PluginDisableEvent;
 
 import java.util.Map;
 import java.util.UUID;
@@ -24,7 +29,7 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
  * <p>
  * 第一原则：Server owns state. Client owns presentation.
  */
-public final class MineUiPlugin extends JavaPlugin implements PluginMessageListener {
+public final class MineUiPlugin extends JavaPlugin implements PluginMessageListener, Listener {
 
     /** 唯一底层通道；业务用消息内 namespace 区分。 */
     public static final String CHANNEL = "mineui:main";
@@ -51,6 +56,8 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
         getServer().getPluginManager().registerEvents(new PlayerConnectionListener(this), this);
+        getServer().getPluginManager().registerEvents(this, this);
+        MineUiProvider.register(new PaperMineUi(this));
 
         MineUiCommand command = new MineUiCommand(this);
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS,
@@ -70,6 +77,15 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
             uiSessions.clear();
         }
         inboundWindows.clear();
+        MineUiProvider.unregister();
+    }
+
+    /** 业务插件停用/重载时关闭它拥有的界面会话（避免回调打到已卸载的插件代码）。 */
+    @EventHandler
+    public void onPluginDisable(PluginDisableEvent event) {
+        if (event.getPlugin() != this && uiSessions != null) {
+            uiSessions.closeOwned(event.getPlugin());
+        }
     }
 
     /** 注意：回调运行在 Netty 线程，禁止直接触碰 Bukkit API（发送用 Transport#sendLater）。 */

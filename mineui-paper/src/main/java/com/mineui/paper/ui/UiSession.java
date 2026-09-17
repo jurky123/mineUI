@@ -2,6 +2,8 @@ package com.mineui.paper.ui;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mineui.api.MineUiAction;
+import com.mineui.api.MineUiSession;
 import com.mineui.paper.MineUiPlugin;
 import com.mineui.paper.Transport;
 import com.mineui.protocol.Envelope;
@@ -16,6 +18,7 @@ import com.mineui.protocol.session.RevisionGuard;
 import com.mineui.protocol.msg.Action;
 import com.mineui.protocol.msg.Open;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,28 +31,30 @@ import java.util.function.Consumer;
  * 生命周期：{@code open() → state()/snapshot() → (action/patch)* → close()}。
  * 除 {@link #closed()} 外，所有方法必须在主线程调用。
  */
-public final class UiSession {
+public final class UiSession implements MineUiSession {
 
     /** 每秒最多接受的动作数（防连点/恶意刷包）。 */
     private static final int MAX_ACTIONS_PER_SECOND = 8;
     private static final long RATE_WINDOW_MILLIS = 1000L;
 
     private final MineUiPlugin plugin;
+    private final Plugin owner;
     private final Player player;
     private final int id;
     private final String app;
     private final String view;
     private final JsonObject state = new JsonObject();
     private final RevisionGuard revisionGuard = new RevisionGuard();
-    private final Map<String, Consumer<ActionEvent>> handlers = new HashMap<>();
+    private final Map<String, Consumer<MineUiAction>> handlers = new HashMap<>();
     private final RateWindow actionRate = new RateWindow(MAX_ACTIONS_PER_SECOND, RATE_WINDOW_MILLIS);
 
     private boolean snapshotSent;
     private volatile boolean closed;
     private int patchSeq;
 
-    UiSession(MineUiPlugin plugin, Player player, int id, String app, String view) {
+    UiSession(MineUiPlugin plugin, Plugin owner, Player player, int id, String app, String view) {
         this.plugin = plugin;
+        this.owner = owner;
         this.player = player;
         this.id = id;
         this.app = app;
@@ -65,7 +70,8 @@ public final class UiSession {
     }
 
     /** 设置顶层状态字段；snapshot 之后会立即下发 PATCH。 */
-    public void state(String key, Object value) {
+    @Override
+    public UiSession state(String key, Object value) {
         boolean existed = state.has(key);
         state.add(key, JsonCodec.toJsonTree(value));
         if (snapshotSent && !closed) {
@@ -73,9 +79,16 @@ public final class UiSession {
             PatchOp op = existed ? PatchOp.replace(pointer(key), element) : PatchOp.add(pointer(key), element);
             sendPatch(List.of(op));
         }
+        return this;
+    }
+
+    /** 会话所有者插件（可为 MineUI 自身）。 */
+    public Plugin owner() {
+        return owner;
     }
 
     /** 下发完整状态，并开始按修订号增量同步。 */
+    @Override
     public void snapshot() {
         requireOpen();
         snapshotSent = true;
@@ -83,11 +96,14 @@ public final class UiSession {
     }
 
     /** 注册动作处理器。 */
-    public void on(String actionId, Consumer<ActionEvent> handler) {
+    @Override
+    public UiSession on(String actionId, Consumer<MineUiAction> handler) {
         handlers.put(actionId, handler);
+        return this;
     }
 
     /** 关闭会话：下发 CLOSE 并从管理器移除。 */
+    @Override
     public void close() {
         if (closed) {
             return;
@@ -156,7 +172,7 @@ public final class UiSession {
         }
         switch (revisionGuard.submit(incomingRevision)) {
             case ACCEPT -> {
-                Consumer<ActionEvent> handler = handlers.get(action.id());
+                Consumer<MineUiAction> handler = handlers.get(action.id());
                 if (handler == null) {
                     plugin.getLogger().fine(() -> "未注册的 MineUI 动作: " + action.id() + " (" + app + "/" + view + ")");
                 } else {

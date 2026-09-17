@@ -40,6 +40,15 @@ public abstract class UiNode {
         return style.id();
     }
 
+    /** 点击动作 id（空串表示不可点击）。 */
+    public String action() {
+        return style.action() == null ? "" : style.action();
+    }
+
+    public boolean clickable() {
+        return !action().isEmpty();
+    }
+
     public float x() {
         return x;
     }
@@ -232,7 +241,7 @@ public abstract class UiNode {
                 return child;
             }
         }
-        return null;
+        return clickable() ? this : null;
     }
 
     /** 鼠标滚轮：返回 true 表示已消费。 */
