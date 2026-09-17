@@ -2,6 +2,7 @@ package com.mineui.protocol;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonSyntaxException;
 
 import java.nio.charset.StandardCharsets;
@@ -20,6 +21,11 @@ public final class JsonCodec {
 
     public static byte[] encode(Object value) {
         return toJson(value).getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** 任意值转 JSON 树（用于 PATCH value）。 */
+    public static JsonElement toJsonTree(Object value) {
+        return GSON.toJsonTree(value);
     }
 
     public static <T> T decode(byte[] utf8, Class<T> type) throws ProtocolException {

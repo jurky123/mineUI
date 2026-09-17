@@ -7,7 +7,9 @@ import com.mineui.protocol.ProtocolException;
 import com.mineui.protocol.msg.Hello;
 import com.mineui.protocol.msg.HelloAck;
 import com.mineui.paper.command.MineUiCommand;
+import com.mineui.paper.ui.UiSessionManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -28,12 +30,14 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
     private static final long BAD_PACKET_WARN_INTERVAL_MILLIS = 5000L;
 
     private SessionManager sessions;
+    private UiSessionManager uiSessions;
     private Transport transport;
     private volatile long lastBadPacketWarn;
 
     @Override
     public void onEnable() {
         sessions = new SessionManager();
+        uiSessions = new UiSessionManager(this);
         transport = new Transport(this);
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
@@ -54,6 +58,9 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         if (sessions != null) {
             sessions.clear();
         }
+        if (uiSessions != null) {
+            uiSessions.clear();
+        }
     }
 
     /** 注意：回调运行在 Netty 线程，禁止直接触碰 Bukkit API（发送用 Transport#sendLater）。 */
@@ -73,7 +80,12 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
 
         switch (envelope.type()) {
             case HELLO -> handleHello(player, envelope);
-            // Phase 1 起：ACTION / CLOSE / PING
+            case ACTION -> Bukkit.getScheduler().runTask(this,
+                    () -> uiSessions.handleAction(player, envelope));
+            case CLOSE -> Bukkit.getScheduler().runTask(this,
+                    () -> uiSessions.handleClose(player, envelope.session()));
+            case PING -> transport.sendLater(player,
+                    new Envelope(MessageType.PONG, envelope.session(), envelope.revision(), envelope.payload()));
             default -> getLogger().fine(() -> "忽略消息 " + envelope.type() + "（" + player.getName() + "）");
         }
     }
@@ -117,6 +129,10 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
 
     public SessionManager sessions() {
         return sessions;
+    }
+
+    public UiSessionManager uiSessions() {
+        return uiSessions;
     }
 
     public Transport transport() {
