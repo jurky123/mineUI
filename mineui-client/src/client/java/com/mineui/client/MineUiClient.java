@@ -26,6 +26,7 @@ public class MineUiClient implements ClientModInitializer {
                 context.client().execute(() -> ProtocolClient.handleIncoming(payload.data())));
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> ProtocolClient.sendHello());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ProtocolClient.reset());
 
         LOGGER.info("MineUI client {} 初始化完成", version());
     }

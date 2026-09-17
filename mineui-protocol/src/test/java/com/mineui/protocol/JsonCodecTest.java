@@ -41,4 +41,9 @@ class JsonCodecTest {
     void malformedJsonThrowsProtocolException() {
         assertThrows(ProtocolException.class, () -> JsonCodec.decode("{not json".getBytes(), Hello.class));
     }
+
+    @Test
+    void literalNullIsRejected() {
+        assertThrows(ProtocolException.class, () -> JsonCodec.decode("null".getBytes(), Hello.class));
+    }
 }

@@ -16,6 +16,7 @@ import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** 当前 MineUI 界面的打开/关闭/热重载（渲染线程）。 */
@@ -35,14 +36,9 @@ public final class MineUiScreens {
             definition = UiDefinitionLoader.load(app, view, devRoot());
             LOGGER.info("加载界面 {} / {}（来源: {}）", app, view, definition.source());
             if ("mod".equals(definition.source())) {
-                try {
-                    if (UiDefinitionLoader.writeDevTemplate(app, view, devRoot())) {
-                        Path file = UiDefinitionLoader.devFile(app, view, devRoot());
-                        LOGGER.info("已生成开发模板: {}", file);
-                        chat("[MineUI] 已生成开发模板 config/mineui/ui/" + app + "/" + view + ".json（F9 重载生效）");
-                    }
-                } catch (UiSpecException e) {
-                    LOGGER.warn("生成开发模板失败: {}", e.getMessage());
+                Path file = UiDefinitionLoader.devFile(app, view, devRoot());
+                if (!Files.isRegularFile(file)) {
+                    chat("[MineUI] 按 F10 可导出可编辑副本（config/mineui/ui/" + app + "/" + view + ".json）");
                 }
             }
         } catch (UiSpecException e) {
@@ -65,6 +61,27 @@ public final class MineUiScreens {
         }
         open(screen.app(), screen.view());
         chat("[MineUI] 已重载 " + screen.app() + "/" + screen.view());
+    }
+
+    /** F10：把当前界面的内置定义导出到开发目录（不覆盖已有文件）。 */
+    public static void exportDevTemplate() {
+        UiScreen screen = current;
+        if (screen == null) {
+            chat("[MineUI] 没有打开的界面，无法导出");
+            return;
+        }
+        Path file = UiDefinitionLoader.devFile(screen.app(), screen.view(), devRoot());
+        try {
+            if (UiDefinitionLoader.writeDevTemplate(screen.app(), screen.view(), devRoot())) {
+                LOGGER.info("已导出开发模板: {}", file);
+                chat("[MineUI] 已导出到 config/mineui/ui/" + screen.app() + "/" + screen.view() + ".json（F9 重载生效）");
+            } else {
+                chat("[MineUI] 开发模板已存在，未覆盖（直接编辑后按 F9）");
+            }
+        } catch (UiSpecException e) {
+            LOGGER.warn("导出开发模板失败: {}", e.getMessage());
+            chat("[MineUI] 导出失败: " + e.getMessage());
+        }
     }
 
     /** 服务端 CLOSE：关闭界面（不回调 onClose，避免回发 CLOSE）。 */

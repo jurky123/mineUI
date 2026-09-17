@@ -93,10 +93,31 @@ public final class ProtocolClient {
             case OPEN -> handleOpen(envelope);
             case SNAPSHOT -> handleSnapshot(envelope);
             case PATCH -> handlePatch(envelope);
-            case CLOSE -> handleServerClose();
+            case CLOSE -> {
+                if (isCurrentSession(envelope)) {
+                    handleServerClose();
+                }
+            }
             case PING -> send(new Envelope(MessageType.PONG, envelope.session(), envelope.revision(), envelope.payload()));
             default -> MineUiClient.LOGGER.debug("忽略消息 {}", envelope.type());
         }
+    }
+
+    /** 断线/切服清理：状态、界面、协商版本全部复位。 */
+    public static void reset() {
+        STATE.end();
+        MineUiScreens.closeFromServer();
+        serverProtocol = -1;
+        MineUiClient.LOGGER.info("已断开连接，MineUI 状态已清理");
+    }
+
+    private static boolean isCurrentSession(Envelope envelope) {
+        if (!STATE.active() || envelope.session() != STATE.session()) {
+            MineUiClient.LOGGER.debug("忽略非当前会话的 {}（收到 {}，当前 {}）",
+                    envelope.type(), envelope.session(), STATE.session());
+            return false;
+        }
+        return true;
     }
 
     private static void handleOpen(Envelope envelope) {
@@ -113,6 +134,9 @@ public final class ProtocolClient {
     }
 
     private static void handleSnapshot(Envelope envelope) {
+        if (!isCurrentSession(envelope)) {
+            return;
+        }
         Snapshot snapshot;
         try {
             snapshot = JsonCodec.decode(envelope.payload(), Snapshot.class);
@@ -124,6 +148,9 @@ public final class ProtocolClient {
     }
 
     private static void handlePatch(Envelope envelope) {
+        if (!isCurrentSession(envelope)) {
+            return;
+        }
         Patch patch;
         try {
             patch = JsonCodec.decode(envelope.payload(), Patch.class);

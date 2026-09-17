@@ -8,9 +8,14 @@ import com.mineui.protocol.msg.Hello;
 import com.mineui.protocol.msg.HelloAck;
 import com.mineui.paper.command.MineUiCommand;
 import com.mineui.paper.ui.UiSessionManager;
+import com.mineui.protocol.session.RateWindow;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
@@ -28,10 +33,13 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
     public static final String MIN_CLIENT_VERSION = "0.1.0";
 
     private static final long BAD_PACKET_WARN_INTERVAL_MILLIS = 5000L;
+    /** 网络入口限流：每玩家每秒最多处理的 MineUI 包数（在调度到主线程之前生效）。 */
+    private static final int MAX_INBOUND_PACKETS_PER_SECOND = 30;
 
     private SessionManager sessions;
     private UiSessionManager uiSessions;
     private Transport transport;
+    private final Map<UUID, RateWindow> inboundWindows = new ConcurrentHashMap<>();
     private volatile long lastBadPacketWarn;
 
     @Override
@@ -61,12 +69,17 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         if (uiSessions != null) {
             uiSessions.clear();
         }
+        inboundWindows.clear();
     }
 
     /** 注意：回调运行在 Netty 线程，禁止直接触碰 Bukkit API（发送用 Transport#sendLater）。 */
     @Override
     public void onPluginMessageReceived(String channel, Player player, byte[] message) {
         if (!CHANNEL.equals(channel)) {
+            return;
+        }
+        if (!allowInbound(player)) {
+            warnBadPacket(player, "包速率超限，已丢弃");
             return;
         }
 
@@ -116,7 +129,6 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         HelloAck ack = new HelloAck(Envelope.PROTOCOL_VERSION, getPluginMeta().getVersion(), MIN_CLIENT_VERSION);
         transport.sendLater(player, new Envelope(MessageType.HELLO_ACK, 0, 0, JsonCodec.encode(ack)));
     }
-
     private void warnBadPacket(Player player, String reason) {
         long now = System.currentTimeMillis();
         if (now - lastBadPacketWarn >= BAD_PACKET_WARN_INTERVAL_MILLIS) {
@@ -125,6 +137,16 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         } else {
             getLogger().fine(() -> "来自 " + player.getName() + " 的非法 MineUI 包: " + reason);
         }
+    }
+
+    private boolean allowInbound(Player player) {
+        return inboundWindows.computeIfAbsent(player.getUniqueId(),
+                ignored -> new RateWindow(MAX_INBOUND_PACKETS_PER_SECOND, 1000L)).tryAcquire();
+    }
+
+    /** 玩家退出时清理入口限流状态。 */
+    public void clearInbound(UUID playerId) {
+        inboundWindows.remove(playerId);
     }
 
     public SessionManager sessions() {

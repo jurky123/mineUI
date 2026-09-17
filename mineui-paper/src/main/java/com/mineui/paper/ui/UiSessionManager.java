@@ -50,6 +50,12 @@ public final class UiSessionManager {
             plugin.getLogger().fine(() -> player.getName() + " 发来 ACTION 但没有活动会话，已丢弃");
             return;
         }
+        if (!session.matches(envelope.session())) {
+            // 旧页面（已关闭/被替换）的延迟包：不得打到当前会话
+            plugin.getLogger().fine(() -> player.getName() + " ACTION 会话不匹配，已丢弃（收到 "
+                    + envelope.session() + "，当前 " + session.id() + "）");
+            return;
+        }
         Action action;
         try {
             action = JsonCodec.decode(envelope.payload(), Action.class);
@@ -88,7 +94,11 @@ public final class UiSessionManager {
         }
     }
 
+    /** 作废全部会话（插件停用等场景），释放业务订阅。 */
     public void clear() {
+        for (UiSession session : active.values()) {
+            session.discard();
+        }
         active.clear();
     }
 }

@@ -43,7 +43,7 @@ public final class UiScreen extends Screen {
     private final AnimationController animations = new AnimationController();
     private final List<UiNode> pulseNodes = new ArrayList<>();
 
-    private int lastRevision = -1;
+    private int lastGeneration = -1;
     private long lastFrameNanos;
     private UiNode tooltipNode;
     private long tooltipSinceNanos;
@@ -80,7 +80,7 @@ public final class UiScreen extends Screen {
         relayout();
         pulseNodes.clear();
         root.collectPulses(pulseNodes);
-        lastRevision = ProtocolClient.state().revision();
+        lastGeneration = ProtocolClient.state().generation();
     }
 
     /** 状态变化/窗口尺寸变化后重新度量与布局（可见性、文本长度等会影响尺寸）。 */
@@ -102,9 +102,9 @@ public final class UiScreen extends Screen {
         float delta = frameDelta();
         updateHover(root, delta);
 
-        int revision = ProtocolClient.state().revision();
-        if (revision != lastRevision) {
-            lastRevision = revision;
+        int generation = ProtocolClient.state().generation();
+        if (generation != lastGeneration) {
+            lastGeneration = generation;
             relayout();
             for (UiNode node : pulseNodes) {
                 pulse(node);
@@ -190,6 +190,10 @@ public final class UiScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         if (event.key() == GLFW.GLFW_KEY_F9) {
             MineUiScreens.reload();
+            return true;
+        }
+        if (event.key() == GLFW.GLFW_KEY_F10) {
+            MineUiScreens.exportDevTemplate();
             return true;
         }
         return super.keyPressed(event);

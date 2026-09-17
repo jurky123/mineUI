@@ -11,6 +11,7 @@ import com.mineui.protocol.json.JsonPatch;
 import com.mineui.protocol.msg.Patch;
 import com.mineui.protocol.msg.PatchOp;
 import com.mineui.protocol.msg.Snapshot;
+import com.mineui.protocol.session.RateWindow;
 import com.mineui.protocol.session.RevisionGuard;
 import com.mineui.protocol.msg.Action;
 import com.mineui.protocol.msg.Open;
@@ -41,12 +42,11 @@ public final class UiSession {
     private final JsonObject state = new JsonObject();
     private final RevisionGuard revisionGuard = new RevisionGuard();
     private final Map<String, Consumer<ActionEvent>> handlers = new HashMap<>();
+    private final RateWindow actionRate = new RateWindow(MAX_ACTIONS_PER_SECOND, RATE_WINDOW_MILLIS);
 
     private boolean snapshotSent;
     private volatile boolean closed;
     private int patchSeq;
-    private long rateWindowStart = System.currentTimeMillis();
-    private int rateWindowCount;
 
     UiSession(MineUiPlugin plugin, Player player, int id, String app, String view) {
         this.plugin = plugin;
@@ -93,10 +93,16 @@ public final class UiSession {
             return;
         }
         closed = true;
+        handlers.clear();
         plugin.uiSessions().remove(this);
         if (player.isOnline()) {
             send(MessageType.CLOSE, revisionGuard.revision(), new byte[0]);
         }
+    }
+
+    /** 该包的目标会话是否就是本会话（用于拒绝旧页面的延迟包）。 */
+    public boolean matches(int sessionId) {
+        return !closed && sessionId == id;
     }
 
     public int id() {
@@ -148,7 +154,6 @@ public final class UiSession {
             plugin.getLogger().fine(() -> player.getName() + " MineUI 动作超过限速，已丢弃: " + action.id());
             return;
         }
-
         switch (revisionGuard.submit(incomingRevision)) {
             case ACCEPT -> {
                 Consumer<ActionEvent> handler = handlers.get(action.id());
@@ -177,9 +182,10 @@ public final class UiSession {
         }
     }
 
-    /** 玩家退出等场景：不发送 CLOSE，直接作废。 */
+    /** 玩家退出等场景：不发送 CLOSE，直接作废并释放订阅。 */
     void discard() {
         closed = true;
+        handlers.clear();
     }
 
     void resync() {
@@ -201,12 +207,7 @@ public final class UiSession {
     }
 
     private boolean rateLimitAllows() {
-        long now = System.currentTimeMillis();
-        if (now - rateWindowStart >= RATE_WINDOW_MILLIS) {
-            rateWindowStart = now;
-            rateWindowCount = 0;
-        }
-        return ++rateWindowCount <= MAX_ACTIONS_PER_SECOND;
+        return actionRate.tryAcquire();
     }
 
     private static String pointer(String key) {

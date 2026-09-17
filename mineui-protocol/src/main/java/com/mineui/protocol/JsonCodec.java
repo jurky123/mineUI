@@ -32,10 +32,16 @@ public final class JsonCodec {
         if (utf8 == null) {
             throw new ProtocolException("JSON 载荷为 null");
         }
+        T result;
         try {
-            return GSON.fromJson(new String(utf8, StandardCharsets.UTF_8), type);
+            result = GSON.fromJson(new String(utf8, StandardCharsets.UTF_8), type);
         } catch (JsonSyntaxException e) {
             throw new ProtocolException("JSON 解析失败: " + e.getMessage(), e);
         }
+        if (result == null) {
+            // 载荷为字面量 null：必须拒绝，不能把 null 交给调用方
+            throw new ProtocolException("JSON 解析结果为 null");
+        }
+        return result;
     }
 }

@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 /**
  * 界面定义加载器。
@@ -20,23 +21,32 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>开发目录覆盖：{@code <config>/mineui/ui/<app>/<view>.json}（F9 热重载会清缓存）</li>
  *   <li>mod 内置资源：{@code assets/mineui/ui/<app>/<view>.json}</li>
  * </ol>
+ * app/view 仅允许 {@code [a-z0-9_-]}，防止路径穿越；每次加载都会构造全新的节点树，
+ * 避免复用上一次打开的滚动/动画等运行时状态。
  */
 public final class UiDefinitionLoader {
 
-    private static final Map<String, UiDefinition> CACHE = new ConcurrentHashMap<>();
+    private static final Pattern SAFE_NAME = Pattern.compile("[a-z0-9_-]{1,64}");
+
+    private static final Map<String, CachedDefinition> CACHE = new ConcurrentHashMap<>();
+
+    /** 缓存原始 JSON，节点树每次重新构造。 */
+    private record CachedDefinition(String source, JsonObject json) {
+    }
 
     private UiDefinitionLoader() {
     }
 
     public static UiDefinition load(String app, String view, Path devRoot) throws UiSpecException {
+        requireSafe(app, "app");
+        requireSafe(view, "view");
         String key = app + "/" + view;
-        UiDefinition cached = CACHE.get(key);
-        if (cached != null) {
-            return cached;
+        CachedDefinition cached = CACHE.get(key);
+        if (cached == null) {
+            cached = read(app, view, devRoot);
+            CACHE.put(key, cached);
         }
-        UiDefinition definition = read(app, view, devRoot);
-        CACHE.put(key, definition);
-        return definition;
+        return new UiDefinition(app, view, cached.source(), UiSpecParser.parse(cached.json()));
     }
 
     public static void clearCache() {
@@ -49,11 +59,13 @@ public final class UiDefinitionLoader {
     }
 
     /**
-     * 首次打开界面时，把内置定义复制到开发目录，便于直接编辑 + F9 热重载。
+     * 把内置定义复制到开发目录（显式调用，不覆盖已有文件）。
      *
      * @return true 表示本次新建了文件
      */
     public static boolean writeDevTemplate(String app, String view, Path devRoot) throws UiSpecException {
+        requireSafe(app, "app");
+        requireSafe(view, "view");
         Path target = devFile(app, view, devRoot);
         if (Files.exists(target)) {
             return false;
@@ -67,15 +79,16 @@ public final class UiDefinitionLoader {
             Files.writeString(target, new String(in.readAllBytes(), StandardCharsets.UTF_8), StandardCharsets.UTF_8);
             return true;
         } catch (IOException e) {
-            throw new UiSpecException("生成开发模板失败: " + target + " (" + e.getMessage() + ")", e);
+            throw new UiSpecException("导出开发模板失败: " + target + " (" + e.getMessage() + ")", e);
         }
     }
 
-    private static UiDefinition read(String app, String view, Path devRoot) throws UiSpecException {
-        Path devFile = devRoot.resolve(app).resolve(view + ".json");
+    private static CachedDefinition read(String app, String view, Path devRoot) throws UiSpecException {
+        Path devFile = devFile(app, view, devRoot);
         if (Files.isRegularFile(devFile)) {
             try {
-                return parse(Files.readString(devFile, StandardCharsets.UTF_8), app, view, "dev:" + devFile);
+                String source = "dev:" + devFile;
+                return new CachedDefinition(source, parseObject(Files.readString(devFile, StandardCharsets.UTF_8), source));
             } catch (IOException e) {
                 throw new UiSpecException("读取开发界面失败: " + devFile + " (" + e.getMessage() + ")", e);
             }
@@ -86,18 +99,23 @@ public final class UiDefinitionLoader {
             if (in == null) {
                 throw new UiSpecException("未找到界面定义: " + app + "/" + view);
             }
-            return parse(new String(in.readAllBytes(), StandardCharsets.UTF_8), app, view, "mod");
+            return new CachedDefinition("mod", parseObject(new String(in.readAllBytes(), StandardCharsets.UTF_8), "mod"));
         } catch (IOException e) {
             throw new UiSpecException("读取内置界面失败: " + resource + " (" + e.getMessage() + ")", e);
         }
     }
 
-    private static UiDefinition parse(String json, String app, String view, String source) throws UiSpecException {
+    private static JsonObject parseObject(String json, String source) throws UiSpecException {
         try {
-            JsonObject object = JsonParser.parseString(json).getAsJsonObject();
-            return new UiDefinition(app, view, source, UiSpecParser.parse(object));
+            return JsonParser.parseString(json).getAsJsonObject();
         } catch (JsonSyntaxException | IllegalStateException e) {
             throw new UiSpecException("JSON 解析失败 (" + source + "): " + e.getMessage(), e);
+        }
+    }
+
+    private static void requireSafe(String value, String kind) throws UiSpecException {
+        if (value == null || !SAFE_NAME.matcher(value).matches()) {
+            throw new UiSpecException("非法" + kind + "标识符: " + value);
         }
     }
 }

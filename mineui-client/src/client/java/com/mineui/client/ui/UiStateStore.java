@@ -18,17 +18,26 @@ public final class UiStateStore implements StateAccess {
     private JsonObject state = new JsonObject();
     private int session = -1;
     private int revision = -1;
+    /** 每次成功应用状态（begin/快照/补丁）自增，用于驱动重新布局。 */
+    private int generation;
 
     public void begin(int sessionId) {
         this.session = sessionId;
         this.revision = 0;
         this.state = new JsonObject();
+        this.generation++;
     }
 
     public void end() {
         this.session = -1;
         this.revision = -1;
         this.state = new JsonObject();
+        this.generation++;
+    }
+
+    /** 状态代数：与 revision 解耦，保证任何一次状态应用都能触发重布局。 */
+    public int generation() {
+        return generation;
     }
 
     public boolean active() {
@@ -49,6 +58,7 @@ public final class UiStateStore implements StateAccess {
         }
         this.state = snapshot == null ? new JsonObject() : snapshot.deepCopy();
         this.revision = revision;
+        this.generation++;
     }
 
     /** 修订号更旧的补丁直接忽略（TCP 有序，正常不会出现）。 */
@@ -58,6 +68,7 @@ public final class UiStateStore implements StateAccess {
         }
         JsonPatch.apply(state, ops);
         this.revision = revision;
+        this.generation++;
     }
 
     public String getString(String key, String defaultValue) {
