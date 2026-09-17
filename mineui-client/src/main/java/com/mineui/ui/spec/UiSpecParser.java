@@ -204,7 +204,10 @@ public final class UiSpecParser {
                 optString(json, "player", "@self"),
                 optFloat(json, "scale", 30f),
                 optBool(json, "followMouse", true),
-                skinValue, skinSignature);
+                skinValue, skinSignature,
+                optBool(json, "zoomable", false),
+                optDouble(json, "zoomMin", 0.5),
+                optDouble(json, "zoomMax", 2.0));
     }
 
     private static ImageNode parseImage(JsonObject json, NodeStyle style) throws UiSpecException {

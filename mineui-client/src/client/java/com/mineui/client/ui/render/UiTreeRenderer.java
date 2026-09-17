@@ -363,7 +363,8 @@ public final class UiTreeRenderer {
         if (player == null) {
             return;
         }
-        renderPreview(player, node, node.scale(), node.followMouse());
+        // 本地滚轮缩放只作用于渲染尺寸，不影响布局
+        renderPreview(player, node, (float) (node.scale() * node.zoom()), node.followMouse());
     }
 
     private void renderPreview(LivingEntity entity, UiNode node, float scale, boolean followMouse) {

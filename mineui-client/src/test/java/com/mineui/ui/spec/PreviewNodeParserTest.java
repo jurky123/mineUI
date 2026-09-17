@@ -122,6 +122,20 @@ class PreviewNodeParserTest {
                 """)));
         assertEquals("@self", player.player());
         assertTrue(player.followMouse());
+        assertFalse(player.zoomable());
+        assertEquals(1.0, player.zoom(), 0.0001);
+    }
+
+    @Test
+    void parsesZoomableOptions() throws Exception {
+        PlayerViewNode player = assertInstanceOf(PlayerViewNode.class, UiSpecParser.parse(json("""
+                { "type": "player", "player": "@self", "zoomable": true, "zoomMin": 0.8, "zoomMax": 1.5 }
+                """)));
+        assertTrue(player.zoomable());
+        player.zoomBy(100);
+        assertEquals(1.5, player.zoom(), 0.0001);
+        player.zoomBy(-100);
+        assertEquals(0.8, player.zoom(), 0.0001);
     }
 
     @Test
