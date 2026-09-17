@@ -68,6 +68,7 @@ public final class EntityPreviews {
             return null;
         }
         place(living);
+        assignFakeId(living);
         living.setYRot(node.yaw());
         living.setXRot(node.pitch());
         living.setYBodyRot(node.bodyYaw());
@@ -145,11 +146,24 @@ public final class EntityPreviews {
             return null;
         }
         RemotePlayer remote = new RemotePlayer(level, profile);
+        assignFakeId(remote);
         injectPlayerInfo(remote, new PlayerInfo(profile, false));
         place(remote);
         remote.setOldPosAndRot();
         return remote;
     }
+
+    /**
+     * 假实体不经过服务端，必须手动分配非 0 的 entity id：
+     * 渲染手持物时 ItemModelResolver 会调用 {@code Entity.getId()}，未分配会直接抛异常。
+     */
+    private static void assignFakeId(Entity entity) {
+        entity.setId(FAKE_ENTITY_IDS.getAndDecrement());
+    }
+
+    /** 负号段，避免与真实实体 id 冲突。 */
+    private static final java.util.concurrent.atomic.AtomicInteger FAKE_ENTITY_IDS =
+            new java.util.concurrent.atomic.AtomicInteger(-1000);
 
     private static void place(Entity entity) {
         var player = Minecraft.getInstance().player;
