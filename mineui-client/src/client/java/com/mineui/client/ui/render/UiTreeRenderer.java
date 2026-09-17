@@ -62,9 +62,12 @@ public final class UiTreeRenderer {
         renderNode(root, 1f);
 
         if (!deferredOverlays.isEmpty()) {
-            // 覆盖层独立绘制：清空裁剪栈，确保模态永远在最上层、不被内容区裁剪
-            clips.clear();
-            graphics.disableScissor();
+            // 覆盖层独立绘制：正常遍历后裁剪栈已归零；
+            // 若仍有残留（异常路径），按已 push 的次数成对弹出，避免 Scissor stack underflow
+            while (!clips.isEmpty()) {
+                clips.pop();
+                graphics.disableScissor();
+            }
             List<UiNode> overlays = new ArrayList<>(deferredOverlays);
             overlays.sort(Comparator.comparingInt(node -> node.style().z()));
             for (UiNode overlay : overlays) {
@@ -474,12 +477,8 @@ public final class UiTreeRenderer {
     }
 
     private void popClip() {
+        // enableScissor 会入栈，disableScissor 出栈一次：必须严格 1:1
         clips.pop();
-        float[] current = clips.peek();
-        if (current != null) {
-            graphics.enableScissor((int) current[0], (int) current[1], (int) current[2], (int) current[3]);
-        } else {
-            graphics.disableScissor();
-        }
+        graphics.disableScissor();
     }
 }
