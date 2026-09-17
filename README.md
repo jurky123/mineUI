@@ -5,28 +5,47 @@
 MineUI 让服务器拥有不受原版限制的自定义界面：菜单、UNO 卡牌、皮肤浏览器、商店、HUD 等，
 全部使用 Minecraft 原生渲染，支持动画、滚动、3D 预览与实时状态更新。
 
-未安装客户端 mod 的玩家会自动使用原版界面，功能不受影响。
+界面页面由业务插件随界面会话下发（声明式 JSON，客户端严格校验、不可执行代码），
+客户端 mod 是可选增强：没装的玩家由业务插件回退到原版界面。
 
 ---
 
 ## 功能
 
-### 界面
-- **任意布局**：自由排版、图片、自定义字体、圆角、阴影、渐变
-- **高级控件**：滚动视图、网格、弹窗（Modal）、标签页、下拉框、输入框、滑块、Tooltip、进度条
-- **动画**：悬停/过渡/卡牌飞行、缩放、旋转、透明度、颜色渐变
-- **状态实时同步**：服务端只下发数据，界面在客户端渲染，点一下立即响应
+### 控件与布局
+- **布局**：Row / Column / Stack / Grid / Scroll，尺寸支持 px / % / vw / vh / auto，对齐与间距
+- **基础控件**：文本（缩放/绑定）、按钮、色块、图片、滚动列表、网格、输入框
+- **3D 预览**：物品（含 CustomModelData 卡面）、生物实体、玩家（在线皮肤 / 任意皮肤 value+signature）
+- **窗口**：模态弹窗、Tooltip、z 序与裁剪、任意节点可点击 / 可悬浮
 
-### 计划中的界面
-| 界面 | 说明 |
-|---|---|
-| 服务器菜单 | 图文并茂的主菜单、分区导航 |
-| UNO | 手牌、出牌动画、回合与状态提示（替代背包 GUI） |
-| 皮肤浏览器 | 玩家/实体 3D 预览、皮肤展示 |
-| 商店 | 商品图、价格、购买确认 |
-| 个人资料 / 成就 / 排行榜 | 数据展示类界面 |
-| 设置 | 客户端界面偏好 |
-| HUD | 任务追踪、UNO 状态、计时器等常驻显示 |
+### 视觉与交互
+- 圆角、描边、纵向渐变、软阴影、透明度继承、悬停过渡、点击/状态脉冲、6 种缓动
+- 任意节点绑定点击 `action` 与悬浮 `hoverAction`（悬浮预览、列表联动等）
+- 输入框：聚焦输入、光标与滚动、回车提交 `{"text": ...}`、Esc 失焦
+- 数据绑定：`{state.xxx}` 文本插值、`visible` 状态控制显隐、PATCH 增量更新
+
+### 开发体验
+- F9 热重载 JSON、F10 把当前页面导出到本地开发目录（含服务端下发的页面）
+- `/mineui status | test | close` 管理命令
+- 业务 API `com.mineui.api`：会话 open / state / snapshot / on(action) / close，含 owner 生命周期
+
+---
+
+## 业务插件接入（简述）
+
+```java
+MineUi mineUi = MineUiProvider.get();
+if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户端会回退
+    JsonObject ui = loadResource("assets/<plugin>/ui/skin/browser.json");
+    MineUiSession session = mineUi.open(this, player, "skin", "browser", ui);
+    session.state("title", "皮肤浏览器");
+    session.on("search", action -> session.state("query", action.string("text", "")));
+    session.snapshot();
+}
+```
+
+- 客户端支持情况用 `hasClient` / `capabilities` / `supportsServerUi` 判断，不支持时回退原版界面
+- 页面 JSON 建议 ≤24 KiB；节点与字段规范见 [`docs/DESIGN.md`](docs/DESIGN.md)
 
 ---
 
@@ -38,7 +57,7 @@ MineUI 让服务器拥有不受原版限制的自定义界面：菜单、UNO 卡
 2. 按说明安装 Fabric，把 `mineui-client` 与 `fabric-api` 放入 `mods/` 目录
 3. 使用 Fabric 配置启动游戏，进入服务器
 
-进服后聊天栏出现 `[MineUI] 已连接服务端` 即安装成功。没有安装也能正常游玩，只是看到原版界面。
+进服后聊天栏出现 `[MineUI] 已连接服务端` 即安装成功。没有安装也能正常游玩，业务插件会回退到原版界面。
 
 ---
 
@@ -54,17 +73,13 @@ MineUI 让服务器拥有不受原版限制的自定义界面：菜单、UNO 卡
 
 ## 当前进度
 
-- ✅ 客户端/服务端通信与版本协商
-- ✅ 界面会话、状态实时同步、操作反馈
-- ✅ 布局引擎（Row/Column/Stack、px/%/vw/vh、对齐）与基础控件（文本/按钮/图片/色块）
-- ✅ 客户端 UI JSON 定义 + F9 热重载
-- ✅ 视觉效果（圆角/描边/渐变/阴影/裁剪/z 序）与动画（悬停过渡、点击/状态脉冲、缓动）
-- ✅ 滚动视图、网格布局、模态弹窗、悬停提示、按状态控制显隐
-- ✅ 3D 预览：物品（含卡面模型）、生物实体、玩家（在线玩家皮肤 + 任意皮肤 value/signature）
-- ✅ 任意节点点击动作（`action`）
-- ✅ 业务插件 API `com.mineui.api`（`MineUiProvider` / `MineUiSession`，含 owner 生命周期）
-- ✅ 业务插件随 OPEN 下发界面定义（页面归业务插件，MineUI 只负责解析/渲染）
-- ⏳ UNO 等其余业务界面
+- ✅ 通信与版本协商、会话（session/revision）、限流与安全校验
+- ✅ 界面定义：mod 内置 / 开发目录覆盖 / 业务插件随 OPEN 下发（客户端严格校验）
+- ✅ 布局引擎、基础与 3D 控件、视觉、动画、滚动/网格/弹窗/Tooltip、显隐与数据绑定
+- ✅ 点击与悬浮动作、输入框、F9 热重载 / F10 导出
+- ✅ 业务 API `com.mineui.api`（含 `server_ui` 能力协商与 owner 生命周期）
+- ⏳ HUD Overlay、标签页/下拉框/滑块等扩展控件
+- ⏳ UNO 等业务界面（由业务插件实现）
 
 ---
 
