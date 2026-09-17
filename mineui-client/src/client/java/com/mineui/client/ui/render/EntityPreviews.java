@@ -1,10 +1,12 @@
 package com.mineui.client.ui.render;
 
+import com.google.common.collect.ImmutableMultimap;
 import com.mineui.client.MineUiClient;
 import com.mineui.ui.tree.EntityViewNode;
 import com.mineui.ui.tree.PlayerViewNode;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -129,8 +131,10 @@ public final class EntityPreviews {
     /** 用皮肤 value/signature 构造一个离线假玩家，皮肤由原版 SkinManager 异步加载。 */
     private static AbstractClientPlayer byProperty(String value, String signature) {
         UUID id = UUID.nameUUIDFromBytes(("mineui:" + value).getBytes(StandardCharsets.UTF_8));
-        GameProfile profile = new GameProfile(id, "MineUI");
-        profile.properties().put(TEXTURES, new Property(TEXTURES, value, signature));
+        // authlib 9 的 PropertyMap 是 ImmutableMultimap.copyOf，只能构造时带上纹理属性，不能后置 put
+        PropertyMap properties = new PropertyMap(ImmutableMultimap.of(
+                TEXTURES, new Property(TEXTURES, value, signature)));
+        GameProfile profile = new GameProfile(id, "MineUI", properties);
         return fromProfile(profile);
     }
 
