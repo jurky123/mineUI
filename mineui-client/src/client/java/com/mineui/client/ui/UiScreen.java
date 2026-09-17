@@ -1,33 +1,65 @@
 package com.mineui.client.ui;
 
 import com.mineui.client.net.ProtocolClient;
+import com.mineui.client.ui.render.UiTreeRenderer;
+import com.mineui.ui.spec.UiDefinition;
+import com.mineui.ui.tree.ButtonNode;
+import com.mineui.ui.tree.MeasureContext;
+import com.mineui.ui.tree.TextMeasurer;
+import com.mineui.ui.tree.UiNode;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 
 /**
- * Phase 1 测试界面：黑底 + 服务端下发的标题/计数 + 一个按钮。
- * 服务端只发 state，渲染完全在客户端。
+ * 通用 MineUI 界面：节点树来自客户端 UI JSON，数据来自服务端 state。
+ * F9 热重载（开发目录覆盖）。
  */
 public final class UiScreen extends Screen {
 
-    private static final int BACKGROUND = 0xE0101010;
+    private static final int BACKGROUND = 0xC0101010;
 
     private final String app;
     private final String view;
+    private final String source;
+    private final UiNode root;
+    private final TextMeasurer measurer;
 
-    public UiScreen(String app, String view) {
-        super(Component.literal("MineUI " + app + "/" + view));
-        this.app = app;
-        this.view = view;
+    public UiScreen(UiDefinition definition) {
+        super(Component.literal("MineUI " + definition.app() + "/" + definition.view()));
+        this.app = definition.app();
+        this.view = definition.view();
+        this.source = definition.source();
+        this.root = definition.root();
+        this.measurer = new TextMeasurer() {
+            @Override
+            public int width(String text) {
+                return font.width(text);
+            }
+
+            @Override
+            public int lineHeight() {
+                return font.lineHeight;
+            }
+        };
+    }
+
+    public String app() {
+        return app;
+    }
+
+    public String view() {
+        return view;
     }
 
     @Override
     protected void init() {
-        addRenderableWidget(Button.builder(Component.literal("点我 +1"), button -> ProtocolClient.sendAction("button_click"))
-                .bounds(this.width / 2 - 60, this.height / 2 + 10, 120, 20)
-                .build());
+        MeasureContext context = new MeasureContext(width, height, width, height, measurer, ProtocolClient.state());
+        root.measure(context);
+        root.layout(0, 0);
     }
 
     @Override
@@ -38,14 +70,35 @@ public final class UiScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-        UiStateStore state = ProtocolClient.state();
-        graphics.text(this.font, app + "/" + view, 8, 8, 0xFF707070);
-        graphics.centeredText(this.font, Component.literal(state.getString("title", "MineUI")),
-                this.width / 2, 40, 0xFFFFFFFF);
-        graphics.centeredText(this.font, Component.literal("count = " + state.getInt("count", 0)),
-                this.width / 2, 70, 0xFF00E0FF);
-        graphics.centeredText(this.font, Component.literal("Esc 关闭 · /mineui test 重开"),
-                this.width / 2, this.height - 30, 0xFF909090);
+        graphics.text(this.font, source, 6, 6, 0xFF606060, false);
+        UiTreeRenderer.render(root, graphics, this.font, ProtocolClient.state());
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+        UiNode hit = root.mouseClicked(event.x(), event.y(), event.button());
+        if (hit instanceof ButtonNode button) {
+            if (!button.action().isEmpty()) {
+                ProtocolClient.sendAction(button.action());
+            }
+            return true;
+        }
+        return super.mouseClicked(event, doubled);
+    }
+
+    @Override
+    public void mouseMoved(double mouseX, double mouseY) {
+        root.mouseMoved(mouseX, mouseY);
+        super.mouseMoved(mouseX, mouseY);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (event.key() == GLFW.GLFW_KEY_F9) {
+            MineUiScreens.reload();
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     @Override

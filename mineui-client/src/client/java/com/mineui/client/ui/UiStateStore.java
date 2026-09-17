@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.mineui.protocol.ProtocolException;
 import com.mineui.protocol.json.JsonPatch;
 import com.mineui.protocol.msg.PatchOp;
+import com.mineui.ui.tree.StateAccess;
 
 import java.util.List;
 
@@ -12,7 +13,7 @@ import java.util.List;
  * 客户端界面状态（服务端权威，客户端只读渲染）。
  * 仅在渲染线程访问。
  */
-public final class UiStateStore {
+public final class UiStateStore implements StateAccess {
 
     private JsonObject state = new JsonObject();
     private int session = -1;
@@ -72,5 +73,19 @@ public final class UiStateStore {
     public boolean getBoolean(String key, boolean defaultValue) {
         JsonElement element = state.get(key);
         return element != null && element.isJsonPrimitive() ? element.getAsBoolean() : defaultValue;
+    }
+
+    /** 支持点分路径：{@code "player.name"}。 */
+    @Override
+    public String get(String path, String defaultValue) {
+        JsonElement element = state;
+        for (String part : path.split("\\.")) {
+            if (element instanceof JsonObject object && object.has(part)) {
+                element = object.get(part);
+            } else {
+                return defaultValue;
+            }
+        }
+        return element != null && element.isJsonPrimitive() ? element.getAsString() : defaultValue;
     }
 }

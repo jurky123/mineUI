@@ -1,0 +1,53 @@
+{
+  "type": "column",
+  "id": "root",
+  "width": "100%",
+  "height": "100%",
+  "padding": 24,
+  "gap": 10,
+  "align": "center",
+  "justify": "center",
+  "children": [
+    {
+      "type": "image",
+      "id": "logo",
+      "texture": "mineui:textures/gui/logo.png",
+      "textureSize": [16, 16],
+      "regionWidth": 16,
+      "regionHeight": 16,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "text": "{state.title}",
+      "color": "#FFFFFF",
+      "scale": 2.0
+    },
+    {
+      "type": "text",
+      "id": "count",
+      "text": "count = {state.count}",
+      "color": "#00E0FF"
+    },
+    {
+      "type": "spacer",
+      "height": 6
+    },
+    {
+      "type": "button",
+      "id": "click",
+      "text": "点我 +1",
+      "action": "button_click",
+      "width": 140,
+      "height": 22
+    },
+    {
+      "type": "text",
+      "id": "hint",
+      "text": "Esc 关闭 · F9 热重载 JSON",
+      "color": "#909090"
+    }
+  ]
+}

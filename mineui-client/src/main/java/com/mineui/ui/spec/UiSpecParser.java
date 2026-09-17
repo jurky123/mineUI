@@ -1,0 +1,134 @@
+package com.mineui.ui.spec;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.mineui.ui.tree.ButtonNode;
+import com.mineui.ui.tree.BoxNode;
+import com.mineui.ui.tree.ColumnNode;
+import com.mineui.ui.tree.ContainerNode;
+import com.mineui.ui.tree.CrossAlign;
+import com.mineui.ui.tree.ImageNode;
+import com.mineui.ui.tree.MainAlign;
+import com.mineui.ui.tree.NodeStyle;
+import com.mineui.ui.tree.RowNode;
+import com.mineui.ui.tree.StackNode;
+import com.mineui.ui.tree.TextNode;
+import com.mineui.ui.tree.UiNode;
+
+/** JSON → UI 节点树。 */
+public final class UiSpecParser {
+
+    private UiSpecParser() {
+    }
+
+    public static UiNode parse(JsonObject json) throws UiSpecException {
+        String type = requireString(json, "type");
+        NodeStyle style = parseStyle(json);
+
+        UiNode node = switch (type) {
+            case "column" -> new ColumnNode(style);
+            case "row" -> new RowNode(style);
+            case "stack" -> new StackNode(style);
+            case "text" -> new TextNode(style,
+                    optString(json, "text", ""),
+                    parseColor(json.get("color"), 0xFFFFFFFF),
+                    optFloat(json, "scale", 1f));
+            case "button" -> new ButtonNode(style,
+                    optString(json, "text", ""),
+                    optString(json, "action", ""),
+                    parseColor(json.get("background"), 0xFF3B3B3B),
+                    parseColor(json.get("hoverBackground"), 0xFF4F4F4F),
+                    parseColor(json.get("color"), 0xFFFFFFFF));
+            case "box", "spacer" -> new BoxNode(style);
+            case "image" -> parseImage(json, style);
+            default -> throw new UiSpecException("未知节点类型: " + type);
+        };
+
+        if (json.has("children") && !json.get("children").isJsonNull()) {
+            if (!(node instanceof ContainerNode container)) {
+                throw new UiSpecException("节点 " + type + " 不支持 children");
+            }
+            JsonArray children = json.getAsJsonArray("children");
+            for (JsonElement child : children) {
+                if (!child.isJsonObject()) {
+                    throw new UiSpecException("children 元素必须是对象");
+                }
+                container.addChild(parse(child.getAsJsonObject()));
+            }
+        }
+        return node;
+    }
+
+    private static NodeStyle parseStyle(JsonObject json) throws UiSpecException {
+        Integer background = json.has("background") && !json.get("background").isJsonNull()
+                ? parseColor(json.get("background"), 0)
+                : null;
+        return new NodeStyle(
+                optString(json, "id", null),
+                SizeSpec.parse(json.get("width")),
+                SizeSpec.parse(json.get("height")),
+                Insets.parse(json.get("padding")),
+                background,
+                CrossAlign.parse(optString(json, "align", null), CrossAlign.START),
+                MainAlign.parse(optString(json, "justify", null), MainAlign.START),
+                optFloat(json, "gap", 0f));
+    }
+
+    private static ImageNode parseImage(JsonObject json, NodeStyle style) throws UiSpecException {
+        String texture = requireString(json, "texture");
+        float textureWidth = 256;
+        float textureHeight = 256;
+        if (json.has("textureSize")) {
+            JsonArray size = json.getAsJsonArray("textureSize");
+            if (size.size() != 2) {
+                throw new UiSpecException("textureSize 必须是 [宽, 高]");
+            }
+            textureWidth = size.get(0).getAsFloat();
+            textureHeight = size.get(1).getAsFloat();
+        }
+        return new ImageNode(style, texture,
+                optFloat(json, "u", 0f),
+                optFloat(json, "v", 0f),
+                optFloat(json, "regionWidth", 16f),
+                optFloat(json, "regionHeight", 16f),
+                textureWidth, textureHeight);
+    }
+
+    public static int parseColor(JsonElement element, int fallback) throws UiSpecException {
+        if (element == null || element.isJsonNull()) {
+            return fallback;
+        }
+        String text = element.getAsString().trim();
+        if (text.startsWith("#")) {
+            text = text.substring(1);
+        }
+        try {
+            long value = Long.parseLong(text, 16);
+            if (text.length() <= 6) {
+                value |= 0xFF000000L;
+            }
+            return (int) value;
+        } catch (NumberFormatException e) {
+            throw new UiSpecException("无法解析颜色: " + element);
+        }
+    }
+
+    private static String requireString(JsonObject json, String key) throws UiSpecException {
+        String value = optString(json, key, null);
+        if (value == null || value.isEmpty()) {
+            throw new UiSpecException("缺少字段: " + key);
+        }
+        return value;
+    }
+
+    private static String optString(JsonObject json, String key, String fallback) {
+        JsonElement element = json.get(key);
+        return element == null || element.isJsonNull() ? fallback : element.getAsString();
+    }
+
+    private static float optFloat(JsonObject json, String key, float fallback) {
+        JsonElement element = json.get(key);
+        return element == null || element.isJsonNull() ? fallback : element.getAsFloat();
+    }
+}
