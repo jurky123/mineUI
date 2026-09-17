@@ -90,4 +90,20 @@ class ScrollViewTest {
         assertEquals(-40, scroll.children().get(0).y(), 0.01);
         assertEquals(20 - 40, scroll.children().get(1).y(), 0.01);
     }
+
+    @Test
+    void boundaryScrollIsNotConsumedSoParentCanHandleIt() {
+        ScrollViewNode scroll = scrollWithItems(10, 20);
+        scroll.measure(ctx(100, 100));
+        scroll.layout(0, 0);
+
+        scroll.scrollTo(150);
+        assertFalse(scroll.scroll(50, 25, -1), "已在底部时向上滚应交给父级");
+
+        scroll.scrollTo(0);
+        assertFalse(scroll.scroll(50, 25, 1), "已在顶部时向下滚应交给父级");
+
+        scroll.scrollTo(100);
+        assertTrue(scroll.scroll(50, 25, 1), "中间位置应正常消费");
+    }
 }

@@ -6,127 +6,142 @@
   "clip": true,
   "children": [
     {
-      "type": "column",
+      "type": "scroll",
+      "id": "page",
       "width": "100%",
       "height": "100%",
-      "align": "center",
-      "justify": "center",
       "children": [
         {
           "type": "column",
-          "id": "card",
-          "width": 320,
-          "padding": 16,
-          "gap": 8,
+          "width": "100%",
+          "padding": { "top": 16, "bottom": 16, "left": 0, "right": 0 },
+          "gap": 12,
           "align": "center",
-          "background": "#1B2733",
-          "radius": 12,
-          "border": { "color": "#3FA9F5", "width": 1 },
-          "shadow": { "color": "#000000", "size": 8, "offsetY": 4 },
           "children": [
             {
-              "type": "row",
-              "gap": 10,
+              "type": "column",
+              "id": "card",
+              "width": 300,
+              "padding": 14,
+              "gap": 6,
               "align": "center",
+              "background": "#1B2733",
+              "radius": 12,
+              "border": { "color": "#3FA9F5", "width": 1 },
+              "shadow": { "color": "#000000", "size": 8, "offsetY": 4 },
               "children": [
                 {
-                  "type": "image",
-                  "texture": "mineui:textures/gui/logo.png",
-                  "textureSize": [16, 16],
-                  "width": 32,
-                  "height": 32
+                  "type": "row",
+                  "gap": 8,
+                  "align": "center",
+                  "children": [
+                    {
+                      "type": "image",
+                      "texture": "mineui:textures/gui/logo.png",
+                      "textureSize": [16, 16],
+                      "width": 28,
+                      "height": 28
+                    },
+                    {
+                      "type": "text",
+                      "text": "{state.title}",
+                      "color": "#FFFFFF",
+                      "scale": 1.4
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "width": "100%",
+                  "height": 2,
+                  "radius": 1,
+                  "gradient": ["#3FA9F5", "#1B2733"]
                 },
                 {
                   "type": "text",
-                  "text": "{state.title}",
-                  "color": "#FFFFFF",
-                  "scale": 1.5
-                }
-              ]
-            },
-            {
-              "type": "text",
-              "id": "count",
-              "text": "count = {state.count}",
-              "color": "#00E0FF",
-              "pulse": true
-            },
-            {
-              "type": "row",
-              "gap": 8,
-              "align": "center",
-              "children": [
-                {
-                  "type": "button",
-                  "text": "+1",
-                  "action": "button_click",
-                  "width": 96,
-                  "height": 24,
-                  "radius": 6,
-                  "background": "#2E5C8A",
-                  "hoverBackground": "#3FA9F5",
-                  "tooltip": "点一下：服务端 count 会 +1"
+                  "id": "count",
+                  "text": "count = {state.count}",
+                  "color": "#00E0FF",
+                  "pulse": true
                 },
                 {
-                  "type": "button",
-                  "text": "打开弹窗",
-                  "action": "toggle_modal",
-                  "width": 120,
-                  "height": 24,
-                  "radius": 6,
-                  "background": "#5A3E8A",
-                  "hoverBackground": "#8A5FD0",
-                  "tooltip": "模态弹窗示例（弹窗打开时会挡住下层交互）"
-                }
-              ]
-            },
-            {
-              "type": "row",
-              "gap": 10,
-              "align": "center",
-              "children": [
-                { "type": "item", "item": "minecraft:diamond", "scale": 1.5, "itemTooltip": true },
-                { "type": "item", "item": "minecraft:paper", "count": 5, "scale": 1.5, "tooltip": "文本 tooltip 示例" },
-                { "type": "entity", "entity": "minecraft:zombie", "width": 56, "height": 72, "scale": 26 },
-                { "type": "player", "player": "@self", "width": 56, "height": 72, "scale": 26 }
-              ]
-            },
-            {
-              "type": "scroll",
-              "id": "list",
-              "width": "100%",
-              "height": 96,
-              "padding": 6,
-              "gap": 6,
-              "radius": 8,
-              "background": "#141C26",
-              "children": [
-                {
-                  "type": "grid",
-                  "columns": 3,
-                  "gap": 6,
-                  "width": "100%",
+                  "type": "row",
+                  "gap": 8,
+                  "align": "center",
                   "children": [
-                    { "type": "box", "height": 28, "radius": 4, "background": "#2E5C8A", "tooltip": "物品格 1" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#35709A", "tooltip": "物品格 2" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#3E84AA", "tooltip": "物品格 3" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#3E7C9A", "tooltip": "物品格 4" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#468CB0", "tooltip": "物品格 5" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#4E9CC0", "tooltip": "物品格 6" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#5A3E8A", "tooltip": "物品格 7" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#6A4E9A", "tooltip": "物品格 8" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#7A5EAA", "tooltip": "物品格 9" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#2E7C6A", "tooltip": "物品格 10" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#3E8C7A", "tooltip": "物品格 11" },
-                    { "type": "box", "height": 28, "radius": 4, "background": "#4E9C8A", "tooltip": "物品格 12" }
+                    {
+                      "type": "button",
+                      "text": "+1",
+                      "action": "button_click",
+                      "width": 92,
+                      "height": 22,
+                      "radius": 6,
+                      "background": "#2E5C8A",
+                      "hoverBackground": "#3FA9F5",
+                      "tooltip": "点一下：服务端 count 会 +1"
+                    },
+                    {
+                      "type": "button",
+                      "text": "打开弹窗",
+                      "action": "toggle_modal",
+                      "width": 116,
+                      "height": 22,
+                      "radius": 6,
+                      "background": "#5A3E8A",
+                      "hoverBackground": "#8A5FD0",
+                      "tooltip": "模态弹窗示例（弹窗打开时会挡住下层交互）"
+                    }
                   ]
+                },
+                {
+                  "type": "row",
+                  "gap": 8,
+                  "align": "center",
+                  "children": [
+                    { "type": "item", "item": "minecraft:diamond", "scale": 1.5, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:paper", "count": 5, "scale": 1.5, "tooltip": "文本 tooltip 示例" },
+                    { "type": "entity", "entity": "minecraft:zombie", "width": 44, "height": 56, "scale": 22 },
+                    { "type": "player", "player": "@self", "width": 44, "height": 56, "scale": 22 }
+                  ]
+                },
+                {
+                  "type": "scroll",
+                  "id": "list",
+                  "width": "100%",
+                  "height": 64,
+                  "padding": 5,
+                  "gap": 5,
+                  "radius": 8,
+                  "background": "#141C26",
+                  "children": [
+                    {
+                      "type": "grid",
+                      "columns": 3,
+                      "gap": 5,
+                      "width": "100%",
+                      "children": [
+                        { "type": "box", "height": 24, "radius": 4, "background": "#2E5C8A", "tooltip": "物品格 1" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#35709A", "tooltip": "物品格 2" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#3E84AA", "tooltip": "物品格 3" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#3E7C9A", "tooltip": "物品格 4" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#468CB0", "tooltip": "物品格 5" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#4E9CC0", "tooltip": "物品格 6" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#5A3E8A", "tooltip": "物品格 7" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#6A4E9A", "tooltip": "物品格 8" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#7A5EAA", "tooltip": "物品格 9" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#2E7C6A", "tooltip": "物品格 10" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#3E8C7A", "tooltip": "物品格 11" },
+                        { "type": "box", "height": 24, "radius": 4, "background": "#4E9C8A", "tooltip": "物品格 12" }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": "滚轮滚动 · F9 重载 · F10 导出 · Esc 关闭",
+                  "color": "#8090A0"
                 }
               ]
-            },
-            {
-              "type": "text",
-              "text": "滚轮滚动列表 · 悬停看提示 · Esc 关闭 · F9 重载 · F10 导出",
-              "color": "#8090A0"
             }
           ]
         }

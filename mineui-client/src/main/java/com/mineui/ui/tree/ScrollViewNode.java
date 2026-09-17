@@ -98,7 +98,12 @@ public final class ScrollViewNode extends ContainerNode {
         if (!scrollable()) {
             return false;
         }
+        float before = scrollOffset;
         scrollOffset = clamp(scrollOffset - (float) amount * WHEEL_STEP);
+        if (scrollOffset == before) {
+            // 已到边界：不消费，让父级滚动容器继续处理
+            return false;
+        }
         layout(x, y);
         return true;
     }
