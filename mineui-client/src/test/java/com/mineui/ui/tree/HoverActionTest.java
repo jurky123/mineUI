@@ -28,7 +28,7 @@ class HoverActionTest {
     private static NodeStyle hoverStyle(String hoverAction) {
         return new NodeStyle("h", SizeSpec.px(50), SizeSpec.px(20), Insets.ZERO, null,
                 CrossAlign.START, MainAlign.START, 0f, 0f, null, 0f, null, 0f, 0f,
-                null, 0, false, false, BooleanSpec.TRUE, null, false, null, hoverAction, null, null, null);
+                null, 0, false, false, BooleanSpec.TRUE, null, false, null, hoverAction, null, null, null, 1f, null);
     }
 
     private static ColumnNode treeWithHoverBox(String hoverAction) {

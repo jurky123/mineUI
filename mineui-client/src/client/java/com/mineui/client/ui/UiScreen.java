@@ -351,9 +351,9 @@ public final class UiScreen extends Screen {
     }
 
     private void updateHover(UiNode node, float delta) {
-        if (node instanceof ButtonNode) {
-            float target = node.hovered() ? 1f : 0f;
-            float current = node.hoverProgress();
+        float target = node.hovered() ? 1f : 0f;
+        float current = node.hoverProgress();
+        if (current != target) {
             node.setHoverProgress(current + (target - current) * Math.min(1f, delta * HOVER_SPEED));
         }
         for (UiNode child : node.children()) {

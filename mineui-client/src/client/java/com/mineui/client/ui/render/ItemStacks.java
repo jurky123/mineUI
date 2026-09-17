@@ -22,12 +22,17 @@ public final class ItemStacks {
     }
 
     public static ItemStack resolve(ItemViewNode node) {
-        String key = node.item() + "|" + node.model() + "|" + String.join(",", node.modelStrings()) + "|" + node.count();
-        return CACHE.computeIfAbsent(key, ignored -> build(node));
+        return resolve(node, node.item());
     }
 
-    private static ItemStack build(ItemViewNode node) {
-        Identifier id = Identifier.tryParse(node.item());
+    /** 按指定物品 id 构造（hoverItem / 轮换物品用）。 */
+    public static ItemStack resolve(ItemViewNode node, String itemId) {
+        String key = itemId + "|" + node.model() + "|" + String.join(",", node.modelStrings()) + "|" + node.count();
+        return CACHE.computeIfAbsent(key, ignored -> build(node, itemId));
+    }
+
+    private static ItemStack build(ItemViewNode node, String itemId) {
+        Identifier id = Identifier.tryParse(itemId);
         Item item = id == null ? null : BuiltInRegistries.ITEM.getValue(id);
         if (item == null || item == Items.AIR) {
             return ItemStack.EMPTY;

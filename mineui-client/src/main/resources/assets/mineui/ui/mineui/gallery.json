@@ -1,0 +1,214 @@
+{
+  "type": "stack",
+  "id": "root",
+  "width": "100%",
+  "height": "100%",
+  "clip": true,
+  "children": [
+    {
+      "type": "scroll",
+      "id": "page",
+      "width": "100%",
+      "height": "100%",
+      "children": [
+        {
+          "type": "column",
+          "width": "100%",
+          "padding": { "top": 16, "bottom": 16, "left": 0, "right": 0 },
+          "gap": 12,
+          "align": "center",
+          "children": [
+            {
+              "type": "column",
+              "skin": "vanilla:panel",
+              "width": 420,
+              "gap": 10,
+              "align": "stretch",
+              "children": [
+                { "type": "text", "text": "MineUI 组件画廊", "color": "#FFFFFF", "align": "center" },
+                { "type": "text", "text": "装饰 / 交互 / 轮换 均由声明式 JSON 驱动", "color": "#A0A0A0", "align": "center" },
+
+                { "type": "text", "text": "物品与头颅装饰", "color": "#FFD966" },
+                {
+                  "type": "row",
+                  "gap": 8,
+                  "align": "center",
+                  "children": [
+                    { "type": "item", "item": "minecraft:diamond", "scale": 1.4, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:emerald", "scale": 1.4, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:nether_star", "scale": 1.4, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:golden_apple", "scale": 1.4, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:skeleton_skull", "scale": 1.4, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:zombie_head", "scale": 1.4, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:creeper_head", "scale": 1.4, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:dragon_head", "scale": 1.4, "itemTooltip": true },
+                    { "type": "item", "item": "minecraft:piglin_head", "scale": 1.4, "itemTooltip": true }
+                  ]
+                },
+
+                { "type": "text", "text": "装饰按钮：悬浮放大 / 缩小 / 换图案", "color": "#FFD966" },
+                {
+                  "type": "row",
+                  "gap": 12,
+                  "align": "center",
+                  "children": [
+                    {
+                      "type": "item", "item": "minecraft:skeleton_skull", "scale": 1.6,
+                      "action": "decor_click", "hoverScale": 1.3,
+                      "hoverItem": "minecraft:wither_skeleton_skull",
+                      "tooltip": "悬浮变大并换成凋灵骷髅头"
+                    },
+                    {
+                      "type": "item", "item": "minecraft:diamond", "scale": 1.6,
+                      "action": "decor_click", "hoverScale": 0.8,
+                      "hoverItem": "minecraft:emerald",
+                      "tooltip": "悬浮缩小并变成绿宝石"
+                    },
+                    {
+                      "type": "item", "item": "minecraft:heart_of_the_sea", "scale": 1.6,
+                      "action": "decor_click", "hoverScale": 1.25,
+                      "tooltip": "海之心按钮（仅放大）"
+                    },
+                    {
+                      "type": "image", "texture": "mineui:textures/gui/icon_heart.png",
+                      "width": 24, "height": 24,
+                      "action": "decor_click", "hoverScale": 1.4,
+                      "tooltip": "自绘像素爱心，也可当按钮"
+                    }
+                  ]
+                },
+                { "type": "text", "text": "点击次数: {state.clicks}", "color": "#B0C0D0" },
+
+                { "type": "text", "text": "随时间轮换（默认每秒）", "color": "#FFD966" },
+                {
+                  "type": "row",
+                  "gap": 12,
+                  "align": "center",
+                  "children": [
+                    {
+                      "type": "box", "width": 28, "height": 28, "radius": 4,
+                      "cycle": { "interval": 1.0, "colors": ["#E04040", "#E0A000", "#E0E000", "#40C040", "#40A0E0", "#8040E0"] },
+                      "tooltip": "背景色每秒轮换"
+                    },
+                    {
+                      "type": "item", "scale": 1.7,
+                      "cycle": {
+                        "interval": 1.0,
+                        "items": [
+                          "minecraft:red_wool", "minecraft:orange_wool", "minecraft:yellow_wool", "minecraft:lime_wool",
+                          "minecraft:light_blue_wool", "minecraft:blue_wool", "minecraft:purple_wool", "minecraft:magenta_wool"
+                        ]
+                      },
+                      "tooltip": "羊毛每秒换色"
+                    },
+                    {
+                      "type": "text", "scale": 2.0, "color": "#FFFFFF",
+                      "cycle": { "interval": 0.5, "colors": ["#FF5555", "#55FF55", "#55FFFF", "#FFAA00"] },
+                      "text": "轮换文字"
+                    }
+                  ]
+                },
+
+                { "type": "text", "text": "原版精灵与自绘像素素材", "color": "#FFD966" },
+                {
+                  "type": "row",
+                  "gap": 10,
+                  "align": "center",
+                  "children": [
+                    { "type": "image", "texture": "sprite:minecraft:widget/slot_frame", "width": 20, "height": 20, "tooltip": "原版精灵（九宫格）" },
+                    { "type": "image", "texture": "mineui:textures/gui/icon_star.png", "width": 32, "height": 32, "tooltip": "自绘星星（像素风）" },
+                    { "type": "image", "texture": "mineui:textures/gui/icon_heart.png", "width": 32, "height": 32, "tooltip": "自绘爱心（像素风）" },
+                    { "type": "image", "texture": "mineui:textures/gui/logo.png", "width": 32, "height": 32, "tooltip": "内置 Logo" }
+                  ]
+                },
+                {
+                  "type": "grid",
+                  "columns": 4,
+                  "gap": 4,
+                  "width": "100%",
+                  "children": [
+                    { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                    { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                    { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                    { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                    { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                    { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                    { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 },
+                    { "type": "box", "skin": "vanilla:slot", "width": 20, "height": 20 }
+                  ]
+                },
+
+                { "type": "text", "text": "按钮与弹窗", "color": "#FFD966" },
+                {
+                  "type": "row",
+                  "gap": 8,
+                  "align": "center",
+                  "justify": "center",
+                  "children": [
+                    { "type": "button", "skin": "vanilla:button", "text": "悬浮放大按钮", "action": "decor_click", "width": 140, "hoverScale": 1.08 },
+                    { "type": "button", "skin": "vanilla:button", "text": "打开弹窗", "action": "open_dialog", "width": 100 }
+                  ]
+                },
+                { "type": "text", "text": "滚轮悬停在 3D 预览上可缩放（本地，无网络）", "color": "#808080", "align": "center" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "stack",
+      "id": "dialog",
+      "z": 10,
+      "modal": true,
+      "visible": "{state.dialog}",
+      "width": "100%",
+      "height": "100%",
+      "children": [
+        { "type": "box", "width": "100%", "height": "100%", "background": "#80000000" },
+        {
+          "type": "stack",
+          "width": "100%",
+          "height": "100%",
+          "align": "center",
+          "justify": "center",
+          "children": [
+            {
+              "type": "column",
+              "skin": "vanilla:panel",
+              "width": 280,
+              "gap": 10,
+              "align": "stretch",
+              "children": [
+                { "type": "text", "text": "装饰也可以进弹窗", "color": "#FFFFFF", "align": "center" },
+                {
+                  "type": "row",
+                  "gap": 10,
+                  "align": "center",
+                  "justify": "center",
+                  "children": [
+                    { "type": "item", "item": "minecraft:golden_apple", "scale": 1.6, "action": "decor_click", "hoverScale": 1.3 },
+                    {
+                      "type": "box", "width": 24, "height": 24, "radius": 4,
+                      "cycle": { "interval": 0.5, "colors": ["#8040E0", "#40A0E0"] }
+                    }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "gap": 6,
+                  "align": "center",
+                  "justify": "center",
+                  "children": [
+                    { "type": "button", "skin": "vanilla:button", "text": "确定", "action": "close_dialog", "width": 110 },
+                    { "type": "button", "skin": "vanilla:button", "text": "取消", "action": "close_dialog", "width": 110 }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

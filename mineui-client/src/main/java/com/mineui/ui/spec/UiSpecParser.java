@@ -77,7 +77,8 @@ public final class UiSpecParser {
                     parseStringList(json, "modelStrings"),
                     optFloat(json, "scale", 1f),
                     optBool(json, "itemTooltip", false),
-                    optBool(json, "fake", false));
+                    optBool(json, "fake", false),
+                    optString(json, "hoverItem", null));
             case "entity" -> new EntityViewNode(style,
                     requireString(json, "entity"),
                     optFloat(json, "scale", 30f),
@@ -178,7 +179,9 @@ public final class UiSpecParser {
                 optString(json, "hoverAction", null),
                 optString(json, "sprite", null),
                 optString(json, "spriteHover", null),
-                optString(json, "spriteFocus", null));
+                optString(json, "spriteFocus", null),
+                optFloat(json, "hoverScale", 1f),
+                CycleSpec.parse(json.get("cycle")));
     }
 
     /**

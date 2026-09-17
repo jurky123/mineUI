@@ -88,6 +88,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 | `/mineui status` | 查看自己的客户端状态与在线 MineUI 玩家 |
 | `/mineui test` | 打开测试界面（验证客户端是否生效） |
 | `/mineui style` | 打开原版风格模板预览（面板/按钮/输入框/滑块/滚动/弹窗） |
+| `/mineui gallery` | 打开组件画廊（物品/头颅装饰、悬浮动效、时间轮换、像素素材） |
 | `/mineui close` | 关闭当前 MineUI 界面 |
 
 ---
@@ -99,6 +100,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 布局引擎、基础与 3D 控件、视觉、动画、滚动/网格/弹窗/Tooltip、显隐与数据绑定
 - ✅ 点击与悬浮动作、输入框、滑块、F9 热重载 / F10 导出
 - ✅ 原版风格模板（按钮/输入框/滑块/滚动条/面板/弹窗，像素级对齐原版贴图）
+- ✅ 装饰与动效（物品/头颅/精灵/自绘像素素材、悬浮缩放与换图案、时间轮换）
 - ✅ 业务 API `com.mineui.api`（含 `server_ui` 能力协商与 owner 生命周期）
 - ⏳ HUD Overlay、标签页/下拉框/滑块等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
@@ -107,4 +109,5 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 
 ## 开发
 
-技术设计文档见 [`docs/DESIGN.md`](docs/DESIGN.md)。
+- 组件与素材指南（装饰/交互/动效，含示例）：[`docs/COMPONENTS.md`](docs/COMPONENTS.md)
+- 技术设计文档：[`docs/DESIGN.md`](docs/DESIGN.md)

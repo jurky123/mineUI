@@ -58,6 +58,12 @@ public final class MineUiCommand {
                             style(context.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
+                .then(Commands.literal("gallery")
+                        .requires(source -> source.getSender().hasPermission("mineui.admin"))
+                        .executes(context -> {
+                            gallery(context.getSource().getSender());
+                            return Command.SINGLE_SUCCESS;
+                        }))
                 .build();
 
         commands.register(node, "MineUI 主命令");
@@ -126,6 +132,26 @@ public final class MineUiCommand {
         session.snapshot();
 
         player.sendMessage(Component.text("已打开 MineUI 测试界面（点按钮 +1，Esc 关闭）", NamedTextColor.GREEN));
+    }
+
+    /** /mineui gallery：打开组件画廊（物品/头颅装饰、悬浮动效、时间轮换、精灵素材）。 */
+    private void gallery(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.sessions().isModClient(player.getUniqueId())) {
+            sender.sendMessage(Component.text("你需要安装 MineUI 客户端 mod 才能查看组件画廊", NamedTextColor.RED));
+            return;
+        }
+        UiSession session = plugin.uiSessions().open(player, "mineui", "gallery");
+        session.state("clicks", 0);
+        session.state("dialog", false);
+        session.on("decor_click", event -> session.state("clicks", session.getInt("clicks", 0) + 1));
+        session.on("open_dialog", event -> session.state("dialog", true));
+        session.on("close_dialog", event -> session.state("dialog", false));
+        session.snapshot();
+        player.sendMessage(Component.text("已打开组件画廊（/mineui gallery）", NamedTextColor.GREEN));
     }
 
     /** /mineui style：打开原版风格模板演示页（面板/按钮/输入框/滑块/滚动/弹窗）。 */

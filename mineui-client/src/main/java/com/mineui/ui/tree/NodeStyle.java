@@ -25,6 +25,8 @@ import com.mineui.ui.spec.BooleanSpec;
  * @param sprite        背景精灵（原版九宫格贴图 id，如 minecraft:widget/button；null 用纯色背景）
  * @param spriteHover   悬停时的背景精灵（null 表示不变）
  * @param spriteFocus   聚焦时的背景精灵（输入框用；null 表示不变）
+ * @param hoverScale    悬停时的缩放倍数（1 表示不缩放；任意节点可用）
+ * @param cycle         本地时间轮换（背景色/物品；null 表示不轮换）
  */
 public record NodeStyle(
         String id,
@@ -52,14 +54,16 @@ public record NodeStyle(
         String hoverAction,
         String sprite,
         String spriteHover,
-        String spriteFocus) {
+        String spriteFocus,
+        float hoverScale,
+        com.mineui.ui.spec.CycleSpec cycle) {
 
     /** Phase 2 兼容构造器（无视觉扩展）。 */
     public NodeStyle(String id, SizeSpec width, SizeSpec height, Insets padding, Integer background,
                      CrossAlign align, MainAlign justify, float gap) {
         this(id, width, height, padding, background, align, justify, gap,
                 0f, null, 0f, null, 0f, 0f, null, 0, false, false, BooleanSpec.TRUE, null, false, null, null,
-                null, null, null);
+                null, null, null, 1f, null);
     }
 
     public static NodeStyle defaults() {

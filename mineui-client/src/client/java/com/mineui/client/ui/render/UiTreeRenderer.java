@@ -76,6 +76,9 @@ public final class UiTreeRenderer {
         }
     }
 
+    /** 图片节点用 {@code sprite:<namespace>:<path>} 直接引用原版九宫格精灵。 */
+    private static final String SPRITE_PREFIX = "sprite:";
+
     private void renderNode(UiNode node, float inheritedOpacity) {
         if (!node.visibleNow()) {
             return;
@@ -87,7 +90,9 @@ public final class UiTreeRenderer {
             clipped = true;
         }
 
-        boolean transformed = node.hasTransform();
+        float hoverFactor = 1f + (node.style().hoverScale() - 1f) * node.hoverProgress();
+        float scale = node.animScale() * hoverFactor;
+        boolean transformed = node.hasTransform() || Math.abs(scale - 1f) > 0.001f;
         var pose = graphics.pose();
         if (transformed) {
             float centerX = node.x() + node.width() / 2f;
@@ -98,8 +103,8 @@ public final class UiTreeRenderer {
             if (node.animRotation() != 0f) {
                 pose.rotate((float) Math.toRadians(node.animRotation()));
             }
-            if (node.animScale() != 1f) {
-                pose.scale(node.animScale(), node.animScale());
+            if (Math.abs(scale - 1f) > 0.001f) {
+                pose.scale(scale, scale);
             }
             pose.translate(-centerX, -centerY);
         }
@@ -184,22 +189,33 @@ public final class UiTreeRenderer {
         if (drawSpriteBackground(node)) {
             return;
         }
+        boolean cyclic = hasCycleColors(style);
         if (style.borderColor() != null && style.borderWidth() > 0f) {
             painter.fillRounded(node.x(), node.y(), node.width(), node.height(), style.radius(),
                     style.borderColor(), opacity);
-            if (style.background() != null) {
+            if (style.background() != null || cyclic) {
                 float inset = style.borderWidth();
                 drawFill(node, node.x() + inset, node.y() + inset,
                         Math.max(0f, node.width() - 2f * inset), Math.max(0f, node.height() - 2f * inset),
                         Math.max(0f, style.radius() - inset), opacity);
             }
-        } else if (style.background() != null) {
+        } else if (style.background() != null || cyclic) {
             drawFill(node, node.x(), node.y(), node.width(), node.height(), style.radius(), opacity);
         }
     }
 
+    private boolean hasCycleColors(NodeStyle style) {
+        return style.cycle() != null && !style.cycle().colors().isEmpty();
+    }
+
     private void drawFill(UiNode node, float x, float y, float w, float h, float radius, float opacity) {
         NodeStyle style = node.style();
+        if (hasCycleColors(style)) {
+            int color = style.cycle().colorAt(System.currentTimeMillis(),
+                    style.background() == null ? 0xFFFFFFFF : style.background());
+            painter.fillRounded(x, y, w, h, radius, color, opacity);
+            return;
+        }
         if (style.gradientTo() != null) {
             painter.fillRoundedGradient(x, y, w, h, radius, style.background(), style.gradientTo(), opacity);
         } else {
@@ -234,6 +250,9 @@ public final class UiTreeRenderer {
         }
         float scale = node instanceof TextNode textNode ? textNode.scale() : 1f;
         int color = node instanceof TextNode textNode ? textNode.color() : ((ButtonNode) node).textColor();
+        if (node.style().cycle() != null && !node.style().cycle().colors().isEmpty()) {
+            color = node.style().cycle().colorAt(System.currentTimeMillis(), color);
+        }
         int argb = UiColors.withOpacity(color, opacity);
         if (((argb >>> 24) & 0xFF) == 0) {
             return;
@@ -266,8 +285,20 @@ public final class UiTreeRenderer {
     }
 
     private void renderImage(ImageNode node) {
+        if (node.width() <= 0 || node.height() <= 0) {
+            return;
+        }
+        if (node.texture().startsWith(SPRITE_PREFIX)) {
+            Identifier sprite = Identifier.tryParse(node.texture().substring(SPRITE_PREFIX.length()));
+            if (sprite != null) {
+                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite,
+                        Math.round(node.x()), Math.round(node.y()),
+                        Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
+            }
+            return;
+        }
         Identifier texture = Identifier.tryParse(node.texture());
-        if (texture == null || node.width() <= 0 || node.height() <= 0) {
+        if (texture == null) {
             return;
         }
         float u0 = node.u() / node.textureWidth();
@@ -313,7 +344,11 @@ public final class UiTreeRenderer {
     // ---------- 3D 预览 ----------
 
     private void renderItem(ItemViewNode node) {
-        ItemStack stack = ItemStacks.resolve(node);
+        String itemId = node.hovered() && node.hoverItem() != null ? node.hoverItem() : node.item();
+        if (node.style().cycle() != null && !node.style().cycle().items().isEmpty()) {
+            itemId = node.style().cycle().itemAt(System.currentTimeMillis(), itemId);
+        }
+        ItemStack stack = ItemStacks.resolve(node, itemId);
         if (stack.isEmpty()) {
             return;
         }
