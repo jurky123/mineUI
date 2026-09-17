@@ -61,7 +61,7 @@ MineUI 让服务器拥有不受原版限制的自定义界面：菜单、UNO 卡
 - ✅ 视觉效果（圆角/描边/渐变/阴影/裁剪/z 序）与动画（悬停过渡、点击/状态脉冲、缓动）
 - ✅ 滚动视图、网格布局、模态弹窗、悬停提示、按状态控制显隐
 - ✅ 3D 预览：物品（含卡面模型）、生物实体、玩家（在线玩家皮肤 + 任意皮肤 value/signature）
-- ✅ 任意节点点击动作（`action`）与皮肤浏览器页面（`skin/browser`）
+- ✅ 任意节点点击动作（`action`）
 - ✅ 业务插件 API `com.mineui.api`（`MineUiProvider` / `MineUiSession`，含 owner 生命周期）
 - ⏳ UNO 等其余业务界面
 

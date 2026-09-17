@@ -10,8 +10,8 @@ import org.bukkit.plugin.Plugin;
  * <pre>{@code
  * MineUi mineUi = MineUiProvider.get();
  * if (mineUi != null && mineUi.hasClient(player)) {
- *     MineUiSession session = mineUi.open(this, player, "skin", "browser");
- *     session.state("title", "皮肤浏览器");
+ *     MineUiSession session = mineUi.open(this, player, "example", "main");
+ *     session.state("title", "示例界面");
  *     session.on("close", action -> session.close());
  *     session.snapshot();
  * }
