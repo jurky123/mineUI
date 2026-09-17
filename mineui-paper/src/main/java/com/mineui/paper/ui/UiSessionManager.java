@@ -1,5 +1,6 @@
 package com.mineui.paper.ui;
 
+import com.google.gson.JsonObject;
 import com.mineui.paper.MineUiPlugin;
 import com.mineui.protocol.Envelope;
 import com.mineui.protocol.JsonCodec;
@@ -30,13 +31,22 @@ public final class UiSessionManager {
 
     /** 打开新会话（会先关闭该玩家已有会话），发送 OPEN。业务代码随后设置 state 并 snapshot()。 */
     public UiSession open(Player player, String app, String view) {
-        return open(plugin, player, app, view);
+        return open(plugin, player, app, view, null);
     }
 
     /** 以指定 owner 打开新会话（owner 停用时由 {@link #closeOwned(Plugin)} 统一关闭）。 */
     public UiSession open(Plugin owner, Player player, String app, String view) {
+        return open(owner, player, app, view, null);
+    }
+
+    /**
+     * 以指定 owner 打开新会话，并携带业务插件自带的界面定义。
+     *
+     * @param definition 界面定义 JSON（null 表示由客户端内置/开发目录加载）
+     */
+    public UiSession open(Plugin owner, Player player, String app, String view, JsonObject definition) {
         close(player);
-        UiSession session = new UiSession(plugin, owner, player, nextId.getAndIncrement(), app, view);
+        UiSession session = new UiSession(plugin, owner, player, nextId.getAndIncrement(), app, view, definition);
         active.put(player.getUniqueId(), session);
         session.open();
         return session;

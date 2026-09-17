@@ -1,5 +1,6 @@
 package com.mineui.client.ui;
 
+import com.google.gson.JsonObject;
 import com.mineui.ui.spec.Insets;
 import com.mineui.ui.spec.SizeSpec;
 import com.mineui.ui.spec.UiDefinition;
@@ -25,17 +26,24 @@ public final class MineUiScreens {
     private static final Logger LOGGER = LoggerFactory.getLogger("MineUI");
 
     private static UiScreen current;
+    /** 服务端下发的界面定义（业务插件页面）；null 表示内置/开发目录来源。 */
+    private static JsonObject providedUi;
 
     private MineUiScreens() {
     }
 
-    /** 服务端 OPEN：加载定义并打开界面。 */
-    public static void open(String app, String view) {
+    /**
+     * 服务端 OPEN：加载定义并打开界面。
+     *
+     * @param ui 业务插件下发的界面定义；null 表示从客户端内置/开发目录加载
+     */
+    public static void open(String app, String view, JsonObject ui) {
+        providedUi = ui;
         UiDefinition definition;
         try {
-            definition = UiDefinitionLoader.load(app, view, devRoot());
+            definition = load(app, view, ui);
             LOGGER.info("加载界面 {} / {}（来源: {}）", app, view, definition.source());
-            if ("mod".equals(definition.source())) {
+            if (!"dev".equals(definition.source()) && !"server".equals(definition.source())) {
                 Path file = UiDefinitionLoader.devFile(app, view, devRoot());
                 if (!Files.isRegularFile(file)) {
                     chat("[MineUI] 按 F10 可导出可编辑副本（config/mineui/ui/" + app + "/" + view + ".json）");
@@ -51,7 +59,19 @@ public final class MineUiScreens {
         Minecraft.getInstance().gui.setScreen(screen);
     }
 
-    /** F9：清缓存并重新加载当前界面（含开发目录覆盖）。 */
+    /** 开发目录覆盖优先，其次服务端下发，最后 mod 内置资源。 */
+    private static UiDefinition load(String app, String view, JsonObject ui) throws UiSpecException {
+        if (ui != null) {
+            Path devFile = UiDefinitionLoader.devFile(app, view, devRoot());
+            if (Files.isRegularFile(devFile)) {
+                return UiDefinitionLoader.load(app, view, devRoot());
+            }
+            return UiDefinitionLoader.loadProvided(app, view, ui);
+        }
+        return UiDefinitionLoader.load(app, view, devRoot());
+    }
+
+    /** F9：清缓存并重新加载当前界面（开发目录覆盖优先）。 */
     public static void reload() {
         UiDefinitionLoader.clearCache();
         UiScreen screen = current;
@@ -59,11 +79,11 @@ public final class MineUiScreens {
             chat("[MineUI] 没有打开的界面，无法重载");
             return;
         }
-        open(screen.app(), screen.view());
+        open(screen.app(), screen.view(), providedUi);
         chat("[MineUI] 已重载 " + screen.app() + "/" + screen.view());
     }
 
-    /** F10：把当前界面的内置定义导出到开发目录（不覆盖已有文件）。 */
+    /** F10：把当前界面定义导出到开发目录（不覆盖已有文件；服务端页面同样可导出）。 */
     public static void exportDevTemplate() {
         UiScreen screen = current;
         if (screen == null) {
@@ -72,7 +92,10 @@ public final class MineUiScreens {
         }
         Path file = UiDefinitionLoader.devFile(screen.app(), screen.view(), devRoot());
         try {
-            if (UiDefinitionLoader.writeDevTemplate(screen.app(), screen.view(), devRoot())) {
+            boolean created = providedUi != null
+                    ? UiDefinitionLoader.writeDevJson(screen.app(), screen.view(), providedUi, devRoot())
+                    : UiDefinitionLoader.writeDevTemplate(screen.app(), screen.view(), devRoot());
+            if (created) {
                 LOGGER.info("已导出开发模板: {}", file);
                 chat("[MineUI] 已导出到 config/mineui/ui/" + screen.app() + "/" + screen.view() + ".json（F9 重载生效）");
             } else {
@@ -88,6 +111,7 @@ public final class MineUiScreens {
     public static void closeFromServer() {
         UiScreen screen = current;
         current = null;
+        providedUi = null;
         Minecraft minecraft = Minecraft.getInstance();
         if (screen != null && minecraft.gui.screen() == screen) {
             minecraft.gui.setScreen(null);
@@ -98,6 +122,7 @@ public final class MineUiScreens {
     static void clientClosed(UiScreen screen) {
         if (current == screen) {
             current = null;
+            providedUi = null;
         }
     }
 

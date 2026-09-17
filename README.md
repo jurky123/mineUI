@@ -63,6 +63,7 @@ MineUI 让服务器拥有不受原版限制的自定义界面：菜单、UNO 卡
 - ✅ 3D 预览：物品（含卡面模型）、生物实体、玩家（在线玩家皮肤 + 任意皮肤 value/signature）
 - ✅ 任意节点点击动作（`action`）
 - ✅ 业务插件 API `com.mineui.api`（`MineUiProvider` / `MineUiSession`，含 owner 生命周期）
+- ✅ 业务插件随 OPEN 下发界面定义（页面归业务插件，MineUI 只负责解析/渲染）
 - ⏳ UNO 等其余业务界面
 
 ---

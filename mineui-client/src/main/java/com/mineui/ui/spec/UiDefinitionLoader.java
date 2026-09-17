@@ -1,5 +1,6 @@
 package com.mineui.ui.spec;
 
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
@@ -16,10 +17,11 @@ import java.util.regex.Pattern;
 /**
  * 界面定义加载器。
  * <p>
- * 查找顺序：
+ * 支持两种来源：
  * <ol>
- *   <li>开发目录覆盖：{@code <config>/mineui/ui/<app>/<view>.json}（F9 热重载会清缓存）</li>
- *   <li>mod 内置资源：{@code assets/mineui/ui/<app>/<view>.json}</li>
+ *   <li>服务端下发：业务插件在 OPEN 里携带界面定义（{@link #loadProvided}）；</li>
+ *   <li>客户端资源：开发目录覆盖 {@code <config>/mineui/ui/<app>/<view>.json}
+ *       （F9 热重载会清缓存）或 mod 内置 {@code assets/mineui/ui/<app>/<view>.json}。</li>
  * </ol>
  * app/view 仅允许 {@code [a-z0-9_-]}，防止路径穿越；每次加载都会构造全新的节点树，
  * 避免复用上一次打开的滚动/动画等运行时状态。
@@ -47,6 +49,42 @@ public final class UiDefinitionLoader {
             CACHE.put(key, cached);
         }
         return new UiDefinition(app, view, cached.source(), UiSpecParser.parse(cached.json()));
+    }
+
+    /**
+     * 加载服务端下发的界面定义（业务插件自带页面）。
+     * 每次调用都会解析出全新的节点树，不进入缓存。
+     */
+    public static UiDefinition loadProvided(String app, String view, JsonObject json) throws UiSpecException {
+        requireSafe(app, "app");
+        requireSafe(view, "view");
+        if (json == null) {
+            throw new UiSpecException("服务端未提供界面定义: " + app + "/" + view);
+        }
+        return new UiDefinition(app, view, "server", UiSpecParser.parse(json.deepCopy()));
+    }
+
+    /**
+     * 把一份界面定义写入开发目录（不覆盖已有文件），用于 F10 导出服务端页面做本地调试。
+     *
+     * @return true 表示本次新建了文件
+     */
+    public static boolean writeDevJson(String app, String view, JsonObject json, Path devRoot) throws UiSpecException {
+        requireSafe(app, "app");
+        requireSafe(view, "view");
+        Path target = devFile(app, view, devRoot);
+        if (Files.exists(target)) {
+            return false;
+        }
+        try {
+            Files.createDirectories(target.getParent());
+            Files.writeString(target,
+                    new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(json),
+                    StandardCharsets.UTF_8);
+            return true;
+        } catch (IOException e) {
+            throw new UiSpecException("导出界面定义失败: " + target + " (" + e.getMessage() + ")", e);
+        }
     }
 
     public static void clearCache() {

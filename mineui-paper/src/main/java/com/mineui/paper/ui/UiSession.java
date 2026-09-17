@@ -43,6 +43,7 @@ public final class UiSession implements MineUiSession {
     private final int id;
     private final String app;
     private final String view;
+    private final JsonObject definition;
     private final JsonObject state = new JsonObject();
     private final RevisionGuard revisionGuard = new RevisionGuard();
     private final Map<String, Consumer<MineUiAction>> handlers = new HashMap<>();
@@ -52,21 +53,26 @@ public final class UiSession implements MineUiSession {
     private volatile boolean closed;
     private int patchSeq;
 
-    UiSession(MineUiPlugin plugin, Plugin owner, Player player, int id, String app, String view) {
+    UiSession(MineUiPlugin plugin, Plugin owner, Player player, int id, String app, String view,
+              JsonObject definition) {
         this.plugin = plugin;
         this.owner = owner;
         this.player = player;
         this.id = id;
         this.app = app;
         this.view = view;
+        this.definition = definition == null ? null : definition.deepCopy();
     }
 
     // ---------- 对外 API（业务插件使用） ----------
 
-    /** 发送 OPEN。业务代码应先调用本方法，再设置初始 state，最后调用 {@link #snapshot()}。 */
+    /**
+     * 发送 OPEN（携带业务插件自带的界面定义；null 表示由客户端内置/开发目录加载）。
+     * 业务代码应先调用本方法，再设置初始 state，最后调用 {@link #snapshot()}。
+     */
     public void open() {
         requireOpen();
-        send(MessageType.OPEN, 0, JsonCodec.encode(new Open(app, view)));
+        send(MessageType.OPEN, 0, JsonCodec.encode(new Open(app, view, definition)));
     }
 
     /** 设置顶层状态字段；snapshot 之后会立即下发 PATCH。 */

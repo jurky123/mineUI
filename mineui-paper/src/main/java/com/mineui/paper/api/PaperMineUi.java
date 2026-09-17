@@ -1,10 +1,14 @@
 package com.mineui.paper.api;
 
+import com.google.gson.JsonObject;
 import com.mineui.api.MineUi;
 import com.mineui.api.MineUiSession;
 import com.mineui.paper.MineUiPlugin;
+import com.mineui.paper.SessionManager;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+
+import java.util.Set;
 
 /** {@link MineUi} 的 Paper 实现。 */
 public final class PaperMineUi implements MineUi {
@@ -21,8 +25,14 @@ public final class PaperMineUi implements MineUi {
     }
 
     @Override
-    public MineUiSession open(Plugin owner, Player player, String app, String view) {
-        return plugin.uiSessions().open(owner, player, app, view);
+    public Set<String> capabilities(Player player) {
+        SessionManager.ClientSession session = plugin.sessions().get(player.getUniqueId());
+        return session == null ? Set.of() : Set.copyOf(session.capabilities());
+    }
+
+    @Override
+    public MineUiSession open(Plugin owner, Player player, String app, String view, JsonObject definition) {
+        return plugin.uiSessions().open(owner, player, app, view, definition);
     }
 
     @Override

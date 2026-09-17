@@ -147,4 +147,33 @@ class UiSpecParserTest {
         assertEquals("mineui:textures/gui/logo.png", ((com.mineui.ui.tree.ImageNode) root).texture());
         assertEquals(256f, ((com.mineui.ui.tree.ImageNode) root).textureWidth(), 0.001f);
     }
+
+    @Test
+    void rejectsTooDeeplyNestedDefinition() {
+        int depth = UiSpecParser.MAX_DEPTH + 5;
+        StringBuilder nested = new StringBuilder();
+        for (int i = 0; i < depth; i++) {
+            nested.append("{\"type\":\"column\",\"children\":[");
+        }
+        nested.append("{\"type\":\"box\"}");
+        for (int i = 0; i < depth; i++) {
+            nested.append("]}");
+        }
+        String json = nested.toString();
+        assertThrows(UiSpecException.class, () -> UiSpecParser.parse(json(json)));
+    }
+
+    @Test
+    void rejectsTooManyNodes() {
+        StringBuilder nodes = new StringBuilder("{\"type\":\"column\",\"children\":[");
+        for (int i = 0; i <= UiSpecParser.MAX_NODES; i++) {
+            if (i > 0) {
+                nodes.append(',');
+            }
+            nodes.append("{\"type\":\"box\",\"height\":1}");
+        }
+        nodes.append("]}");
+        String json = nodes.toString();
+        assertThrows(UiSpecException.class, () -> UiSpecParser.parse(json(json)));
+    }
 }

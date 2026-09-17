@@ -48,7 +48,7 @@ public final class ProtocolClient {
                 Envelope.PROTOCOL_VERSION,
                 MineUiClient.version(),
                 MineUiClient.MINECRAFT_VERSION,
-                List.of("screen", "hud"));
+                List.of("screen", "hud", "server_ui"));
         send(new Envelope(MessageType.HELLO, 0, 0, JsonCodec.encode(hello)));
     }
 
@@ -129,8 +129,9 @@ public final class ProtocolClient {
             return;
         }
         STATE.begin(envelope.session());
-        MineUiScreens.open(open.app(), open.view());
-        MineUiClient.LOGGER.info("打开界面 {} / {} (session {})", open.app(), open.view(), envelope.session());
+        MineUiScreens.open(open.app(), open.view(), open.ui());
+        MineUiClient.LOGGER.info("打开界面 {} / {} (session {}, ui={})", open.app(), open.view(),
+                envelope.session(), open.ui() == null ? "内置" : "服务端下发");
     }
 
     private static void handleSnapshot(Envelope envelope) {

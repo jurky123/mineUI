@@ -24,10 +24,25 @@ import com.mineui.ui.tree.UiNode;
 /** JSON → UI 节点树。 */
 public final class UiSpecParser {
 
+    /** 定义嵌套深度上限（服务端可下发定义，防栈溢出）。 */
+    public static final int MAX_DEPTH = 64;
+    /** 单页节点总数上限（防资源耗尽）。 */
+    public static final int MAX_NODES = 4096;
+
     private UiSpecParser() {
     }
 
     public static UiNode parse(JsonObject json) throws UiSpecException {
+        return parse(json, 1, new int[]{0});
+    }
+
+    private static UiNode parse(JsonObject json, int depth, int[] nodeCount) throws UiSpecException {
+        if (depth > MAX_DEPTH) {
+            throw new UiSpecException("界面定义嵌套过深（上限 " + MAX_DEPTH + " 层）");
+        }
+        if (++nodeCount[0] > MAX_NODES) {
+            throw new UiSpecException("界面定义节点过多（上限 " + MAX_NODES + " 个）");
+        }
         String type = requireString(json, "type");
         NodeStyle style = parseStyle(json);
 
@@ -79,7 +94,7 @@ public final class UiSpecParser {
                 if (!child.isJsonObject()) {
                     throw new UiSpecException("children 元素必须是对象");
                 }
-                container.addChild(parse(child.getAsJsonObject()));
+                container.addChild(parse(child.getAsJsonObject(), depth + 1, nodeCount));
             }
         }
         return node;

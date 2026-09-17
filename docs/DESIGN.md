@@ -114,11 +114,12 @@ Paper Server                          Fabric Client
 { "protocol": 1, "serverVersion": "0.1.0", "minimumClient": "0.1.0" }
 ```
 
-能力按功能位协商（`UI_SCHEMA_V1` / `ANIMATION_V1` / `PLAYER_3D` / `CUSTOM_FONT` / `REMOTE_IMAGE`），保证 0.1/0.2/0.3 客户端长期兼容。
+能力按功能位协商（`UI_SCHEMA_V1` / `ANIMATION_V1` / `PLAYER_3D` / `CUSTOM_FONT` / `REMOTE_IMAGE` / `server_ui`），保证新老客户端长期兼容。
+`server_ui` 表示客户端支持在 `OPEN` 中接收服务端下发的界面定义；业务插件应先检查该能力（`MineUi.supportsServerUi(player)`），不支持时回退原版界面。
 
 ### 4.3 会话（Session）与修订（Revision）
 
-- 每次开界面：服务端生成 `sessionId`，`OPEN {session, app, view}`。
+- 每次开界面：服务端生成 `sessionId`，`OPEN {session, app, view, ui?}`（`ui` 为业务插件自带的界面定义，可空）。
 - 客户端 action 必须带 `session`；**不匹配直接丢弃**（防延迟旧包、界面已关）。
 - session 内维护 `revision` 单调递增；action 带 revision，服务端已更新到更高版本则**拒绝并回发最新 state**（解决双击/延迟/不同步）。
 
@@ -239,7 +240,8 @@ Pre → Measure → Layout → Background → Content → Children → Overlay �
 
 ## 7. UI 定义与绑定
 
-- UI 布局 JSON **随 mod/资源包发布**（`assets/mineui/ui/<app>/<view>.json`），服务端只发 `state`；**不允许服务端下发任意 UI/代码**（安全 + 省流量 + 动画不受网络限制）。
+- 界面定义有两种来源：**业务插件随 `OPEN` 下发**（`assets/<plugin>/ui/<app>/<view>.json`，声明式 JSON，客户端用 UiSpecParser 严格校验、不可执行代码，单页建议 ≤24 KiB 以留出协议余量）；框架自带页面走客户端内置资源（`assets/mineui/ui/...`）或开发目录覆盖。数据仍由 `state` 驱动。
+- 服务端**不能下发代码**、不能绕过客户端白名单资源路径；业务页面越界/非法定义会被客户端拒绝并显示错误页。
 - 数据绑定：`"text": "{state.currentPlayer.name}"`、`"visible": "{state.isMyTurn}"`。
 - Action 绑定：`"action": {"type":"server","id":"draw_card"}` → UI Runtime → ActionDispatcher → 协议 → Paper → 业务校验。
 - V1 不做脚本引擎（JS/Lua/Kotlin），保持声明式 JSON。
