@@ -1,5 +1,6 @@
 package com.mineui.client.ui;
 
+import com.google.gson.JsonObject;
 import com.mineui.client.net.ProtocolClient;
 import com.mineui.client.ui.anim.AnimationController;
 import com.mineui.client.ui.render.ItemStacks;
@@ -9,12 +10,15 @@ import com.mineui.ui.anim.Easing;
 import com.mineui.ui.spec.UiDefinition;
 import com.mineui.ui.tree.Bindings;
 import com.mineui.ui.tree.ButtonNode;
+import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.MeasureContext;
 import com.mineui.ui.tree.TextMeasurer;
 import com.mineui.ui.tree.UiNode;
+import com.mineui.ui.util.ActionThrottle;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -34,6 +38,8 @@ public final class UiScreen extends Screen {
     private static final float HOVER_SPEED = 14f;
     private static final float MAX_FRAME_DELTA = 0.1f;
     private static final long TOOLTIP_DELAY_NANOS = 350_000_000L;
+    /** hoverAction 节流窗口：限速 8/s 的服务端不会被鼠标扫列表刷爆，最终状态仍会补发。 */
+    private static final long HOVER_ACTION_INTERVAL_MILLIS = 200L;
 
     private final String app;
     private final String view;
@@ -42,11 +48,14 @@ public final class UiScreen extends Screen {
     private final TextMeasurer measurer;
     private final AnimationController animations = new AnimationController();
     private final List<UiNode> pulseNodes = new ArrayList<>();
+    private final List<String> hoverActions = new ArrayList<>();
+    private final ActionThrottle hoverThrottle = new ActionThrottle(HOVER_ACTION_INTERVAL_MILLIS);
 
     private int lastGeneration = -1;
     private long lastFrameNanos;
     private UiNode tooltipNode;
     private long tooltipSinceNanos;
+    private InputNode focusedInput;
 
     public UiScreen(UiDefinition definition) {
         super(Component.literal("MineUI " + definition.app() + "/" + definition.view()));
@@ -102,6 +111,11 @@ public final class UiScreen extends Screen {
         float delta = frameDelta();
         updateHover(root, delta);
 
+        String pendingHover = hoverThrottle.poll();
+        if (pendingHover != null) {
+            ProtocolClient.sendAction(pendingHover);
+        }
+
         int generation = ProtocolClient.state().generation();
         if (generation != lastGeneration) {
             lastGeneration = generation;
@@ -156,6 +170,18 @@ public final class UiScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         UiNode hit = root.mouseClicked(event.x(), event.y(), event.button());
+        if (hit instanceof InputNode input) {
+            if (focusedInput != null && focusedInput != input) {
+                focusedInput.blur();
+            }
+            input.focus();
+            focusedInput = input;
+            return true;
+        }
+        if (focusedInput != null) {
+            focusedInput.blur();
+            focusedInput = null;
+        }
         if (hit != null && hit.clickable()) {
             playClickPop(hit);
             ProtocolClient.sendAction(hit.action());
@@ -167,6 +193,14 @@ public final class UiScreen extends Screen {
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
         root.mouseMoved(mouseX, mouseY);
+        hoverActions.clear();
+        root.collectHoverActions(hoverActions);
+        for (String action : hoverActions) {
+            String immediate = hoverThrottle.submit(action);
+            if (immediate != null) {
+                ProtocolClient.sendAction(immediate);
+            }
+        }
         UiNode target = root.findTooltip(mouseX, mouseY);
         if (target != tooltipNode) {
             tooltipNode = target;
@@ -194,7 +228,67 @@ public final class UiScreen extends Screen {
             MineUiScreens.exportDevTemplate();
             return true;
         }
+        InputNode input = focusedInput;
+        if (input != null && input.focused()) {
+            switch (event.key()) {
+                case GLFW.GLFW_KEY_ESCAPE -> {
+                    input.blur();
+                    focusedInput = null;
+                    return true;
+                }
+                case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
+                    submitInput(input);
+                    return true;
+                }
+                case GLFW.GLFW_KEY_BACKSPACE -> {
+                    input.backspace();
+                    return true;
+                }
+                case GLFW.GLFW_KEY_DELETE -> {
+                    input.deleteForward();
+                    return true;
+                }
+                case GLFW.GLFW_KEY_LEFT -> {
+                    input.moveCursor(-1);
+                    return true;
+                }
+                case GLFW.GLFW_KEY_RIGHT -> {
+                    input.moveCursor(1);
+                    return true;
+                }
+                case GLFW.GLFW_KEY_HOME -> {
+                    input.moveCursorTo(0);
+                    return true;
+                }
+                case GLFW.GLFW_KEY_END -> {
+                    input.moveCursorTo(input.text().length());
+                    return true;
+                }
+                default -> {
+                }
+            }
+        }
         return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        InputNode input = focusedInput;
+        if (input != null && input.focused() && event.isAllowedChatCharacter()) {
+            if (input.insert(event.codepointAsString())) {
+                return true;
+            }
+        }
+        return super.charTyped(event);
+    }
+
+    private void submitInput(InputNode input) {
+        if (input.action().isEmpty()) {
+            return;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("text", input.text());
+        ProtocolClient.sendAction(input.action(), payload);
     }
 
     @Override

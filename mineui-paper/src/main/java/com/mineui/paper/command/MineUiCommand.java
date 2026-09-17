@@ -108,6 +108,15 @@ public final class MineUiCommand {
         });
         session.on("toggle_modal", event -> session.state("showModal", !session.getBoolean("showModal", false)));
         session.on("close_modal", event -> session.state("showModal", false));
+
+        // 输入框提交（负载 {"text": ...}）与悬浮预览（hoverAction）演示
+        session.state("query", "");
+        session.state("hover", "");
+        session.on("search", event -> session.state("query", event.string("text", "")));
+        for (int i = 0; i < 12; i++) {
+            final int slot = i + 1;
+            session.on("hover_slot_" + i, event -> session.state("hover", "物品格 " + slot));
+        }
         session.snapshot();
 
         player.sendMessage(Component.text("已打开 MineUI 测试界面（点按钮 +1，Esc 关闭）", NamedTextColor.GREEN));

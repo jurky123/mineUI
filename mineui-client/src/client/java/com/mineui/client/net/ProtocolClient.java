@@ -1,5 +1,6 @@
 package com.mineui.client.net;
 
+import com.google.gson.JsonObject;
 import com.mineui.client.MineUiClient;
 import com.mineui.client.ui.MineUiScreens;
 import com.mineui.client.ui.UiStateStore;
@@ -53,11 +54,16 @@ public final class ProtocolClient {
     }
 
     public static void sendAction(String actionId) {
+        sendAction(actionId, null);
+    }
+
+    /** 发送带负载的动作（如输入框提交 {@code {"text": ...}}）。 */
+    public static void sendAction(String actionId, JsonObject payload) {
         if (!STATE.active()) {
             MineUiClient.LOGGER.warn("无活动会话，忽略动作 {}", actionId);
             return;
         }
-        Action action = new Action(actionId);
+        Action action = new Action(actionId, payload);
         send(new Envelope(MessageType.ACTION, STATE.session(), STATE.revision(), JsonCodec.encode(action)));
     }
 

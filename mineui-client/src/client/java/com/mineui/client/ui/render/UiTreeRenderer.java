@@ -7,6 +7,7 @@ import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.ContainerNode;
 import com.mineui.ui.tree.EntityViewNode;
 import com.mineui.ui.tree.ImageNode;
+import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
@@ -123,6 +124,7 @@ public final class UiTreeRenderer {
             case ItemViewNode item -> renderItem(item);
             case EntityViewNode entityView -> renderEntityPreview(entityView);
             case PlayerViewNode playerView -> renderPlayerPreview(playerView);
+            case InputNode input -> renderInput(input, opacity);
             case BoxNode box -> drawSurface(box, opacity);
             default -> {
             }
@@ -237,6 +239,36 @@ public final class UiTreeRenderer {
                 u0, v0, u1, v1);
     }
 
+    // ---------- 文本输入 ----------
+
+    private void renderInput(InputNode node, float opacity) {
+        drawSurface(node, opacity);
+        if (node.width() <= 0 || node.height() <= 0) {
+            return;
+        }
+        float padX = 6f;
+        float innerX = node.x() + padX;
+        float innerW = Math.max(0f, node.width() - padX * 2f);
+        String content = node.text();
+        boolean empty = content.isEmpty();
+        String display = empty ? node.placeholder() : content;
+        int color = empty ? node.placeholderColor() : node.textColor();
+        float prefixW = font.width(content.substring(0, node.cursor()));
+        float scroll = node.focused() && prefixW > innerW - 2f ? prefixW - (innerW - 2f) : 0f;
+        float drawX = innerX - scroll;
+        float drawY = node.y() + (node.height() - font.lineHeight) / 2f;
+
+        pushClipRect(innerX, node.y(), node.x() + node.width(), node.y() + node.height());
+        graphics.text(font, display, Math.round(drawX), Math.round(drawY),
+                UiColors.withOpacity(color, opacity), true);
+        if (node.focused() && (System.currentTimeMillis() / 500) % 2 == 0) {
+            float caretX = drawX + prefixW;
+            graphics.fill(Math.round(caretX), Math.round(drawY), Math.round(caretX) + 1,
+                    Math.round(drawY + font.lineHeight), UiColors.withOpacity(node.textColor(), opacity));
+        }
+        popClip();
+    }
+
     // ---------- 3D 预览 ----------
 
     private void renderItem(ItemViewNode node) {
@@ -339,6 +371,19 @@ public final class UiTreeRenderer {
                 node.x() + node.width() + node.animOffsetX(),
                 node.y() + node.height() + node.animOffsetY()
         };
+        float[] current = clips.peek();
+        if (current != null) {
+            rect[0] = Math.max(rect[0], current[0]);
+            rect[1] = Math.max(rect[1], current[1]);
+            rect[2] = Math.min(rect[2], current[2]);
+            rect[3] = Math.min(rect[3], current[3]);
+        }
+        clips.push(rect);
+        graphics.enableScissor((int) rect[0], (int) rect[1], (int) rect[2], (int) rect[3]);
+    }
+
+    private void pushClipRect(float x1, float y1, float x2, float y2) {
+        float[] rect = {x1, y1, x2, y2};
         float[] current = clips.peek();
         if (current != null) {
             rect[0] = Math.max(rect[0], current[0]);

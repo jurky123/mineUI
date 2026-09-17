@@ -14,7 +14,12 @@
         {
           "type": "column",
           "width": "100%",
-          "padding": { "top": 16, "bottom": 16, "left": 0, "right": 0 },
+          "padding": {
+            "top": 16,
+            "bottom": 16,
+            "left": 0,
+            "right": 0
+          },
           "gap": 12,
           "align": "center",
           "children": [
@@ -27,8 +32,15 @@
               "align": "center",
               "background": "#1B2733",
               "radius": 12,
-              "border": { "color": "#3FA9F5", "width": 1 },
-              "shadow": { "color": "#000000", "size": 8, "offsetY": 4 },
+              "border": {
+                "color": "#3FA9F5",
+                "width": 1
+              },
+              "shadow": {
+                "color": "#000000",
+                "size": 8,
+                "offsetY": 4
+              },
               "children": [
                 {
                   "type": "row",
@@ -38,7 +50,10 @@
                     {
                       "type": "image",
                       "texture": "mineui:textures/gui/logo.png",
-                      "textureSize": [16, 16],
+                      "textureSize": [
+                        16,
+                        16
+                      ],
                       "width": 28,
                       "height": 28
                     },
@@ -55,7 +70,10 @@
                   "width": "100%",
                   "height": 2,
                   "radius": 1,
-                  "gradient": ["#3FA9F5", "#1B2733"]
+                  "gradient": [
+                    "#3FA9F5",
+                    "#1B2733"
+                  ]
                 },
                 {
                   "type": "text",
@@ -63,6 +81,26 @@
                   "text": "count = {state.count}",
                   "color": "#00E0FF",
                   "pulse": true
+                },
+                {
+                  "type": "input",
+                  "id": "search",
+                  "placeholder": "输入点什么…",
+                  "maxLength": 24,
+                  "action": "search",
+                  "width": "100%",
+                  "height": 22,
+                  "radius": 6,
+                  "background": "#101820",
+                  "border": {
+                    "color": "#3FA9F5",
+                    "width": 1
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "search = {state.query}",
+                  "color": "#B0C0D0"
                 },
                 {
                   "type": "row",
@@ -98,10 +136,33 @@
                   "gap": 8,
                   "align": "center",
                   "children": [
-                    { "type": "item", "item": "minecraft:diamond", "scale": 1.5, "itemTooltip": true },
-                    { "type": "item", "item": "minecraft:paper", "count": 5, "scale": 1.5, "tooltip": "文本 tooltip 示例" },
-                    { "type": "entity", "entity": "minecraft:zombie", "width": 44, "height": 56, "scale": 22 },
-                    { "type": "player", "player": "@self", "width": 44, "height": 56, "scale": 22 }
+                    {
+                      "type": "item",
+                      "item": "minecraft:diamond",
+                      "scale": 1.5,
+                      "itemTooltip": true
+                    },
+                    {
+                      "type": "item",
+                      "item": "minecraft:paper",
+                      "count": 5,
+                      "scale": 1.5,
+                      "tooltip": "文本 tooltip 示例"
+                    },
+                    {
+                      "type": "entity",
+                      "entity": "minecraft:zombie",
+                      "width": 44,
+                      "height": 56,
+                      "scale": 22
+                    },
+                    {
+                      "type": "player",
+                      "player": "@self",
+                      "width": 44,
+                      "height": 56,
+                      "scale": 22
+                    }
                   ]
                 },
                 {
@@ -120,21 +181,110 @@
                       "gap": 5,
                       "width": "100%",
                       "children": [
-                        { "type": "box", "height": 24, "radius": 4, "background": "#2E5C8A", "tooltip": "物品格 1" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#35709A", "tooltip": "物品格 2" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#3E84AA", "tooltip": "物品格 3" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#3E7C9A", "tooltip": "物品格 4" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#468CB0", "tooltip": "物品格 5" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#4E9CC0", "tooltip": "物品格 6" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#5A3E8A", "tooltip": "物品格 7" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#6A4E9A", "tooltip": "物品格 8" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#7A5EAA", "tooltip": "物品格 9" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#2E7C6A", "tooltip": "物品格 10" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#3E8C7A", "tooltip": "物品格 11" },
-                        { "type": "box", "height": 24, "radius": 4, "background": "#4E9C8A", "tooltip": "物品格 12" }
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#2E5C8A",
+                          "tooltip": "物品格 1",
+                          "hoverAction": "hover_slot_0"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#35709A",
+                          "tooltip": "物品格 2",
+                          "hoverAction": "hover_slot_1"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#3E84AA",
+                          "tooltip": "物品格 3",
+                          "hoverAction": "hover_slot_2"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#3E7C9A",
+                          "tooltip": "物品格 4",
+                          "hoverAction": "hover_slot_3"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#468CB0",
+                          "tooltip": "物品格 5",
+                          "hoverAction": "hover_slot_4"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#4E9CC0",
+                          "tooltip": "物品格 6",
+                          "hoverAction": "hover_slot_5"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#5A3E8A",
+                          "tooltip": "物品格 7",
+                          "hoverAction": "hover_slot_6"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#6A4E9A",
+                          "tooltip": "物品格 8",
+                          "hoverAction": "hover_slot_7"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#7A5EAA",
+                          "tooltip": "物品格 9",
+                          "hoverAction": "hover_slot_8"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#2E7C6A",
+                          "tooltip": "物品格 10",
+                          "hoverAction": "hover_slot_9"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#3E8C7A",
+                          "tooltip": "物品格 11",
+                          "hoverAction": "hover_slot_10"
+                        },
+                        {
+                          "type": "box",
+                          "height": 24,
+                          "radius": 4,
+                          "background": "#4E9C8A",
+                          "tooltip": "物品格 12",
+                          "hoverAction": "hover_slot_11"
+                        }
                       ]
                     }
                   ]
+                },
+                {
+                  "type": "text",
+                  "text": "hover = {state.hover}",
+                  "color": "#B0C0D0"
                 },
                 {
                   "type": "text",
@@ -156,7 +306,12 @@
       "width": "100%",
       "height": "100%",
       "children": [
-        { "type": "box", "width": "100%", "height": "100%", "background": "#A0000000" },
+        {
+          "type": "box",
+          "width": "100%",
+          "height": "100%",
+          "background": "#A0000000"
+        },
         {
           "type": "stack",
           "width": "100%",
@@ -172,11 +327,27 @@
               "align": "center",
               "background": "#243040",
               "radius": 10,
-              "border": { "color": "#8A5FD0", "width": 1 },
-              "shadow": { "color": "#000000", "size": 10, "offsetY": 4 },
+              "border": {
+                "color": "#8A5FD0",
+                "width": 1
+              },
+              "shadow": {
+                "color": "#000000",
+                "size": 10,
+                "offsetY": 4
+              },
               "children": [
-                { "type": "text", "text": "模态弹窗", "color": "#FFFFFF", "scale": 1.5 },
-                { "type": "text", "text": "state.showModal = {state.showModal}", "color": "#B0C0D0" },
+                {
+                  "type": "text",
+                  "text": "模态弹窗",
+                  "color": "#FFFFFF",
+                  "scale": 1.5
+                },
+                {
+                  "type": "text",
+                  "text": "state.showModal = {state.showModal}",
+                  "color": "#B0C0D0"
+                },
                 {
                   "type": "button",
                   "text": "关闭",

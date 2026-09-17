@@ -27,6 +27,7 @@ public abstract class UiNode {
     private float animRotation;
     private float hoverProgress;
     private boolean visibleNow = true;
+    private boolean hoverEntered;
 
     protected UiNode(NodeStyle style) {
         this.style = style;
@@ -43,6 +44,11 @@ public abstract class UiNode {
     /** 点击动作 id（空串表示不可点击）。 */
     public String action() {
         return style.action() == null ? "" : style.action();
+    }
+
+    /** 悬浮进入动作 id（空串表示无）。 */
+    public String hoverAction() {
+        return style.hoverAction() == null ? "" : style.hoverAction();
     }
 
     public boolean clickable() {
@@ -182,7 +188,11 @@ public abstract class UiNode {
     }
 
     public void mouseMoved(double mx, double my) {
-        hovered = visibleNow && contains(mx, my);
+        boolean nowHovered = visibleNow && contains(mx, my);
+        if (nowHovered && !hovered) {
+            hoverEntered = true;
+        }
+        hovered = nowHovered;
         boolean blocked = false;
         for (UiNode child : childrenByZDesc()) {
             if (blocked) {
@@ -260,8 +270,26 @@ public abstract class UiNode {
     /** 清除自身与子树的悬停状态。 */
     public void clearHover() {
         hovered = false;
+        hoverEntered = false;
         for (UiNode child : children) {
             child.clearHover();
+        }
+    }
+
+    /**
+     * 收集本次遍历中 hover 由 false→true 的节点 hoverAction，并清除进入标记。
+     * 由界面在每次 mouseMoved 后调用。
+     */
+    public void collectHoverActions(List<String> out) {
+        if (hoverEntered) {
+            hoverEntered = false;
+            String action = hoverAction();
+            if (visibleNow && !action.isEmpty()) {
+                out.add(action);
+            }
+        }
+        for (UiNode child : children) {
+            child.collectHoverActions(out);
         }
     }
 

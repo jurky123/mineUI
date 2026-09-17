@@ -11,6 +11,7 @@ import com.mineui.ui.tree.CrossAlign;
 import com.mineui.ui.tree.EntityViewNode;
 import com.mineui.ui.tree.GridNode;
 import com.mineui.ui.tree.ImageNode;
+import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.MainAlign;
 import com.mineui.ui.tree.NodeStyle;
@@ -82,6 +83,12 @@ public final class UiSpecParser {
                     optFloat(json, "bodyYaw", optFloat(json, "yaw", 0f)),
                     optFloat(json, "pitch", 0f));
             case "player" -> parsePlayer(json, style);
+            case "input" -> new InputNode(style,
+                    optString(json, "placeholder", ""),
+                    optInt(json, "maxLength", 32),
+                    optString(json, "action", ""),
+                    parseColor(json.get("color"), 0xFFFFFFFF),
+                    parseColor(json.get("placeholderColor"), 0xFF808080));
             default -> throw new UiSpecException("未知节点类型: " + type);
         };
 
@@ -157,7 +164,8 @@ public final class UiSpecParser {
                 BooleanSpec.parse(json.get("visible")),
                 optString(json, "tooltip", null),
                 optBool(json, "modal", false),
-                optString(json, "action", null));
+                optString(json, "action", null),
+                optString(json, "hoverAction", null));
     }
 
     /**

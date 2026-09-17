@@ -13,4 +13,16 @@ public interface MineUiAction {
 
     /** 动作载荷（无载荷时为空对象）。 */
     JsonElement payload();
+
+    /** 读取载荷中的字符串字段（无则返回默认值），输入框提交等场景使用。 */
+    default String string(String key, String fallback) {
+        JsonElement payload = payload();
+        if (payload != null && payload.isJsonObject()) {
+            JsonElement value = payload.getAsJsonObject().get(key);
+            if (value != null && value.isJsonPrimitive()) {
+                return value.getAsString();
+            }
+        }
+        return fallback;
+    }
 }
