@@ -1,7 +1,9 @@
 package com.mineui.client.ui;
 
 import com.mineui.client.net.ProtocolClient;
+import com.mineui.client.ui.anim.AnimationController;
 import com.mineui.client.ui.render.UiTreeRenderer;
+import com.mineui.ui.anim.Easing;
 import com.mineui.ui.spec.UiDefinition;
 import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.MeasureContext;
@@ -14,19 +16,29 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 通用 MineUI 界面：节点树来自客户端 UI JSON，数据来自服务端 state。
- * F9 热重载（开发目录覆盖）。
+ * 支持 F9 热重载、悬停过渡、点击/状态脉冲动画。
  */
 public final class UiScreen extends Screen {
 
-    private static final int BACKGROUND = 0xC0101010;
+    private static final int BACKGROUND = 0xC0080C10;
+    private static final float HOVER_SPEED = 14f;
+    private static final float MAX_FRAME_DELTA = 0.1f;
 
     private final String app;
     private final String view;
     private final String source;
     private final UiNode root;
     private final TextMeasurer measurer;
+    private final AnimationController animations = new AnimationController();
+    private final List<UiNode> pulseNodes = new ArrayList<>();
+
+    private int lastRevision = -1;
+    private long lastFrameNanos;
 
     public UiScreen(UiDefinition definition) {
         super(Component.literal("MineUI " + definition.app() + "/" + definition.view()));
@@ -60,6 +72,10 @@ public final class UiScreen extends Screen {
         MeasureContext context = new MeasureContext(width, height, width, height, measurer, ProtocolClient.state());
         root.measure(context);
         root.layout(0, 0);
+
+        pulseNodes.clear();
+        root.collectPulses(pulseNodes);
+        lastRevision = ProtocolClient.state().revision();
     }
 
     @Override
@@ -70,14 +86,28 @@ public final class UiScreen extends Screen {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+
+        float delta = frameDelta();
+        updateHover(root, delta);
+
+        int revision = ProtocolClient.state().revision();
+        if (revision != lastRevision) {
+            lastRevision = revision;
+            for (UiNode node : pulseNodes) {
+                pulse(node);
+            }
+        }
+        animations.update(delta);
+
         graphics.text(this.font, source, 6, 6, 0xFF606060, false);
-        UiTreeRenderer.render(root, graphics, this.font, ProtocolClient.state());
+        new UiTreeRenderer(graphics, this.font, ProtocolClient.state()).render(root);
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         UiNode hit = root.mouseClicked(event.x(), event.y(), event.button());
         if (hit instanceof ButtonNode button) {
+            playClickPop(button);
             if (!button.action().isEmpty()) {
                 ProtocolClient.sendAction(button.action());
             }
@@ -111,5 +141,35 @@ public final class UiScreen extends Screen {
         ProtocolClient.sendClose();
         MineUiScreens.clientClosed(this);
         super.onClose();
+    }
+
+    // ---------- 动画 ----------
+
+    private float frameDelta() {
+        long now = System.nanoTime();
+        float delta = lastFrameNanos == 0L ? 0f : (now - lastFrameNanos) / 1_000_000_000f;
+        lastFrameNanos = now;
+        return Math.min(delta, MAX_FRAME_DELTA);
+    }
+
+    private void updateHover(UiNode node, float delta) {
+        if (node instanceof ButtonNode) {
+            float target = node.hovered() ? 1f : 0f;
+            float current = node.hoverProgress();
+            node.setHoverProgress(current + (target - current) * Math.min(1f, delta * HOVER_SPEED));
+        }
+        for (UiNode child : node.children()) {
+            updateHover(child, delta);
+        }
+    }
+
+    private void playClickPop(UiNode node) {
+        animations.animate(node, AnimationController.Property.SCALE, 1f, 1.06f, 0.06f, Easing.EASE_OUT,
+                () -> animations.animate(node, AnimationController.Property.SCALE, 1.06f, 1f, 0.16f, Easing.BACK_OUT));
+    }
+
+    private void pulse(UiNode node) {
+        animations.animate(node, AnimationController.Property.SCALE, 1f, 1.25f, 0.08f, Easing.EASE_OUT,
+                () -> animations.animate(node, AnimationController.Property.SCALE, 1.25f, 1f, 0.24f, Easing.BACK_OUT));
     }
 }

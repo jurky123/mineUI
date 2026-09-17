@@ -19,6 +19,14 @@ public abstract class UiNode {
     protected float height;
     protected boolean hovered;
 
+    // 渲染变换（由动画控制器/悬停进度驱动，渲染器应用；不影响布局）
+    private float animOffsetX;
+    private float animOffsetY;
+    private float animScale = 1f;
+    private float animOpacity = 1f;
+    private float animRotation;
+    private float hoverProgress;
+
     protected UiNode(NodeStyle style) {
         this.style = style;
     }
@@ -79,6 +87,88 @@ public abstract class UiNode {
 
     public boolean contains(double px, double py) {
         return px >= x && px < x + width && py >= y && py < y + height;
+    }
+
+    // ---------- 渲染变换 ----------
+
+    public float animOffsetX() {
+        return animOffsetX;
+    }
+
+    public void setAnimOffsetX(float value) {
+        this.animOffsetX = value;
+    }
+
+    public float animOffsetY() {
+        return animOffsetY;
+    }
+
+    public void setAnimOffsetY(float value) {
+        this.animOffsetY = value;
+    }
+
+    public float animScale() {
+        return animScale;
+    }
+
+    public void setAnimScale(float value) {
+        this.animScale = value;
+    }
+
+    public float animOpacity() {
+        return animOpacity;
+    }
+
+    public void setAnimOpacity(float value) {
+        this.animOpacity = value;
+    }
+
+    public float animRotation() {
+        return animRotation;
+    }
+
+    public void setAnimRotation(float value) {
+        this.animRotation = value;
+    }
+
+    public float hoverProgress() {
+        return hoverProgress;
+    }
+
+    public void setHoverProgress(float value) {
+        this.hoverProgress = value;
+    }
+
+    public boolean hasTransform() {
+        return animOffsetX != 0f || animOffsetY != 0f || animScale != 1f
+                || animOpacity != 1f || animRotation != 0f;
+    }
+
+    /** 按 id 查找（深度优先）。 */
+    public UiNode findById(String nodeId) {
+        if (nodeId == null) {
+            return null;
+        }
+        if (nodeId.equals(id())) {
+            return this;
+        }
+        for (UiNode child : children) {
+            UiNode found = child.findById(nodeId);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /** 收集标记了 pulse 的节点。 */
+    public void collectPulses(List<UiNode> out) {
+        if (style.pulse()) {
+            out.add(this);
+        }
+        for (UiNode child : children) {
+            child.collectPulses(out);
+        }
     }
 
     public void mouseMoved(double mx, double my) {

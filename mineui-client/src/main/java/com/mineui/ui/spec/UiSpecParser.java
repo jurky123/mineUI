@@ -64,6 +64,37 @@ public final class UiSpecParser {
         Integer background = json.has("background") && !json.get("background").isJsonNull()
                 ? parseColor(json.get("background"), 0)
                 : null;
+
+        Integer gradientTo = null;
+        if (json.has("gradient") && !json.get("gradient").isJsonNull()) {
+            JsonArray gradient = json.getAsJsonArray("gradient");
+            if (gradient.size() != 2) {
+                throw new UiSpecException("gradient 必须是 [起始色, 结束色]");
+            }
+            if (background == null) {
+                background = parseColor(gradient.get(0), 0);
+            }
+            gradientTo = parseColor(gradient.get(1), 0);
+        }
+
+        Integer borderColor = null;
+        float borderWidth = 0f;
+        if (json.has("border") && json.get("border").isJsonObject()) {
+            JsonObject border = json.getAsJsonObject("border");
+            borderColor = parseColor(border.get("color"), 0xFF000000);
+            borderWidth = border.has("width") ? border.get("width").getAsFloat() : 1f;
+        }
+
+        Integer shadowColor = null;
+        float shadowSize = 0f;
+        float shadowOffsetY = 0f;
+        if (json.has("shadow") && json.get("shadow").isJsonObject()) {
+            JsonObject shadow = json.getAsJsonObject("shadow");
+            shadowColor = parseColor(shadow.get("color"), 0x80000000);
+            shadowSize = shadow.has("size") ? shadow.get("size").getAsFloat() : 4f;
+            shadowOffsetY = shadow.has("offsetY") ? shadow.get("offsetY").getAsFloat() : 2f;
+        }
+
         return new NodeStyle(
                 optString(json, "id", null),
                 SizeSpec.parse(json.get("width")),
@@ -72,7 +103,17 @@ public final class UiSpecParser {
                 background,
                 CrossAlign.parse(optString(json, "align", null), CrossAlign.START),
                 MainAlign.parse(optString(json, "justify", null), MainAlign.START),
-                optFloat(json, "gap", 0f));
+                optFloat(json, "gap", 0f),
+                optFloat(json, "radius", 0f),
+                borderColor,
+                borderWidth,
+                shadowColor,
+                shadowSize,
+                shadowOffsetY,
+                gradientTo,
+                optInt(json, "z", 0),
+                optBool(json, "clip", false),
+                optBool(json, "pulse", false));
     }
 
     private static ImageNode parseImage(JsonObject json, NodeStyle style) throws UiSpecException {
@@ -130,5 +171,15 @@ public final class UiSpecParser {
     private static float optFloat(JsonObject json, String key, float fallback) {
         JsonElement element = json.get(key);
         return element == null || element.isJsonNull() ? fallback : element.getAsFloat();
+    }
+
+    private static int optInt(JsonObject json, String key, int fallback) {
+        JsonElement element = json.get(key);
+        return element == null || element.isJsonNull() ? fallback : element.getAsInt();
+    }
+
+    private static boolean optBool(JsonObject json, String key, boolean fallback) {
+        JsonElement element = json.get(key);
+        return element == null || element.isJsonNull() ? fallback : element.getAsBoolean();
     }
 }

@@ -1,10 +1,12 @@
 package com.mineui.client.ui.render;
 
+import com.mineui.ui.paint.UiColors;
 import com.mineui.ui.tree.Bindings;
 import com.mineui.ui.tree.BoxNode;
 import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.ContainerNode;
 import com.mineui.ui.tree.ImageNode;
+import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.StateAccess;
 import com.mineui.ui.tree.TextNode;
 import com.mineui.ui.tree.UiNode;
@@ -12,77 +14,177 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 
-/** 把 UI 节点树画到屏幕上（服务端状态 + 本地定义）。 */
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Deque;
+import java.util.List;
+
+/**
+ * 把 UI 节点树画到屏幕上。
+ * 支持：圆角/描边/渐变/阴影、透明度继承、裁剪栈、z 序、变换（位移/缩放/旋转）。
+ */
 public final class UiTreeRenderer {
 
-    private UiTreeRenderer() {
+    private final GuiGraphicsExtractor graphics;
+    private final Font font;
+    private final StateAccess state;
+    private final UiPainter painter;
+    private final Deque<float[]> clips = new ArrayDeque<>();
+
+    public UiTreeRenderer(GuiGraphicsExtractor graphics, Font font, StateAccess state) {
+        this.graphics = graphics;
+        this.font = font;
+        this.state = state;
+        this.painter = new UiPainter(graphics);
     }
 
-    public static void render(UiNode node, GuiGraphicsExtractor graphics, Font font, StateAccess state) {
+    public void render(UiNode root) {
+        renderNode(root, 1f);
+    }
+
+    private void renderNode(UiNode node, float inheritedOpacity) {
+        float opacity = inheritedOpacity * node.animOpacity();
+        boolean clipped = false;
+        if (node.style().clip() && node.width() > 0 && node.height() > 0) {
+            pushClip(node);
+            clipped = true;
+        }
+
+        boolean transformed = node.hasTransform();
+        var pose = graphics.pose();
+        if (transformed) {
+            float centerX = node.x() + node.width() / 2f;
+            float centerY = node.y() + node.height() / 2f;
+            pose.pushMatrix();
+            pose.translate(node.animOffsetX(), node.animOffsetY());
+            pose.translate(centerX, centerY);
+            if (node.animRotation() != 0f) {
+                pose.rotate((float) Math.toRadians(node.animRotation()));
+            }
+            if (node.animScale() != 1f) {
+                pose.scale(node.animScale(), node.animScale());
+            }
+            pose.translate(-centerX, -centerY);
+        }
+
         switch (node) {
             case ContainerNode container -> {
-                renderBackground(container, graphics);
-                for (UiNode child : container.children()) {
-                    render(child, graphics, font, state);
+                drawSurface(container, opacity);
+                List<UiNode> children = new ArrayList<>(container.children());
+                children.sort(Comparator.comparingInt(child -> child.style().z()));
+                for (UiNode child : children) {
+                    renderNode(child, opacity);
                 }
             }
-            case TextNode text -> renderText(text, graphics, font, state);
-            case ButtonNode button -> renderButton(button, graphics, font, state);
-            case ImageNode image -> renderImage(image, graphics);
-            case BoxNode box -> renderBackground(box, graphics);
+            case TextNode text -> renderText(text, opacity);
+            case ButtonNode button -> {
+                drawButtonBackground(button, opacity);
+                renderText(button, opacity);
+            }
+            case ImageNode image -> renderImage(image);
+            case BoxNode box -> drawSurface(box, opacity);
             default -> {
             }
         }
+
+        if (transformed) {
+            pose.popMatrix();
+        }
+        if (clipped) {
+            popClip();
+        }
     }
 
-    private static void renderBackground(UiNode node, GuiGraphicsExtractor graphics) {
-        Integer background = node.style().background();
-        if (background == null) {
-            return;
+    // ---------- 表面（背景/描边/阴影/渐变） ----------
+
+    private void drawSurface(UiNode node, float opacity) {
+        NodeStyle style = node.style();
+        if (style.shadowColor() != null && style.shadowSize() > 0f) {
+            painter.shadow(node.x(), node.y(), node.width(), node.height(), style.radius(),
+                    style.shadowColor(), style.shadowSize(), style.shadowOffsetY(), opacity);
         }
-        graphics.fill((int) node.x(), (int) node.y(),
-                (int) (node.x() + node.width()), (int) (node.y() + node.height()), background);
+        if (style.borderColor() != null && style.borderWidth() > 0f) {
+            painter.fillRounded(node.x(), node.y(), node.width(), node.height(), style.radius(),
+                    style.borderColor(), opacity);
+            if (style.background() != null) {
+                float inset = style.borderWidth();
+                drawFill(node, node.x() + inset, node.y() + inset,
+                        Math.max(0f, node.width() - 2f * inset), Math.max(0f, node.height() - 2f * inset),
+                        Math.max(0f, style.radius() - inset), opacity);
+            }
+        } else if (style.background() != null) {
+            drawFill(node, node.x(), node.y(), node.width(), node.height(), style.radius(), opacity);
+        }
     }
 
-    private static void renderText(TextNode node, GuiGraphicsExtractor graphics, Font font, StateAccess state) {
-        String text = Bindings.resolve(node.template(), state);
-        if (text.isEmpty()) {
-            return;
+    private void drawFill(UiNode node, float x, float y, float w, float h, float radius, float opacity) {
+        NodeStyle style = node.style();
+        if (style.gradientTo() != null) {
+            painter.fillRoundedGradient(x, y, w, h, radius, style.background(), style.gradientTo(), opacity);
+        } else {
+            painter.fillRounded(x, y, w, h, radius, style.background(), opacity);
         }
-        float scale = node.scale();
-        float textWidth = font.width(text) * scale;
-        float drawX = switch (node.style().align()) {
-            case CENTER -> node.x() + (node.width() - textWidth) / 2f;
-            case END -> node.x() + node.width() - textWidth;
-            default -> node.x();
+    }
+
+    private void drawButtonBackground(ButtonNode node, float opacity) {
+        int background = UiColors.lerp(node.background(), node.hoverBackground(), node.hoverProgress());
+        NodeStyle style = node.style();
+        if (style.shadowColor() != null && style.shadowSize() > 0f) {
+            painter.shadow(node.x(), node.y(), node.width(), node.height(), style.radius(),
+                    style.shadowColor(), style.shadowSize(), style.shadowOffsetY(), opacity);
+        }
+        painter.fillRounded(node.x(), node.y(), node.width(), node.height(), style.radius(), background, opacity);
+    }
+
+    // ---------- 内容 ----------
+
+    private void renderText(UiNode node, float opacity) {
+        String template = switch (node) {
+            case TextNode text -> text.template();
+            case ButtonNode button -> button.template();
+            default -> "";
         };
-        var pose = graphics.pose();
-        pose.pushMatrix();
-        pose.translate(drawX, node.y());
-        pose.scale(scale, scale);
-        graphics.text(font, text, 0, 0, node.color(), true);
-        pose.popMatrix();
-    }
-
-    private static void renderButton(ButtonNode node, GuiGraphicsExtractor graphics, Font font, StateAccess state) {
-        int background = node.hovered() ? node.hoverBackground() : node.background();
-        graphics.fill((int) node.x(), (int) node.y(),
-                (int) (node.x() + node.width()), (int) (node.y() + node.height()), background);
-
-        String text = Bindings.resolve(node.template(), state);
+        String text = Bindings.resolve(template, state);
         if (text.isEmpty()) {
             return;
         }
-        int textWidth = font.width(text);
-        graphics.text(font, text,
-                (int) (node.x() + (node.width() - textWidth) / 2f),
-                (int) (node.y() + (node.height() - font.lineHeight) / 2f),
-                node.textColor(), true);
+        float scale = node instanceof TextNode textNode ? textNode.scale() : 1f;
+        int color = node instanceof TextNode textNode ? textNode.color() : ((ButtonNode) node).textColor();
+        int argb = UiColors.withOpacity(color, opacity);
+        if (((argb >>> 24) & 0xFF) == 0) {
+            return;
+        }
+
+        float textWidth = font.width(text) * scale;
+        float drawX;
+        if (node instanceof ButtonNode) {
+            drawX = node.x() + (node.width() - textWidth) / 2f;
+        } else {
+            drawX = switch (node.style().align()) {
+                case CENTER -> node.x() + (node.width() - textWidth) / 2f;
+                case END -> node.x() + node.width() - textWidth;
+                default -> node.x();
+            };
+        }
+        float drawY = node.y() + (node.height() - font.lineHeight * scale) / 2f;
+
+        var pose = graphics.pose();
+        boolean scaled = scale != 1f;
+        if (scaled) {
+            pose.pushMatrix();
+            pose.translate(drawX, drawY);
+            pose.scale(scale, scale);
+        }
+        graphics.text(font, text, scaled ? 0 : Math.round(drawX), scaled ? 0 : Math.round(drawY), argb, true);
+        if (scaled) {
+            pose.popMatrix();
+        }
     }
 
-    private static void renderImage(ImageNode node, GuiGraphicsExtractor graphics) {
+    private void renderImage(ImageNode node) {
         Identifier texture = Identifier.tryParse(node.texture());
-        if (texture == null) {
+        if (texture == null || node.width() <= 0 || node.height() <= 0) {
             return;
         }
         float u0 = node.u() / node.textureWidth();
@@ -90,8 +192,38 @@ public final class UiTreeRenderer {
         float u1 = (node.u() + node.regionWidth()) / node.textureWidth();
         float v1 = (node.v() + node.regionHeight()) / node.textureHeight();
         graphics.blit(texture,
-                (int) node.x(), (int) node.y(),
-                (int) (node.x() + node.width()), (int) (node.y() + node.height()),
+                Math.round(node.x()), Math.round(node.y()),
+                Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
                 u0, v0, u1, v1);
+    }
+
+    // ---------- 裁剪栈 ----------
+
+    private void pushClip(UiNode node) {
+        float[] rect = {
+                node.x() + node.animOffsetX(),
+                node.y() + node.animOffsetY(),
+                node.x() + node.width() + node.animOffsetX(),
+                node.y() + node.height() + node.animOffsetY()
+        };
+        float[] current = clips.peek();
+        if (current != null) {
+            rect[0] = Math.max(rect[0], current[0]);
+            rect[1] = Math.max(rect[1], current[1]);
+            rect[2] = Math.min(rect[2], current[2]);
+            rect[3] = Math.min(rect[3], current[3]);
+        }
+        clips.push(rect);
+        graphics.enableScissor((int) rect[0], (int) rect[1], (int) rect[2], (int) rect[3]);
+    }
+
+    private void popClip() {
+        clips.pop();
+        float[] current = clips.peek();
+        if (current != null) {
+            graphics.enableScissor((int) current[0], (int) current[1], (int) current[2], (int) current[3]);
+        } else {
+            graphics.disableScissor();
+        }
     }
 }
