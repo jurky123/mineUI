@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.mineui.client.net.ProtocolClient;
 import com.mineui.client.ui.anim.AnimationController;
 import com.mineui.client.ui.render.ItemStacks;
+import com.mineui.client.ui.render.RenderCache;
 import com.mineui.client.ui.render.UiPainter;
 import com.mineui.client.ui.render.UiTreeRenderer;
 import com.mineui.ui.anim.Easing;
@@ -51,6 +52,7 @@ public final class UiScreen extends Screen {
     private final List<UiNode> pulseNodes = new ArrayList<>();
     private final List<String> hoverActions = new ArrayList<>();
     private final ActionThrottle hoverThrottle = new ActionThrottle(HOVER_ACTION_INTERVAL_MILLIS);
+    private final RenderCache renderCache = new RenderCache();
 
     private int lastGeneration = -1;
     private long lastFrameNanos;
@@ -129,7 +131,7 @@ public final class UiScreen extends Screen {
         animations.update(delta);
 
         graphics.text(this.font, source, 6, 6, 0xFF606060, false);
-        new UiTreeRenderer(graphics, this.font, ProtocolClient.state()).render(root, mouseX, mouseY);
+        new UiTreeRenderer(graphics, this.font, ProtocolClient.state(), renderCache).render(root, mouseX, mouseY);
         drawTooltip(graphics, mouseX, mouseY);
     }
 

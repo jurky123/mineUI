@@ -6,6 +6,7 @@ import com.mineui.ui.tree.BoxNode;
 import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.ContainerNode;
 import com.mineui.ui.tree.EntityViewNode;
+import com.mineui.ui.tree.GenerationSource;
 import com.mineui.ui.tree.ImageNode;
 import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
@@ -48,11 +49,40 @@ public final class UiTreeRenderer {
     private int mouseX;
     private int mouseY;
 
+    private final RenderCache cache;
+
     public UiTreeRenderer(GuiGraphicsExtractor graphics, Font font, StateAccess state) {
+        this(graphics, font, state, new RenderCache());
+    }
+
+    public UiTreeRenderer(GuiGraphicsExtractor graphics, Font font, StateAccess state, RenderCache cache) {
         this.graphics = graphics;
         this.font = font;
         this.state = state;
+        this.cache = cache;
         this.painter = new UiPainter(graphics);
+    }
+
+    private int generation() {
+        return state instanceof GenerationSource source ? source.generation() : 0;
+    }
+
+    /** 解析贴图模板（支持 {state.x} 与 sprite: 前缀），空/非法返回 empty（安全跳过）。 */
+    private java.util.Optional<RenderCache.TextureRef> resolveTexture(String template) {
+        return cache.texture(generation(), template, raw -> {
+            String resolved = Bindings.resolve(raw, state);
+            if (resolved.isEmpty()) {
+                return java.util.Optional.empty();
+            }
+            if (resolved.startsWith(SPRITE_PREFIX)) {
+                Identifier sprite = Identifier.tryParse(resolved.substring(SPRITE_PREFIX.length()));
+                return sprite == null ? java.util.Optional.empty()
+                        : java.util.Optional.of(new RenderCache.TextureRef(sprite, true));
+            }
+            Identifier id = Identifier.tryParse(resolved);
+            return id == null ? java.util.Optional.empty()
+                    : java.util.Optional.of(new RenderCache.TextureRef(id, false));
+        });
     }
 
     public void render(UiNode root, int mouseX, int mouseY) {
@@ -288,19 +318,18 @@ public final class UiTreeRenderer {
         if (node.width() <= 0 || node.height() <= 0) {
             return;
         }
-        if (node.texture().startsWith(SPRITE_PREFIX)) {
-            Identifier sprite = Identifier.tryParse(node.texture().substring(SPRITE_PREFIX.length()));
-            if (sprite != null) {
-                graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite,
-                        Math.round(node.x()), Math.round(node.y()),
-                        Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
-            }
+        java.util.Optional<RenderCache.TextureRef> resolved = resolveTexture(node.texture());
+        if (resolved.isEmpty()) {
             return;
         }
-        Identifier texture = Identifier.tryParse(node.texture());
-        if (texture == null) {
+        RenderCache.TextureRef reference = resolved.get();
+        if (reference.sprite()) {
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, reference.id(),
+                    Math.round(node.x()), Math.round(node.y()),
+                    Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
             return;
         }
+        Identifier texture = reference.id();
         float u0 = node.u() / node.textureWidth();
         float v0 = node.v() / node.textureHeight();
         float u1 = (node.u() + node.regionWidth()) / node.textureWidth();
@@ -344,11 +373,19 @@ public final class UiTreeRenderer {
     // ---------- 3D 预览 ----------
 
     private void renderItem(ItemViewNode node) {
-        String itemId = node.hovered() && node.hoverItem() != null ? node.hoverItem() : node.item();
+        String itemTemplate = node.hovered() && node.hoverItem() != null ? node.hoverItem() : node.item();
         if (node.style().cycle() != null && !node.style().cycle().items().isEmpty()) {
-            itemId = node.style().cycle().itemAt(System.currentTimeMillis(), itemId);
+            itemTemplate = node.style().cycle().itemAt(System.currentTimeMillis(), itemTemplate);
         }
-        ItemStack stack = ItemStacks.resolve(node, itemId);
+        int generation = generation();
+        String itemId = cache.itemId(generation, itemTemplate, raw -> Bindings.resolve(raw, state));
+        if (itemId.isEmpty()) {
+            return;
+        }
+        java.util.List<String> models = node.modelStrings().isEmpty()
+                ? java.util.List.of()
+                : cache.modelStrings(generation, node.modelStrings(), raw -> Bindings.resolve(raw, state));
+        ItemStack stack = ItemStacks.resolve(node, itemId, models);
         if (stack.isEmpty()) {
             return;
         }

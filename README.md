@@ -101,6 +101,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 点击与悬浮动作、输入框、滑块、F9 热重载 / F10 导出
 - ✅ 原版风格模板（按钮/输入框/滑块/滚动条/面板/弹窗，像素级对齐原版贴图）
 - ✅ 装饰与动效（物品/头颅/精灵/自绘像素素材、悬浮缩放与换图案、时间轮换）
+- ✅ 动态贴图：`image.texture` / `item.item` 支持状态绑定，换图不重开界面（棋盘/棋子等）
 - ✅ 业务 API `com.mineui.api`（含 `server_ui` 能力协商与 owner 生命周期）
 - ⏳ HUD Overlay、标签页/下拉框/滑块等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）

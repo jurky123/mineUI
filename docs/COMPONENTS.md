@@ -76,6 +76,29 @@
 
 ---
 
+## 2.5 动态贴图（状态绑定，不清屏不重开）
+
+`image.texture` 与 `item.item` 支持状态绑定，服务端改 state 即换图（棋子、高亮、选中框等），
+**不需要重开界面、鼠标位置不变**；解析结果按状态代数缓存，只在 state 变化时解析一次。
+
+```json
+// 棋盘格：每格一个棋子图 + 一个高亮图，data 里直接放资源路径
+{ "type": "image", "texture": "{state.sq_e4}", "width": 64, "height": 64 }
+{ "type": "image", "texture": "{state.hl_e4}", "width": 64, "height": 64 }
+
+// 原版精灵也支持绑定
+{ "type": "image", "texture": "sprite:{state.icon}" }
+
+// 用物品模型当棋子（item 与 modelStrings 均可绑定）
+{ "type": "item", "item": "minecraft:paper", "modelStrings": ["{state.piece_e4}"] }
+```
+
+- 值为空或非法 Identifier 时**安全跳过渲染**（不报错、不崩溃），适合"空格子"
+- 绑定只在状态变化（generation）时解析一次并缓存，稳定帧零额外开销
+- 旧客户端遇到模板字符串（含 `{`）会因非法 Identifier 而跳过，不会崩
+
+---
+
 ## 3. 交互：装饰即按钮
 
 任意节点写 `action` 即为按钮；`hoverScale` 控制悬浮缩放（>1 放大，<1 缩小），`hoverItem` 让物品节点悬浮时换成另一个图案：

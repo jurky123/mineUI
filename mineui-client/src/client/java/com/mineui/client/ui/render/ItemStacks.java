@@ -27,11 +27,16 @@ public final class ItemStacks {
 
     /** 按指定物品 id 构造（hoverItem / 轮换物品用）。 */
     public static ItemStack resolve(ItemViewNode node, String itemId) {
-        String key = itemId + "|" + node.model() + "|" + String.join(",", node.modelStrings()) + "|" + node.count();
-        return CACHE.computeIfAbsent(key, ignored -> build(node, itemId));
+        return resolve(node, itemId, node.modelStrings());
     }
 
-    private static ItemStack build(ItemViewNode node, String itemId) {
+    /** 按解析后的物品 id 与 modelStrings 构造（状态绑定场景）。 */
+    public static ItemStack resolve(ItemViewNode node, String itemId, List<String> resolvedModelStrings) {
+        String key = itemId + "|" + node.model() + "|" + String.join(",", resolvedModelStrings) + "|" + node.count();
+        return CACHE.computeIfAbsent(key, ignored -> build(node, itemId, resolvedModelStrings));
+    }
+
+    private static ItemStack build(ItemViewNode node, String itemId, List<String> resolvedModelStrings) {
         Identifier id = Identifier.tryParse(itemId);
         Item item = id == null ? null : BuiltInRegistries.ITEM.getValue(id);
         if (item == null || item == Items.AIR) {
@@ -41,8 +46,8 @@ public final class ItemStacks {
         CustomModelData model = null;
         if (node.model() >= 0) {
             model = new CustomModelData(List.of((float) node.model()), List.of(), List.of(), List.of());
-        } else if (!node.modelStrings().isEmpty()) {
-            model = new CustomModelData(List.of(), List.of(), node.modelStrings(), List.of());
+        } else if (!resolvedModelStrings.isEmpty()) {
+            model = new CustomModelData(List.of(), List.of(), resolvedModelStrings, List.of());
         }
         if (model != null) {
             stack.set(DataComponents.CUSTOM_MODEL_DATA, model);

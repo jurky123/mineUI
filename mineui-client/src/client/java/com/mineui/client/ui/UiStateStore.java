@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.mineui.protocol.ProtocolException;
 import com.mineui.protocol.json.JsonPatch;
 import com.mineui.protocol.msg.PatchOp;
+import com.mineui.ui.tree.GenerationSource;
 import com.mineui.ui.tree.StateAccess;
 
 import java.util.List;
@@ -13,7 +14,7 @@ import java.util.List;
  * 客户端界面状态（服务端权威，客户端只读渲染）。
  * 仅在渲染线程访问。
  */
-public final class UiStateStore implements StateAccess {
+public final class UiStateStore implements StateAccess, GenerationSource {
 
     private JsonObject state = new JsonObject();
     private int session = -1;
