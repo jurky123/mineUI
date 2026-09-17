@@ -43,7 +43,7 @@ MineUI
 
 ### 1.3 与现有项目的关系
 
-- `customized_plugins/mineUNO`（现有，Maven）：UNO 插件 + PackHost。**短期不动**；MineUI 成熟后 MineUNO 切到 MineUI API（背包手牌 GUI → `UnoScreen`）。
+- `minePlugins/mineUNO`（现有，Maven）：UNO 插件 + PackHost。**短期不动**；MineUI 成熟后 MineUNO 切到 MineUI API（背包手牌 GUI → `UnoScreen`）。
 - 服务器现有 Paper 插件栈（EssentialsX/Multiverse/TAB/Skript/SkinsRestorer 等）**不受影响**：MineUI 是增量插件。
 
 ---
@@ -249,18 +249,22 @@ Pre → Measure → Layout → Background → Content → Children → Overlay �
 ## 8. 开发环境与工作流（本机）
 
 ```text
-customized_plugins/customized_GUI_API/
-├── settings.gradle.kts / build.gradle.kts      # Gradle 多模块（client 必须 Loom）
-├── mineui-protocol/     # 纯 Java
-├── mineui-paper/        # Paper 插件（构建后放服务器 plugins/）
-├── mineui-client/       # Fabric mod（Loom，Mojmap）
-├── mineuno-*/           # 后续业务模块（common/paper/client）
-└── run/                 # 本地跑服/调试
+minePlugins/                    # 超级仓库（git submodule 聚合）
+├── mineUI/                     # 本仓库（协议 + Paper 插件 + Fabric 客户端）
+│   ├── settings.gradle / build.gradle / gradle.properties
+│   ├── mineui-protocol/        # 纯 Java：信封/消息/JSON Patch
+│   ├── mineui-paper/           # Paper 插件（构建后放服务器 plugins/）
+│   ├── mineui-client/          # Fabric mod（Loom no-remap，26.x 官方不混淆）
+│   ├── tools/                  # build_client_kit.sh 等构建/打包脚本
+│   └── README.md
+├── mineUNO/                    # UNO 业务（后续接入 MineUI API）
+├── mineAgent/                  # 服务器运维 agent
+└── .gitmodules
 ```
 
 - 服务器装 `openjdk-25-jdk`；构建用 `./gradlew`（wrapper 自动下载）。
-- **客户端测试在玩家 PC**：我们构建 jar → 上传到 `:8123` 静态目录 → 玩家下载安装（Fabric Loader + Fabric API + MineUI）。
-- 服务端改动：`stop → 替换 plugins/mineui.jar → ./start.sh`；测试期建议开独立 tmux 会话跑实例，避免影响现有服。
+- **客户端测试在玩家 PC**：`tools/build_client_kit.sh` 打包含 mod + Fabric API + 安装说明 → 上传临时文件站 → 玩家下载安装。
+- 服务端改动：`stop → 替换 plugins/MineUI-<版本>.jar → ./start.sh`（本服单环境，直接在线上验证）。
 - 抓包/调试：协议 JSON 阶段可直接看日志；客户端 F8 调试面板显示 session/revision/包速率。
 
 ---
