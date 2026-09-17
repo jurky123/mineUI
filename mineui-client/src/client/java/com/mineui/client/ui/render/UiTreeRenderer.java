@@ -353,10 +353,11 @@ public final class UiTreeRenderer {
         float v0 = node.v() / texH;
         float u1 = (node.u() + regionW) / texW;
         float v1 = (node.v() + regionH) / texH;
+        // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)，不是 (u0, v0, u1, v1)
         graphics.blit(texture,
                 Math.round(node.x()), Math.round(node.y()),
                 Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
-                u0, v0, u1, v1);
+                u0, u1, v0, v1);
     }
 
     // ---------- 文本输入 ----------
