@@ -100,11 +100,14 @@ public final class MineUiCommand {
         UiSession session = plugin.uiSessions().open(player, "mineui", "test");
         session.state("title", "MineUI Phase 1");
         session.state("count", 0);
+        session.state("showModal", false);
         session.on("button_click", event -> {
             int count = session.getInt("count", 0) + 1;
             session.state("count", count);
             session.state("title", "点击了 " + count + " 次");
         });
+        session.on("toggle_modal", event -> session.state("showModal", !session.getBoolean("showModal", false)));
+        session.on("close_modal", event -> session.state("showModal", false));
         session.snapshot();
 
         player.sendMessage(Component.text("已打开 MineUI 测试界面（点按钮 +1，Esc 关闭）", NamedTextColor.GREEN));

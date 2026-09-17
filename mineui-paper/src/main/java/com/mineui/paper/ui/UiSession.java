@@ -133,6 +133,11 @@ public final class UiSession {
         return element != null && element.isJsonPrimitive() ? element.getAsInt() : defaultValue;
     }
 
+    public boolean getBoolean(String key, boolean defaultValue) {
+        JsonElement element = state.get(key);
+        return element != null && element.isJsonPrimitive() ? element.getAsBoolean() : defaultValue;
+    }
+
     // ---------- 内部：网络事件 ----------
 
     void handleAction(int incomingRevision, Action action) {

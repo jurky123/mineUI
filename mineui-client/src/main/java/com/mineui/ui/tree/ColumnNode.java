@@ -13,22 +13,32 @@ public final class ColumnNode extends ContainerNode {
 
     @Override
     public void measure(MeasureContext context) {
+        if (!evaluateVisible(context.state())) {
+            width = 0;
+            height = 0;
+            return;
+        }
         Insets pad = style().padding();
         float resolvedW = resolveWidth(context);
         float resolvedH = resolveHeight(context);
         float contentW = contentWidth(resolvedW, context.availableWidth(), pad);
         float contentH = contentHeight(resolvedH, context.availableHeight(), pad);
 
+        List<UiNode> kids = children();
         float usedMain = 0;
         float maxCross = 0;
-        List<UiNode> kids = children();
+        int visibleCount = 0;
         for (UiNode child : kids) {
             child.measure(context.withAvailable(contentW, Math.max(0, contentH - usedMain)));
+            if (!child.visibleNow()) {
+                continue;
+            }
             usedMain += child.height();
             maxCross = Math.max(maxCross, child.width());
+            visibleCount++;
         }
-        if (kids.size() > 1) {
-            usedMain += gap() * (kids.size() - 1);
+        if (visibleCount > 1) {
+            usedMain += gap() * (visibleCount - 1);
         }
 
         width = resolvedW >= 0 ? resolvedW : pad.horizontal() + maxCross;
@@ -46,11 +56,16 @@ public final class ColumnNode extends ContainerNode {
 
         List<UiNode> kids = children();
         float total = 0;
+        int visibleCount = 0;
         for (UiNode child : kids) {
+            if (!child.visibleNow()) {
+                continue;
+            }
             total += child.height();
+            visibleCount++;
         }
-        if (kids.size() > 1) {
-            total += gap() * (kids.size() - 1);
+        if (visibleCount > 1) {
+            total += gap() * (visibleCount - 1);
         }
 
         float free = Math.max(0, contentH - total);
@@ -59,12 +74,15 @@ public final class ColumnNode extends ContainerNode {
             case CENTER -> free / 2;
             case END -> free;
         };
-        float extraGap = style().justify() == MainAlign.SPACE_BETWEEN && kids.size() > 1
-                ? free / (kids.size() - 1) : 0;
+        float extraGap = style().justify() == MainAlign.SPACE_BETWEEN && visibleCount > 1
+                ? free / (visibleCount - 1) : 0;
         CrossAlign align = style().align();
 
         float cursorY = contentY + offset;
         for (UiNode child : kids) {
+            if (!child.visibleNow()) {
+                continue;
+            }
             if (align == CrossAlign.STRETCH && child.style().width().isAuto()) {
                 child.overrideWidth(contentW);
             }

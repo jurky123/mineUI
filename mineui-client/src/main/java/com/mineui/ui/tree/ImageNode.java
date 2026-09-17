@@ -53,6 +53,11 @@ public final class ImageNode extends UiNode {
 
     @Override
     public void measure(MeasureContext context) {
+        if (!evaluateVisible(context.state())) {
+            width = 0;
+            height = 0;
+            return;
+        }
         float resolvedW = resolveWidth(context);
         float resolvedH = resolveHeight(context);
         width = resolvedW >= 0 ? resolvedW : regionWidth;

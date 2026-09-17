@@ -9,6 +9,11 @@ public final class BoxNode extends UiNode {
 
     @Override
     public void measure(MeasureContext context) {
+        if (!evaluateVisible(context.state())) {
+            width = 0;
+            height = 0;
+            return;
+        }
         float resolvedW = resolveWidth(context);
         float resolvedH = resolveHeight(context);
         width = Math.max(0, resolvedW);

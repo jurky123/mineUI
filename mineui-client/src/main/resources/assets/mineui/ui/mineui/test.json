@@ -1,79 +1,169 @@
 {
-  "type": "column",
+  "type": "stack",
   "id": "root",
   "width": "100%",
   "height": "100%",
-  "align": "center",
-  "justify": "center",
+  "clip": true,
   "children": [
     {
       "type": "column",
-      "id": "card",
-      "width": 300,
-      "padding": 18,
-      "gap": 10,
+      "width": "100%",
+      "height": "100%",
       "align": "center",
-      "background": "#1B2733",
-      "radius": 12,
-      "border": { "color": "#3FA9F5", "width": 1 },
-      "shadow": { "color": "#000000", "size": 8, "offsetY": 4 },
+      "justify": "center",
       "children": [
         {
-          "type": "row",
-          "gap": 10,
+          "type": "column",
+          "id": "card",
+          "width": 320,
+          "padding": 16,
+          "gap": 8,
           "align": "center",
+          "background": "#1B2733",
+          "radius": 12,
+          "border": { "color": "#3FA9F5", "width": 1 },
+          "shadow": { "color": "#000000", "size": 8, "offsetY": 4 },
           "children": [
             {
-              "type": "image",
-              "texture": "mineui:textures/gui/logo.png",
-              "textureSize": [16, 16],
-              "regionWidth": 16,
-              "regionHeight": 16,
-              "width": 32,
-              "height": 32
+              "type": "row",
+              "gap": 10,
+              "align": "center",
+              "children": [
+                {
+                  "type": "image",
+                  "texture": "mineui:textures/gui/logo.png",
+                  "textureSize": [16, 16],
+                  "width": 32,
+                  "height": 32
+                },
+                {
+                  "type": "text",
+                  "text": "{state.title}",
+                  "color": "#FFFFFF",
+                  "scale": 1.5
+                }
+              ]
             },
             {
               "type": "text",
-              "id": "title",
-              "text": "{state.title}",
-              "color": "#FFFFFF",
-              "scale": 1.5
+              "id": "count",
+              "text": "count = {state.count}",
+              "color": "#00E0FF",
+              "pulse": true
+            },
+            {
+              "type": "row",
+              "gap": 8,
+              "align": "center",
+              "children": [
+                {
+                  "type": "button",
+                  "text": "+1",
+                  "action": "button_click",
+                  "width": 96,
+                  "height": 24,
+                  "radius": 6,
+                  "background": "#2E5C8A",
+                  "hoverBackground": "#3FA9F5",
+                  "tooltip": "点一下：服务端 count 会 +1"
+                },
+                {
+                  "type": "button",
+                  "text": "打开弹窗",
+                  "action": "toggle_modal",
+                  "width": 120,
+                  "height": 24,
+                  "radius": 6,
+                  "background": "#5A3E8A",
+                  "hoverBackground": "#8A5FD0",
+                  "tooltip": "模态弹窗示例（弹窗打开时会挡住下层交互）"
+                }
+              ]
+            },
+            {
+              "type": "scroll",
+              "id": "list",
+              "width": "100%",
+              "height": 96,
+              "padding": 6,
+              "gap": 6,
+              "radius": 8,
+              "background": "#141C26",
+              "children": [
+                {
+                  "type": "grid",
+                  "columns": 3,
+                  "gap": 6,
+                  "width": "100%",
+                  "children": [
+                    { "type": "box", "height": 28, "radius": 4, "background": "#2E5C8A", "tooltip": "物品格 1" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#35709A", "tooltip": "物品格 2" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#3E84AA", "tooltip": "物品格 3" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#3E7C9A", "tooltip": "物品格 4" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#468CB0", "tooltip": "物品格 5" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#4E9CC0", "tooltip": "物品格 6" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#5A3E8A", "tooltip": "物品格 7" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#6A4E9A", "tooltip": "物品格 8" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#7A5EAA", "tooltip": "物品格 9" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#2E7C6A", "tooltip": "物品格 10" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#3E8C7A", "tooltip": "物品格 11" },
+                    { "type": "box", "height": 28, "radius": 4, "background": "#4E9C8A", "tooltip": "物品格 12" }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": "滚轮滚动列表 · 悬停看提示 · Esc 关闭 · F9 热重载",
+              "color": "#8090A0"
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "type": "stack",
+      "id": "modal",
+      "z": 10,
+      "modal": true,
+      "visible": "{state.showModal}",
+      "width": "100%",
+      "height": "100%",
+      "children": [
+        { "type": "box", "width": "100%", "height": "100%", "background": "#A0000000" },
         {
-          "type": "box",
+          "type": "stack",
           "width": "100%",
-          "height": 2,
-          "radius": 1,
-          "gradient": ["#3FA9F5", "#1B2733"]
-        },
-        {
-          "type": "text",
-          "id": "count",
-          "text": "count = {state.count}",
-          "color": "#00E0FF",
-          "pulse": true
-        },
-        {
-          "type": "spacer",
-          "height": 4
-        },
-        {
-          "type": "button",
-          "id": "click",
-          "text": "点我 +1",
-          "action": "button_click",
-          "width": 160,
-          "height": 26,
-          "radius": 6,
-          "background": "#2E5C8A",
-          "hoverBackground": "#3FA9F5"
-        },
-        {
-          "type": "text",
-          "text": "Esc 关闭 · F9 热重载 JSON",
-          "color": "#8090A0"
+          "height": "100%",
+          "align": "center",
+          "justify": "center",
+          "children": [
+            {
+              "type": "column",
+              "width": 260,
+              "padding": 16,
+              "gap": 10,
+              "align": "center",
+              "background": "#243040",
+              "radius": 10,
+              "border": { "color": "#8A5FD0", "width": 1 },
+              "shadow": { "color": "#000000", "size": 10, "offsetY": 4 },
+              "children": [
+                { "type": "text", "text": "模态弹窗", "color": "#FFFFFF", "scale": 1.5 },
+                { "type": "text", "text": "state.showModal = {state.showModal}", "color": "#B0C0D0" },
+                {
+                  "type": "button",
+                  "text": "关闭",
+                  "action": "close_modal",
+                  "width": 120,
+                  "height": 24,
+                  "radius": 6,
+                  "background": "#8A3E5A",
+                  "hoverBackground": "#D05F8A"
+                }
+              ]
+            }
+          ]
         }
       ]
     }

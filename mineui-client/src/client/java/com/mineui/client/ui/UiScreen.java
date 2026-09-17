@@ -2,9 +2,11 @@ package com.mineui.client.ui;
 
 import com.mineui.client.net.ProtocolClient;
 import com.mineui.client.ui.anim.AnimationController;
+import com.mineui.client.ui.render.UiPainter;
 import com.mineui.client.ui.render.UiTreeRenderer;
 import com.mineui.ui.anim.Easing;
 import com.mineui.ui.spec.UiDefinition;
+import com.mineui.ui.tree.Bindings;
 import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.MeasureContext;
 import com.mineui.ui.tree.TextMeasurer;
@@ -28,6 +30,7 @@ public final class UiScreen extends Screen {
     private static final int BACKGROUND = 0xC0080C10;
     private static final float HOVER_SPEED = 14f;
     private static final float MAX_FRAME_DELTA = 0.1f;
+    private static final long TOOLTIP_DELAY_NANOS = 350_000_000L;
 
     private final String app;
     private final String view;
@@ -39,6 +42,8 @@ public final class UiScreen extends Screen {
 
     private int lastRevision = -1;
     private long lastFrameNanos;
+    private UiNode tooltipNode;
+    private long tooltipSinceNanos;
 
     public UiScreen(UiDefinition definition) {
         super(Component.literal("MineUI " + definition.app() + "/" + definition.view()));
@@ -69,13 +74,17 @@ public final class UiScreen extends Screen {
 
     @Override
     protected void init() {
-        MeasureContext context = new MeasureContext(width, height, width, height, measurer, ProtocolClient.state());
-        root.measure(context);
-        root.layout(0, 0);
-
+        relayout();
         pulseNodes.clear();
         root.collectPulses(pulseNodes);
         lastRevision = ProtocolClient.state().revision();
+    }
+
+    /** 状态变化/窗口尺寸变化后重新度量与布局（可见性、文本长度等会影响尺寸）。 */
+    private void relayout() {
+        MeasureContext context = new MeasureContext(width, height, width, height, measurer, ProtocolClient.state());
+        root.measure(context);
+        root.layout(0, 0);
     }
 
     @Override
@@ -93,6 +102,7 @@ public final class UiScreen extends Screen {
         int revision = ProtocolClient.state().revision();
         if (revision != lastRevision) {
             lastRevision = revision;
+            relayout();
             for (UiNode node : pulseNodes) {
                 pulse(node);
             }
@@ -101,6 +111,32 @@ public final class UiScreen extends Screen {
 
         graphics.text(this.font, source, 6, 6, 0xFF606060, false);
         new UiTreeRenderer(graphics, this.font, ProtocolClient.state()).render(root);
+        drawTooltip(graphics, mouseX, mouseY);
+    }
+
+    private void drawTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        UiNode node = tooltipNode;
+        if (node == null || !node.visibleNow() || node.style().tooltip() == null) {
+            return;
+        }
+        if (System.nanoTime() - tooltipSinceNanos < TOOLTIP_DELAY_NANOS) {
+            return;
+        }
+        String text = Bindings.resolve(node.style().tooltip(), ProtocolClient.state());
+        if (text.isEmpty()) {
+            return;
+        }
+        int textWidth = font.width(text);
+        float x = mouseX + 10f;
+        float y = mouseY + 10f;
+        if (x + textWidth + 8f > width) {
+            x = width - textWidth - 8f;
+        }
+        if (y + font.lineHeight + 6f > height) {
+            y = height - font.lineHeight - 6f;
+        }
+        new UiPainter(graphics).fillRounded(x - 4f, y - 3f, textWidth + 8f, font.lineHeight + 6f, 4f, 0xF0101018, 1f);
+        graphics.text(font, text, Math.round(x), Math.round(y), 0xFFFFFFFF, true);
     }
 
     @Override
@@ -119,7 +155,21 @@ public final class UiScreen extends Screen {
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
         root.mouseMoved(mouseX, mouseY);
+        UiNode target = root.findTooltip(mouseX, mouseY);
+        if (target != tooltipNode) {
+            tooltipNode = target;
+            tooltipSinceNanos = System.nanoTime();
+        }
         super.mouseMoved(mouseX, mouseY);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        tooltipNode = null;
+        if (root.scroll(mouseX, mouseY, scrollY)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override

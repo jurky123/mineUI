@@ -41,6 +41,11 @@ public final class ButtonNode extends UiNode {
 
     @Override
     public void measure(MeasureContext context) {
+        if (!evaluateVisible(context.state())) {
+            width = 0;
+            height = 0;
+            return;
+        }
         String text = Bindings.resolve(template, context.state());
         float resolvedW = resolveWidth(context);
         float resolvedH = resolveHeight(context);

@@ -26,6 +26,7 @@ public abstract class UiNode {
     private float animOpacity = 1f;
     private float animRotation;
     private float hoverProgress;
+    private boolean visibleNow = true;
 
     protected UiNode(NodeStyle style) {
         this.style = style;
@@ -172,27 +173,104 @@ public abstract class UiNode {
     }
 
     public void mouseMoved(double mx, double my) {
-        hovered = contains(mx, my);
-        for (UiNode child : children) {
+        hovered = visibleNow && contains(mx, my);
+        boolean blocked = false;
+        for (UiNode child : childrenByZDesc()) {
+            if (blocked) {
+                child.clearHover();
+                continue;
+            }
             child.mouseMoved(mx, my);
+            if (child.visibleNow && child.style().modal() && child.contains(mx, my)) {
+                blocked = true;
+            }
         }
+    }
+
+    /** 命中的最深层带 tooltip 的节点；模态节点之外的区域返回 null。 */
+    public UiNode findTooltip(double mx, double my) {
+        if (!visibleNow || !contains(mx, my)) {
+            return null;
+        }
+        for (UiNode child : childrenByZDesc()) {
+            if (!child.visibleNow) {
+                continue;
+            }
+            UiNode found = child.findTooltip(mx, my);
+            if (found != null) {
+                return found;
+            }
+            if (child.style().modal() && child.contains(mx, my)) {
+                return null;
+            }
+        }
+        return style().tooltip() != null ? this : null;
     }
 
     /**
      * 返回被点击的交互节点（如 ButtonNode）；没有命中返回 null。
-     * 命中测试按子节点倒序（上层优先）。
+     * 命中测试按子节点 z 降序；可见的模态节点会吞掉落到其矩形内的点击。
      */
     public UiNode mouseClicked(double mx, double my, int button) {
         if (!contains(mx, my)) {
             return null;
         }
-        for (int i = children.size() - 1; i >= 0; i--) {
-            UiNode hit = children.get(i).mouseClicked(mx, my, button);
+        for (UiNode child : childrenByZDesc()) {
+            if (!child.visibleNow) {
+                continue;
+            }
+            UiNode hit = child.mouseClicked(mx, my, button);
             if (hit != null) {
                 return hit;
             }
+            if (child.style().modal() && child.contains(mx, my)) {
+                return child;
+            }
         }
         return null;
+    }
+
+    /** 鼠标滚轮：返回 true 表示已消费。 */
+    public boolean scroll(double mx, double my, double amount) {
+        if (!visibleNow || !contains(mx, my)) {
+            return false;
+        }
+        for (UiNode child : childrenByZDesc()) {
+            if (child.scroll(mx, my, amount)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 清除自身与子树的悬停状态。 */
+    public void clearHover() {
+        hovered = false;
+        for (UiNode child : children) {
+            child.clearHover();
+        }
+    }
+
+    // ---------- 可见性 ----------
+
+    /** 按状态求值可见性（在 measure 阶段调用并缓存，供输入/渲染使用）。 */
+    public boolean evaluateVisible(StateAccess state) {
+        visibleNow = style().visible().test(state);
+        return visibleNow;
+    }
+
+    public boolean visibleNow() {
+        return visibleNow;
+    }
+
+    public void setVisibleNow(boolean visible) {
+        this.visibleNow = visible;
+    }
+
+    protected java.util.List<UiNode> childrenByZDesc() {
+        java.util.List<UiNode> sorted = new ArrayList<>(children);
+        sorted.sort((a, b) -> Integer.compare(b.style().z(), a.style().z()));
+        return sorted;
     }
 
     // ---------- 尺寸解析辅助 ----------

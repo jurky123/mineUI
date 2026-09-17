@@ -8,10 +8,12 @@ import com.mineui.ui.tree.BoxNode;
 import com.mineui.ui.tree.ColumnNode;
 import com.mineui.ui.tree.ContainerNode;
 import com.mineui.ui.tree.CrossAlign;
+import com.mineui.ui.tree.GridNode;
 import com.mineui.ui.tree.ImageNode;
 import com.mineui.ui.tree.MainAlign;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.RowNode;
+import com.mineui.ui.tree.ScrollViewNode;
 import com.mineui.ui.tree.StackNode;
 import com.mineui.ui.tree.TextNode;
 import com.mineui.ui.tree.UiNode;
@@ -42,6 +44,10 @@ public final class UiSpecParser {
                     parseColor(json.get("color"), 0xFFFFFFFF));
             case "box", "spacer" -> new BoxNode(style);
             case "image" -> parseImage(json, style);
+            case "scroll" -> new ScrollViewNode(style);
+            case "grid" -> new GridNode(style,
+                    optInt(json, "columns", 2),
+                    optFloat(json, "rowGap", optFloat(json, "gap", 0f)));
             default -> throw new UiSpecException("未知节点类型: " + type);
         };
 
@@ -113,7 +119,10 @@ public final class UiSpecParser {
                 gradientTo,
                 optInt(json, "z", 0),
                 optBool(json, "clip", false),
-                optBool(json, "pulse", false));
+                optBool(json, "pulse", false),
+                BooleanSpec.parse(json.get("visible")),
+                optString(json, "tooltip", null),
+                optBool(json, "modal", false));
     }
 
     private static ImageNode parseImage(JsonObject json, NodeStyle style) throws UiSpecException {

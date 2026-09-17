@@ -7,6 +7,7 @@ import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.ContainerNode;
 import com.mineui.ui.tree.ImageNode;
 import com.mineui.ui.tree.NodeStyle;
+import com.mineui.ui.tree.ScrollViewNode;
 import com.mineui.ui.tree.StateAccess;
 import com.mineui.ui.tree.TextNode;
 import com.mineui.ui.tree.UiNode;
@@ -44,9 +45,12 @@ public final class UiTreeRenderer {
     }
 
     private void renderNode(UiNode node, float inheritedOpacity) {
+        if (!node.visibleNow()) {
+            return;
+        }
         float opacity = inheritedOpacity * node.animOpacity();
         boolean clipped = false;
-        if (node.style().clip() && node.width() > 0 && node.height() > 0) {
+        if ((node instanceof ScrollViewNode || node.style().clip()) && node.width() > 0 && node.height() > 0) {
             pushClip(node);
             clipped = true;
         }
@@ -75,6 +79,9 @@ public final class UiTreeRenderer {
                 children.sort(Comparator.comparingInt(child -> child.style().z()));
                 for (UiNode child : children) {
                     renderNode(child, opacity);
+                }
+                if (container instanceof ScrollViewNode scrollView) {
+                    drawScrollbar(scrollView, opacity);
                 }
             }
             case TextNode text -> renderText(text, opacity);
@@ -195,6 +202,29 @@ public final class UiTreeRenderer {
                 Math.round(node.x()), Math.round(node.y()),
                 Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
                 u0, v0, u1, v1);
+    }
+
+    // ---------- 滚动条 ----------
+
+    private void drawScrollbar(ScrollViewNode node, float opacity) {
+        if (!node.scrollable()) {
+            return;
+        }
+        float trackWidth = 3f;
+        float x = node.x() + node.width() - trackWidth - 2f;
+        float y = node.y() + 2f;
+        float trackHeight = node.height() - 4f;
+        if (trackHeight <= 6f) {
+            return;
+        }
+        painter.fillRounded(x, y, trackWidth, trackHeight, trackWidth / 2f, 0x50000000, opacity);
+
+        float ratio = node.height() / node.contentHeight();
+        float thumbHeight = Math.max(10f, trackHeight * ratio);
+        float maxScroll = node.contentHeight() - node.height();
+        float t = maxScroll <= 0f ? 0f : node.scrollOffset() / maxScroll;
+        float thumbY = y + (trackHeight - thumbHeight) * t;
+        painter.fillRounded(x, thumbY, trackWidth, thumbHeight, trackWidth / 2f, 0xC0A8C8E8, opacity);
     }
 
     // ---------- 裁剪栈 ----------

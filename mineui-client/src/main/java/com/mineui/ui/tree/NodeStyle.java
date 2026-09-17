@@ -2,6 +2,7 @@ package com.mineui.ui.tree;
 
 import com.mineui.ui.spec.Insets;
 import com.mineui.ui.spec.SizeSpec;
+import com.mineui.ui.spec.BooleanSpec;
 
 /**
  * 节点通用样式/布局属性（解析自 JSON）。
@@ -16,6 +17,9 @@ import com.mineui.ui.spec.SizeSpec;
  * @param z             同级渲染层级（大在上）
  * @param clip          是否裁剪子节点到自身矩形
  * @param pulse         状态 revision 变化时是否播放一次脉冲动画
+ * @param visible       可见性（支持状态绑定；不可见时不参与布局/渲染/交互）
+ * @param tooltip       悬停提示文本（支持 {state.x} 绑定；null 无）
+ * @param modal         模态：显示时阻挡下层节点的交互
  */
 public record NodeStyle(
         String id,
@@ -35,13 +39,16 @@ public record NodeStyle(
         Integer gradientTo,
         int z,
         boolean clip,
-        boolean pulse) {
+        boolean pulse,
+        BooleanSpec visible,
+        String tooltip,
+        boolean modal) {
 
     /** Phase 2 兼容构造器（无视觉扩展）。 */
     public NodeStyle(String id, SizeSpec width, SizeSpec height, Insets padding, Integer background,
                      CrossAlign align, MainAlign justify, float gap) {
         this(id, width, height, padding, background, align, justify, gap,
-                0f, null, 0f, null, 0f, 0f, null, 0, false, false);
+                0f, null, 0f, null, 0f, 0f, null, 0, false, false, BooleanSpec.TRUE, null, false);
     }
 
     public static NodeStyle defaults() {

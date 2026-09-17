@@ -13,6 +13,11 @@ public final class StackNode extends ContainerNode {
 
     @Override
     public void measure(MeasureContext context) {
+        if (!evaluateVisible(context.state())) {
+            width = 0;
+            height = 0;
+            return;
+        }
         Insets pad = style().padding();
         float resolvedW = resolveWidth(context);
         float resolvedH = resolveHeight(context);
@@ -23,6 +28,9 @@ public final class StackNode extends ContainerNode {
         float maxH = 0;
         for (UiNode child : children()) {
             child.measure(context.withAvailable(contentW, contentH));
+            if (!child.visibleNow()) {
+                continue;
+            }
             maxW = Math.max(maxW, child.width());
             maxH = Math.max(maxH, child.height());
         }
@@ -42,10 +50,13 @@ public final class StackNode extends ContainerNode {
 
         List<UiNode> kids = children();
         for (UiNode child : kids) {
+            if (!child.visibleNow()) {
+                continue;
+            }
             if (style().align() == CrossAlign.STRETCH && child.style().width().isAuto()) {
                 child.overrideWidth(contentW);
             }
-            if (style().justify() == MainAlign.SPACE_BETWEEN) {
+            if (style().justify() == MainAlign.SPACE_BETWEEN && child.style().height().isAuto()) {
                 child.overrideHeight(contentH);
             }
             float childW = child.width();
