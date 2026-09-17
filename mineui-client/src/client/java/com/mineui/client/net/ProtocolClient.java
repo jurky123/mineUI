@@ -155,7 +155,7 @@ public final class ProtocolClient {
         if (player != null) {
             player.sendSystemMessage(Component.literal(
                     "[MineUI] 已连接服务端 v" + ack.serverVersion()
-                            + "（protocol " + ack.protocol() + "）"));
+                            + "（protocol " + ack.protocol() + "）· 客户端 v" + MineUiClient.version()));
         }
     }
 }

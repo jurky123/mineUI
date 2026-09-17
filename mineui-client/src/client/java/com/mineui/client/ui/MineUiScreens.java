@@ -34,6 +34,17 @@ public final class MineUiScreens {
         try {
             definition = UiDefinitionLoader.load(app, view, devRoot());
             LOGGER.info("加载界面 {} / {}（来源: {}）", app, view, definition.source());
+            if ("mod".equals(definition.source())) {
+                try {
+                    if (UiDefinitionLoader.writeDevTemplate(app, view, devRoot())) {
+                        Path file = UiDefinitionLoader.devFile(app, view, devRoot());
+                        LOGGER.info("已生成开发模板: {}", file);
+                        chat("[MineUI] 已生成开发模板 config/mineui/ui/" + app + "/" + view + ".json（F9 重载生效）");
+                    }
+                } catch (UiSpecException e) {
+                    LOGGER.warn("生成开发模板失败: {}", e.getMessage());
+                }
+            }
         } catch (UiSpecException e) {
             LOGGER.warn("界面定义加载失败: {}", e.getMessage());
             definition = errorDefinition(app, view, e.getMessage());

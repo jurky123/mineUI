@@ -43,6 +43,34 @@ public final class UiDefinitionLoader {
         CACHE.clear();
     }
 
+    /** 开发覆盖文件路径：{@code <devRoot>/<app>/<view>.json}。 */
+    public static Path devFile(String app, String view, Path devRoot) {
+        return devRoot.resolve(app).resolve(view + ".json");
+    }
+
+    /**
+     * 首次打开界面时，把内置定义复制到开发目录，便于直接编辑 + F9 热重载。
+     *
+     * @return true 表示本次新建了文件
+     */
+    public static boolean writeDevTemplate(String app, String view, Path devRoot) throws UiSpecException {
+        Path target = devFile(app, view, devRoot);
+        if (Files.exists(target)) {
+            return false;
+        }
+        String resource = "/assets/mineui/ui/" + app + "/" + view + ".json";
+        try (InputStream in = UiDefinitionLoader.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                return false;
+            }
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, new String(in.readAllBytes(), StandardCharsets.UTF_8), StandardCharsets.UTF_8);
+            return true;
+        } catch (IOException e) {
+            throw new UiSpecException("生成开发模板失败: " + target + " (" + e.getMessage() + ")", e);
+        }
+    }
+
     private static UiDefinition read(String app, String view, Path devRoot) throws UiSpecException {
         Path devFile = devRoot.resolve(app).resolve(view + ".json");
         if (Files.isRegularFile(devFile)) {
