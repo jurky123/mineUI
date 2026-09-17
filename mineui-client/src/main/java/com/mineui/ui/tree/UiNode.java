@@ -204,7 +204,12 @@ public abstract class UiNode {
                 return null;
             }
         }
-        return style().tooltip() != null ? this : null;
+        return style().tooltip() != null || hasTooltip() ? this : null;
+    }
+
+    /** 节点是否需要悬停提示（子类可扩展，如物品名提示）。 */
+    public boolean hasTooltip() {
+        return false;
     }
 
     /**

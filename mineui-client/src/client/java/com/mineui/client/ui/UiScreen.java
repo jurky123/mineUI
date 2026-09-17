@@ -2,12 +2,14 @@ package com.mineui.client.ui;
 
 import com.mineui.client.net.ProtocolClient;
 import com.mineui.client.ui.anim.AnimationController;
+import com.mineui.client.ui.render.ItemStacks;
 import com.mineui.client.ui.render.UiPainter;
 import com.mineui.client.ui.render.UiTreeRenderer;
 import com.mineui.ui.anim.Easing;
 import com.mineui.ui.spec.UiDefinition;
 import com.mineui.ui.tree.Bindings;
 import com.mineui.ui.tree.ButtonNode;
+import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.MeasureContext;
 import com.mineui.ui.tree.TextMeasurer;
 import com.mineui.ui.tree.UiNode;
@@ -16,6 +18,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -110,13 +113,24 @@ public final class UiScreen extends Screen {
         animations.update(delta);
 
         graphics.text(this.font, source, 6, 6, 0xFF606060, false);
-        new UiTreeRenderer(graphics, this.font, ProtocolClient.state()).render(root);
+        new UiTreeRenderer(graphics, this.font, ProtocolClient.state()).render(root, mouseX, mouseY);
         drawTooltip(graphics, mouseX, mouseY);
     }
 
     private void drawTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         UiNode node = tooltipNode;
-        if (node == null || !node.visibleNow() || node.style().tooltip() == null) {
+        if (node == null || !node.visibleNow()) {
+            return;
+        }
+        // 物品名提示：直接使用原版物品 tooltip
+        if (node instanceof ItemViewNode itemNode && itemNode.itemTooltip() && node.style().tooltip() == null) {
+            ItemStack stack = ItemStacks.resolve(itemNode);
+            if (!stack.isEmpty()) {
+                graphics.setTooltipForNextFrame(font, stack, mouseX, mouseY);
+            }
+            return;
+        }
+        if (node.style().tooltip() == null) {
             return;
         }
         if (System.nanoTime() - tooltipSinceNanos < TOOLTIP_DELAY_NANOS) {

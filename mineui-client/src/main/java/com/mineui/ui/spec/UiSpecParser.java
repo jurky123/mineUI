@@ -8,10 +8,13 @@ import com.mineui.ui.tree.BoxNode;
 import com.mineui.ui.tree.ColumnNode;
 import com.mineui.ui.tree.ContainerNode;
 import com.mineui.ui.tree.CrossAlign;
+import com.mineui.ui.tree.EntityViewNode;
 import com.mineui.ui.tree.GridNode;
 import com.mineui.ui.tree.ImageNode;
+import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.MainAlign;
 import com.mineui.ui.tree.NodeStyle;
+import com.mineui.ui.tree.PlayerViewNode;
 import com.mineui.ui.tree.RowNode;
 import com.mineui.ui.tree.ScrollViewNode;
 import com.mineui.ui.tree.StackNode;
@@ -48,6 +51,25 @@ public final class UiSpecParser {
             case "grid" -> new GridNode(style,
                     optInt(json, "columns", 2),
                     optFloat(json, "rowGap", optFloat(json, "gap", 0f)));
+            case "item" -> new ItemViewNode(style,
+                    optString(json, "item", "minecraft:paper"),
+                    optInt(json, "count", 1),
+                    optInt(json, "model", -1),
+                    parseStringList(json, "modelStrings"),
+                    optFloat(json, "scale", 1f),
+                    optBool(json, "itemTooltip", false),
+                    optBool(json, "fake", false));
+            case "entity" -> new EntityViewNode(style,
+                    requireString(json, "entity"),
+                    optFloat(json, "scale", 30f),
+                    optBool(json, "followMouse", true),
+                    optFloat(json, "yaw", 0f),
+                    optFloat(json, "bodyYaw", optFloat(json, "yaw", 0f)),
+                    optFloat(json, "pitch", 0f));
+            case "player" -> new PlayerViewNode(style,
+                    optString(json, "player", "@self"),
+                    optFloat(json, "scale", 30f),
+                    optBool(json, "followMouse", true));
             default -> throw new UiSpecException("未知节点类型: " + type);
         };
 
@@ -190,5 +212,17 @@ public final class UiSpecParser {
     private static boolean optBool(JsonObject json, String key, boolean fallback) {
         JsonElement element = json.get(key);
         return element == null || element.isJsonNull() ? fallback : element.getAsBoolean();
+    }
+
+    private static java.util.List<String> parseStringList(JsonObject json, String key) {
+        JsonElement element = json.get(key);
+        if (element == null || element.isJsonNull()) {
+            return java.util.List.of();
+        }
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (JsonElement item : element.getAsJsonArray()) {
+            result.add(item.getAsString());
+        }
+        return result;
     }
 }

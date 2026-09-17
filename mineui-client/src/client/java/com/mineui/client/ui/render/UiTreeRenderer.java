@@ -5,15 +5,22 @@ import com.mineui.ui.tree.Bindings;
 import com.mineui.ui.tree.BoxNode;
 import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.ContainerNode;
+import com.mineui.ui.tree.EntityViewNode;
 import com.mineui.ui.tree.ImageNode;
+import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.NodeStyle;
+import com.mineui.ui.tree.PlayerViewNode;
 import com.mineui.ui.tree.ScrollViewNode;
 import com.mineui.ui.tree.StateAccess;
 import com.mineui.ui.tree.TextNode;
 import com.mineui.ui.tree.UiNode;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -35,6 +42,9 @@ public final class UiTreeRenderer {
     /** 延迟到整棵树画完后再画的模态节点（避免被内容容器的裁剪波及）。 */
     private final List<UiNode> deferredOverlays = new ArrayList<>();
 
+    private int mouseX;
+    private int mouseY;
+
     public UiTreeRenderer(GuiGraphicsExtractor graphics, Font font, StateAccess state) {
         this.graphics = graphics;
         this.font = font;
@@ -42,7 +52,9 @@ public final class UiTreeRenderer {
         this.painter = new UiPainter(graphics);
     }
 
-    public void render(UiNode root) {
+    public void render(UiNode root, int mouseX, int mouseY) {
+        this.mouseX = mouseX;
+        this.mouseY = mouseY;
         deferredOverlays.clear();
         renderNode(root, 1f);
 
@@ -108,6 +120,9 @@ public final class UiTreeRenderer {
                 renderText(button, opacity);
             }
             case ImageNode image -> renderImage(image);
+            case ItemViewNode item -> renderItem(item);
+            case EntityViewNode entityView -> renderEntityPreview(entityView);
+            case PlayerViewNode playerView -> renderPlayerPreview(playerView);
             case BoxNode box -> drawSurface(box, opacity);
             default -> {
             }
@@ -220,6 +235,64 @@ public final class UiTreeRenderer {
                 Math.round(node.x()), Math.round(node.y()),
                 Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
                 u0, v0, u1, v1);
+    }
+
+    // ---------- 3D 预览 ----------
+
+    private void renderItem(ItemViewNode node) {
+        ItemStack stack = ItemStacks.resolve(node);
+        if (stack.isEmpty()) {
+            return;
+        }
+        float scale = node.scale();
+        var pose = graphics.pose();
+        boolean scaled = scale != 1f;
+        if (scaled) {
+            pose.pushMatrix();
+            pose.translate(node.x(), node.y());
+            pose.scale(scale, scale);
+        }
+        int x = scaled ? 0 : Math.round(node.x());
+        int y = scaled ? 0 : Math.round(node.y());
+        if (node.fake()) {
+            graphics.fakeItem(stack, x, y);
+        } else {
+            graphics.item(stack, x, y);
+            graphics.itemDecorations(font, stack, x, y);
+        }
+        if (scaled) {
+            pose.popMatrix();
+        }
+    }
+
+    private void renderEntityPreview(EntityViewNode node) {
+        LivingEntity entity = EntityPreviews.entity(node);
+        if (entity == null) {
+            return;
+        }
+        renderPreview(entity, node, node.scale(), node.followMouse());
+    }
+
+    private void renderPlayerPreview(PlayerViewNode node) {
+        AbstractClientPlayer player = EntityPreviews.player(node);
+        if (player == null) {
+            return;
+        }
+        renderPreview(player, node, node.scale(), node.followMouse());
+    }
+
+    private void renderPreview(LivingEntity entity, UiNode node, float scale, boolean followMouse) {
+        if (node.width() <= 0 || node.height() <= 0) {
+            return;
+        }
+        float centerX = node.x() + node.width() / 2f;
+        float centerY = node.y() + node.height() / 2f;
+        float lookX = followMouse ? mouseX : centerX;
+        float lookY = followMouse ? mouseY : centerY;
+        InventoryScreen.extractEntityInInventoryFollowsMouse(graphics,
+                Math.round(node.x()), Math.round(node.y()),
+                Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
+                Math.max(1, Math.round(scale)), 0.0625f, lookX, lookY, entity);
     }
 
     // ---------- 滚动条 ----------

@@ -81,6 +81,17 @@
               ]
             },
             {
+              "type": "row",
+              "gap": 10,
+              "align": "center",
+              "children": [
+                { "type": "item", "item": "minecraft:diamond", "scale": 1.5, "itemTooltip": true },
+                { "type": "item", "item": "minecraft:paper", "count": 5, "scale": 1.5, "tooltip": "文本 tooltip 示例" },
+                { "type": "entity", "entity": "minecraft:zombie", "width": 56, "height": 72, "scale": 26 },
+                { "type": "player", "player": "@self", "width": 56, "height": 72, "scale": 26 }
+              ]
+            },
+            {
               "type": "scroll",
               "id": "list",
               "width": "100%",
