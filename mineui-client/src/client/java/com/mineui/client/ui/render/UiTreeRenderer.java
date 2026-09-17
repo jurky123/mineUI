@@ -32,6 +32,8 @@ public final class UiTreeRenderer {
     private final StateAccess state;
     private final UiPainter painter;
     private final Deque<float[]> clips = new ArrayDeque<>();
+    /** 延迟到整棵树画完后再画的模态节点（避免被内容容器的裁剪波及）。 */
+    private final List<UiNode> deferredOverlays = new ArrayList<>();
 
     public UiTreeRenderer(GuiGraphicsExtractor graphics, Font font, StateAccess state) {
         this.graphics = graphics;
@@ -41,7 +43,19 @@ public final class UiTreeRenderer {
     }
 
     public void render(UiNode root) {
+        deferredOverlays.clear();
         renderNode(root, 1f);
+
+        if (!deferredOverlays.isEmpty()) {
+            // 覆盖层独立绘制：清空裁剪栈，确保模态永远在最上层、不被内容区裁剪
+            clips.clear();
+            graphics.disableScissor();
+            List<UiNode> overlays = new ArrayList<>(deferredOverlays);
+            overlays.sort(Comparator.comparingInt(node -> node.style().z()));
+            for (UiNode overlay : overlays) {
+                renderNode(overlay, 1f);
+            }
+        }
     }
 
     private void renderNode(UiNode node, float inheritedOpacity) {
@@ -78,6 +92,10 @@ public final class UiTreeRenderer {
                 List<UiNode> children = new ArrayList<>(container.children());
                 children.sort(Comparator.comparingInt(child -> child.style().z()));
                 for (UiNode child : children) {
+                    if (child.style().modal()) {
+                        deferredOverlays.add(child);
+                        continue;
+                    }
                     renderNode(child, opacity);
                 }
                 if (container instanceof ScrollViewNode scrollView) {
