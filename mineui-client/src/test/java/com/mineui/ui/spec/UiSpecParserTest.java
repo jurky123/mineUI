@@ -145,7 +145,22 @@ class UiSpecParserTest {
                 { "type": "image", "texture": "mineui:textures/gui/logo.png" }
                 """));
         assertEquals("mineui:textures/gui/logo.png", ((com.mineui.ui.tree.ImageNode) root).texture());
-        assertEquals(256f, ((com.mineui.ui.tree.ImageNode) root).textureWidth(), 0.001f);
+        // 0 表示未指定：运行时按贴图真实尺寸解析（image 缺省显示整张图）
+        assertEquals(0f, ((com.mineui.ui.tree.ImageNode) root).textureWidth(), 0.001f);
+        assertEquals(0f, ((com.mineui.ui.tree.ImageNode) root).regionWidth(), 0.001f);
+    }
+
+    @Test
+    void parsesImageAtlasRegion() throws Exception {
+        UiNode root = UiSpecParser.parse(json("""
+                { "type": "image", "texture": "mineui:textures/gui/atlas.png",
+                  "textureSize": [64, 32], "u": 16, "v": 0, "regionWidth": 16, "regionHeight": 16 }
+                """));
+        com.mineui.ui.tree.ImageNode image = (com.mineui.ui.tree.ImageNode) root;
+        assertEquals(64f, image.textureWidth(), 0.001f);
+        assertEquals(32f, image.textureHeight(), 0.001f);
+        assertEquals(16f, image.u(), 0.001f);
+        assertEquals(16f, image.regionWidth(), 0.001f);
     }
 
     @Test

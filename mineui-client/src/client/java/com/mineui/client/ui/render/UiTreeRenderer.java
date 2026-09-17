@@ -330,10 +330,29 @@ public final class UiTreeRenderer {
             return;
         }
         Identifier texture = reference.id();
-        float u0 = node.u() / node.textureWidth();
-        float v0 = node.v() / node.textureHeight();
-        float u1 = (node.u() + node.regionWidth()) / node.textureWidth();
-        float v1 = (node.v() + node.regionHeight()) / node.textureHeight();
+        float texW = node.textureWidth();
+        float texH = node.textureHeight();
+        float regionW = node.regionWidth();
+        float regionH = node.regionHeight();
+        if (texW <= 0f || texH <= 0f || regionW <= 0f || regionH <= 0f) {
+            int[] actual = TextureSizes.resolve(texture);
+            if (texW <= 0f) {
+                texW = actual[0];
+            }
+            if (texH <= 0f) {
+                texH = actual[1];
+            }
+            if (regionW <= 0f) {
+                regionW = texW;
+            }
+            if (regionH <= 0f) {
+                regionH = texH;
+            }
+        }
+        float u0 = node.u() / texW;
+        float v0 = node.v() / texH;
+        float u1 = (node.u() + regionW) / texW;
+        float v1 = (node.v() + regionH) / texH;
         graphics.blit(texture,
                 Math.round(node.x()), Math.round(node.y()),
                 Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),

@@ -70,6 +70,8 @@
 ```
 
 说明：
+- 直连 PNG 默认**显示整张图**（框架按贴图真实尺寸采样，无需写 `textureSize`）；
+  图集/雪碧图才需要 `"textureSize": [宽, 高]` 配合 `u`/`v`/`regionWidth`/`regionHeight` 选子区域。
 - 物品包含 `minecraft:*_head` 生物头颅（骷髅/僵尸/苦力怕/龙首/猪灵等），无需额外素材。
 - `itemTooltip: true` 悬停显示原版物品名；也可用 `tooltip` 写自定义提示。
 - 自定义贴图放在**业务插件自己的资源包命名空间**里（如 `mineskin:textures/gui/xxx.png`），用 `"texture": "mineskin:textures/gui/xxx.png"` 引用；随服务器资源包下发即可。

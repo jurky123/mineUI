@@ -215,8 +215,8 @@ public final class UiSpecParser {
 
     private static ImageNode parseImage(JsonObject json, NodeStyle style) throws UiSpecException {
         String texture = requireString(json, "texture");
-        float textureWidth = 256;
-        float textureHeight = 256;
+        float textureWidth = 0;
+        float textureHeight = 0;
         if (json.has("textureSize")) {
             JsonArray size = json.getAsJsonArray("textureSize");
             if (size.size() != 2) {
@@ -228,8 +228,8 @@ public final class UiSpecParser {
         return new ImageNode(style, texture,
                 optFloat(json, "u", 0f),
                 optFloat(json, "v", 0f),
-                optFloat(json, "regionWidth", 16f),
-                optFloat(json, "regionHeight", 16f),
+                optFloat(json, "regionWidth", 0f),
+                optFloat(json, "regionHeight", 0f),
                 textureWidth, textureHeight);
     }
 
