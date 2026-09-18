@@ -58,6 +58,12 @@ public final class MineUiCommand {
                             style(context.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
+                .then(Commands.literal("hud")
+                        .requires(source -> source.getSender().hasPermission("mineui.admin"))
+                        .executes(context -> {
+                            hud(context.getSource().getSender());
+                            return Command.SINGLE_SUCCESS;
+                        }))
                 .then(Commands.literal("gallery")
                         .requires(source -> source.getSender().hasPermission("mineui.admin"))
                         .executes(context -> {
@@ -80,10 +86,14 @@ public final class MineUiCommand {
                         + " · mc " + session.minecraft()
                         + " · caps " + session.capabilities(), NamedTextColor.GREEN));
             }
-            UiSession ui = plugin.uiSessions().get(player);
+            UiSession ui = plugin.uiSessions().getScreen(player);
             if (ui != null) {
-                player.sendMessage(Component.text("当前界面会话 #" + ui.id() + " " + ui.app() + "/" + ui.view(),
+                player.sendMessage(Component.text("当前屏幕会话 #" + ui.id() + " " + ui.app() + "/" + ui.view(),
                         NamedTextColor.YELLOW));
+            }
+            int huds = plugin.uiSessions().getHuds(player).size();
+            if (huds > 0) {
+                player.sendMessage(Component.text("当前 HUD 会话: " + huds, NamedTextColor.YELLOW));
             }
         }
 
@@ -96,7 +106,8 @@ public final class MineUiCommand {
                         .toList();
         sender.sendMessage(Component.text("在线 MineUI 客户端: " + modNames.size()
                 + (modNames.isEmpty() ? "" : " (" + String.join(", ", modNames) + ")"), NamedTextColor.AQUA));
-        sender.sendMessage(Component.text("活动界面会话: " + plugin.uiSessions().count(), NamedTextColor.AQUA));
+        sender.sendMessage(Component.text("活动会话: " + plugin.uiSessions().count()
+                + "（HUD " + plugin.uiSessions().countHuds() + "）", NamedTextColor.AQUA));
     }
 
     private void test(CommandSender sender) {
@@ -132,6 +143,24 @@ public final class MineUiCommand {
         session.snapshot();
 
         player.sendMessage(Component.text("已打开 MineUI 测试界面（点按钮 +1，Esc 关闭）", NamedTextColor.GREEN));
+    }
+
+    /** /mineui hud：打开 HUD 演示（服务端声明布局，F6 本地开关）。 */
+    private void hud(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.sessions().isModClient(player.getUniqueId())) {
+            sender.sendMessage(Component.text("你需要安装 MineUI 客户端 mod 才能查看 HUD", NamedTextColor.RED));
+            return;
+        }
+        UiSession session = plugin.uiSessions().openHud(plugin, player, "mineui", "hud", null,
+                new com.mineui.protocol.msg.HudLayout("top_right", 6f, 6f, 1f));
+        session.state("title", "正在播放");
+        session.state("subtitle", "MineUI HUD 演示 · F6 开关");
+        session.snapshot();
+        player.sendMessage(Component.text("已打开 HUD 演示（F6 本地开关，/mineui close 关闭）", NamedTextColor.GREEN));
     }
 
     /** /mineui gallery：打开组件画廊（物品/头颅装饰、悬浮动效、时间轮换、精灵素材）。 */
@@ -182,7 +211,7 @@ public final class MineUiCommand {
             sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
             return;
         }
-        if (plugin.uiSessions().get(player) == null) {
+        if (plugin.uiSessions().getSessions(player).isEmpty()) {
             player.sendMessage(Component.text("当前没有打开的 MineUI 界面", NamedTextColor.GRAY));
             return;
         }

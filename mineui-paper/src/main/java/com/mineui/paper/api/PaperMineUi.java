@@ -36,6 +36,13 @@ public final class PaperMineUi implements MineUi {
     }
 
     @Override
+    public MineUiSession openHud(Plugin owner, Player player, String app, String view,
+                                 com.google.gson.JsonObject definition,
+                                 com.mineui.protocol.msg.HudLayout layout) {
+        return plugin.uiSessions().openHud(owner, player, app, view, definition, layout);
+    }
+
+    @Override
     public void closeAll(Plugin owner) {
         plugin.uiSessions().closeOwned(owner);
     }

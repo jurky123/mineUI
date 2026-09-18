@@ -145,6 +145,28 @@ session.on("decor_click", action -> session.state("clicks", session.getInt("clic
 
 ---
 
+## 4.5 HUD（常驻叠加层）
+
+HUD 与屏幕使用同一套 JSON 节点，不占屏幕、可与屏幕并存；服务端声明布局，客户端本地可覆盖。
+
+```java
+// 服务端（业务插件）
+UiSession hud = mineUi.openHud(this, player, "example", "nowplaying", definition,
+        new HudLayout("top_right", 6f, 6f, 1f));   // anchor / offsetX / offsetY / scale
+hud.state("title", "正在播放");
+hud.snapshot();
+```
+
+- 锚点：`top_left / top_center / top_right / center_left / center / center_right / bottom_left / bottom_center / bottom_right`
+- 客户端偏好：`config/mineui/client.json`（`hudEnabled` 总开关 + 逐 `app/view` 覆盖 anchor/offset/scale/开关）
+- 游戏内：**F6** 开关 HUD（可在原版按键设置改键）；未安装 mod 的玩家不受影响
+- 能力位：`hud_v2`（业务用 `MineUi.supportsHud(player)` 判断，旧客户端自动降级）
+- 生命周期：owner 停用 / 玩家退出 / 断线自动清理；HUD 与屏幕互不干扰
+- 安全区建议：默认 `top_right`/`top_left` + 小偏移避开 hotbar；底部锚点请留足 `offsetY`
+- 本阶段 HUD 为显示型（不响应点击），交互型 HUD 在后续阶段
+
+---
+
 ## 5. 3D 预览
 
 ```json

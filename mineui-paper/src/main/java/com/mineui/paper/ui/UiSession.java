@@ -33,6 +33,9 @@ import java.util.function.Consumer;
  */
 public final class UiSession implements MineUiSession {
 
+    public static final String MODE_SCREEN = "screen";
+    public static final String MODE_HUD = "hud";
+
     /** 每秒最多接受的动作数（防连点/恶意刷包）。 */
     private static final int MAX_ACTIONS_PER_SECOND = 8;
     private static final long RATE_WINDOW_MILLIS = 1000L;
@@ -44,6 +47,8 @@ public final class UiSession implements MineUiSession {
     private final String app;
     private final String view;
     private final JsonObject definition;
+    private final String mode;
+    private final com.mineui.protocol.msg.HudLayout layout;
     private final JsonObject state = new JsonObject();
     private final RevisionGuard revisionGuard = new RevisionGuard();
     private final Map<String, Consumer<MineUiAction>> handlers = new HashMap<>();
@@ -54,7 +59,7 @@ public final class UiSession implements MineUiSession {
     private int patchSeq;
 
     UiSession(MineUiPlugin plugin, Plugin owner, Player player, int id, String app, String view,
-              JsonObject definition) {
+              JsonObject definition, String mode, com.mineui.protocol.msg.HudLayout layout) {
         this.plugin = plugin;
         this.owner = owner;
         this.player = player;
@@ -62,6 +67,8 @@ public final class UiSession implements MineUiSession {
         this.app = app;
         this.view = view;
         this.definition = definition == null ? null : definition.deepCopy();
+        this.mode = mode == null ? MODE_SCREEN : mode;
+        this.layout = layout;
     }
 
     // ---------- 对外 API（业务插件使用） ----------
@@ -72,7 +79,7 @@ public final class UiSession implements MineUiSession {
      */
     public void open() {
         requireOpen();
-        send(MessageType.OPEN, 0, JsonCodec.encode(new Open(app, view, definition)));
+        send(MessageType.OPEN, 0, JsonCodec.encode(new Open(app, view, definition, mode, layout)));
     }
 
     /** 设置顶层状态字段；snapshot 之后会立即下发 PATCH。 */
@@ -145,6 +152,11 @@ public final class UiSession implements MineUiSession {
 
     public String view() {
         return view;
+    }
+
+    /** {@code "screen"} 或 {@code "hud"}。 */
+    public String mode() {
+        return mode;
     }
 
     public boolean closed() {

@@ -61,14 +61,7 @@ public final class MineUiScreens {
 
     /** 开发目录覆盖优先，其次服务端下发，最后 mod 内置资源。 */
     private static UiDefinition load(String app, String view, JsonObject ui) throws UiSpecException {
-        if (ui != null) {
-            Path devFile = UiDefinitionLoader.devFile(app, view, devRoot());
-            if (Files.isRegularFile(devFile)) {
-                return UiDefinitionLoader.load(app, view, devRoot());
-            }
-            return UiDefinitionLoader.loadProvided(app, view, ui);
-        }
-        return UiDefinitionLoader.load(app, view, devRoot());
+        return UiDefinitions.load(app, view, ui);
     }
 
     /** F9：清缓存并重新加载当前界面（开发目录覆盖优先）。 */
@@ -132,7 +125,7 @@ public final class MineUiScreens {
 
     /** 开发覆盖目录：<config>/mineui/ui/<app>/<view>.json */
     private static Path devRoot() {
-        return FabricLoader.getInstance().getConfigDir().resolve("mineui").resolve("ui");
+        return UiDefinitions.devRoot();
     }
 
     private static void chat(String message) {

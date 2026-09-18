@@ -1,0 +1,23 @@
+{
+  "type": "column",
+  "skin": "vanilla:panel",
+  "gap": 6,
+  "children": [
+    {
+      "type": "row",
+      "gap": 8,
+      "align": "center",
+      "children": [
+        { "type": "item", "item": "minecraft:music_disc_cat", "scale": 1.5 },
+        {
+          "type": "column",
+          "gap": 2,
+          "children": [
+            { "type": "text", "text": "{state.title}", "color": "#FFFFFF" },
+            { "type": "text", "text": "{state.subtitle}", "color": "#A0A0A0" }
+          ]
+        }
+      ]
+    }
+  ]
+}

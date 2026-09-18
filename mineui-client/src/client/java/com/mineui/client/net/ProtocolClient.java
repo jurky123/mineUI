@@ -3,6 +3,7 @@ package com.mineui.client.net;
 import com.google.gson.JsonObject;
 import com.mineui.client.MineUiClient;
 import com.mineui.client.ui.MineUiScreens;
+import com.mineui.client.ui.hud.MineUiHuds;
 import com.mineui.client.ui.UiStateStore;
 import com.mineui.protocol.Envelope;
 import com.mineui.protocol.JsonCodec;
@@ -49,7 +50,7 @@ public final class ProtocolClient {
                 Envelope.PROTOCOL_VERSION,
                 MineUiClient.version(),
                 MineUiClient.MINECRAFT_VERSION,
-                List.of("screen", "hud", "server_ui"));
+                List.of("screen", "hud", "server_ui", "hud_v2"));
         send(new Envelope(MessageType.HELLO, 0, 0, JsonCodec.encode(hello)));
     }
 
@@ -94,6 +95,10 @@ public final class ProtocolClient {
             return;
         }
 
+        if (MineUiHuds.handle(envelope)) {
+            return;
+        }
+
         switch (envelope.type()) {
             case HELLO_ACK -> handleHelloAck(envelope);
             case OPEN -> handleOpen(envelope);
@@ -113,6 +118,7 @@ public final class ProtocolClient {
     public static void reset() {
         STATE.end();
         MineUiScreens.closeFromServer();
+        MineUiHuds.reset();
         serverProtocol = -1;
         MineUiClient.LOGGER.info("已断开连接，MineUI 状态已清理");
     }
@@ -132,6 +138,11 @@ public final class ProtocolClient {
             open = JsonCodec.decode(envelope.payload(), Open.class);
         } catch (ProtocolException e) {
             MineUiClient.LOGGER.warn("OPEN 载荷非法: {}", e.getMessage());
+            return;
+        }
+        if (open.isHud()) {
+            MineUiHuds.open(envelope.session(), open.app(), open.view(), open.ui(),
+                    open.layout() == null ? com.mineui.protocol.msg.HudLayout.defaults() : open.layout());
             return;
         }
         STATE.begin(envelope.session());

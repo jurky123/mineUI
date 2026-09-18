@@ -89,6 +89,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 | `/mineui test` | 打开测试界面（验证客户端是否生效） |
 | `/mineui style` | 打开原版风格模板预览（面板/按钮/输入框/滑块/滚动/弹窗） |
 | `/mineui gallery` | 打开组件画廊（物品/头颅装饰、悬浮动效、时间轮换、像素素材） |
+| `/mineui hud` | 打开 HUD 演示（服务端声明布局；F6 本地开关） |
 | `/mineui close` | 关闭当前 MineUI 界面 |
 
 ---
@@ -102,7 +103,8 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 原版风格模板（按钮/输入框/滑块/滚动条/面板/弹窗，像素级对齐原版贴图）
 - ✅ 装饰与动效（物品/头颅/精灵/自绘像素素材、悬浮缩放与换图案、时间轮换）
 - ✅ 动态贴图：`image.texture` / `item.item` 支持状态绑定，换图不重开界面（棋盘/棋子等）
-- ✅ 业务 API `com.mineui.api`（含 `server_ui` 能力协商与 owner 生命周期）
+- ✅ 业务 API `com.mineui.api`（含 `server_ui` / `hud_v2` 能力协商与 owner 生命周期）
+- ✅ HUD：服务端声明布局（锚点/偏移/缩放）、与屏幕并存、客户端本地偏好（F6 开关，`config/mineui/client.json`）
 - ⏳ HUD Overlay、标签页/下拉框/滑块等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
 
@@ -111,4 +113,5 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 ## 开发
 
 - 组件与素材指南（装饰/交互/动效，含示例）：[`docs/COMPONENTS.md`](docs/COMPONENTS.md)
+- 音乐 UI 能力需求与阶段状态：[`docs/REQUIREMENTS_AUDIO_UI.md`](docs/REQUIREMENTS_AUDIO_UI.md)
 - 技术设计文档：[`docs/DESIGN.md`](docs/DESIGN.md)

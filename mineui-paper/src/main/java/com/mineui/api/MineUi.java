@@ -27,6 +27,9 @@ public interface MineUi {
     /** 能力位：客户端支持在 OPEN 中接收服务端下发的界面定义（0.6.4+）。 */
     String CAPABILITY_SERVER_UI = "server_ui";
 
+    /** 能力位：客户端支持 HUD 会话（0.8+）。 */
+    String CAPABILITY_HUD = "hud_v2";
+
     /** 玩家是否已安装并握手 MineUI 客户端 mod。 */
     boolean hasClient(Player player);
 
@@ -39,6 +42,11 @@ public interface MineUi {
      */
     default boolean supportsServerUi(Player player) {
         return capabilities(player).contains(CAPABILITY_SERVER_UI);
+    }
+
+    /** 客户端是否支持 HUD 会话；不支持时业务应降级（如不显示 HUD）。 */
+    default boolean supportsHud(Player player) {
+        return capabilities(player).contains(CAPABILITY_HUD);
     }
 
     /**
@@ -59,6 +67,21 @@ public interface MineUi {
      */
     MineUiSession open(Plugin owner, Player player, String app, String view, JsonObject definition);
 
-    /** 关闭某插件拥有的全部会话。 */
+    /**
+     * 打开 HUD 会话（不占用屏幕；与屏幕会话并存，owner 生命周期一致）。
+     *
+     * @param owner      会话所有者
+     * @param definition 界面定义 JSON（null 表示由客户端内置/开发目录加载）
+     * @param layout     HUD 布局（null 用默认值；客户端本地偏好可覆盖）
+     */
+    MineUiSession openHud(Plugin owner, Player player, String app, String view,
+                          JsonObject definition, com.mineui.protocol.msg.HudLayout layout);
+
+    /** 打开 HUD 会话（默认布局）。 */
+    default MineUiSession openHud(Plugin owner, Player player, String app, String view, JsonObject definition) {
+        return openHud(owner, player, app, view, definition, com.mineui.protocol.msg.HudLayout.defaults());
+    }
+
+    /** 关闭某插件拥有的全部会话（含 HUD）。 */
     void closeAll(Plugin owner);
 }
