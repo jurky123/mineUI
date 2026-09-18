@@ -3,6 +3,7 @@ package com.mineui.client;
 import com.mineui.client.net.MineUiPayload;
 import com.mineui.client.net.ProtocolClient;
 import com.mineui.client.ui.hud.MineUiHuds;
+import com.mineui.client.ui.keybind.MineUiKeybinds;
 import com.mineui.client.ui.toast.MineUiToasts;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
@@ -40,6 +41,9 @@ public class MineUiClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(MineUiPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> ProtocolClient.handleIncoming(payload.data())));
 
+        // 通用键位池（服务端通过 KEYBIND 声明含义；改键走原版按键设置）
+        MineUiKeybinds.init();
+
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> ProtocolClient.onJoin());
         // 断线回调在网络线程：复位会触碰界面/纹理，必须切回渲染线程执行
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(ProtocolClient::reset));
@@ -67,6 +71,7 @@ public class MineUiClient implements ClientModInitializer {
                 "key.mineui.toggle_hud", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F6, KeyMapping.Category.MISC));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ProtocolClient.tick();
+            MineUiKeybinds.tick();
             while (toggleHudKey.consumeClick()) {
                 MineUiConfig config = MineUiConfig.get();
                 config.hudEnabled = !config.hudEnabled;

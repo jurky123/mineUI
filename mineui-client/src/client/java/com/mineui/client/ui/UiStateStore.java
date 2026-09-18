@@ -87,9 +87,13 @@ public final class UiStateStore implements StateAccess, GenerationSource {
         return element != null && element.isJsonPrimitive() ? element.getAsBoolean() : defaultValue;
     }
 
-    /** 支持点分路径：{@code "player.name"}。 */
+    /** 支持点分路径：{@code "player.name"}；{@code "key.<action>"} 解析为本地按键名。 */
     @Override
     public String get(String path, String defaultValue) {
+        if (path.startsWith("key.")) {
+            String name = com.mineui.client.ui.keybind.MineUiKeybinds.display(path.substring("key.".length()));
+            return name.isEmpty() ? defaultValue : name;
+        }
         JsonElement element = state;
         for (String part : path.split("\\.")) {
             if (element instanceof JsonObject object && object.has(part)) {

@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.mineui.client.MineUiClient;
 import com.mineui.client.ui.MineUiScreens;
 import com.mineui.client.ui.hud.MineUiHuds;
+import com.mineui.client.ui.keybind.MineUiKeybinds;
 import com.mineui.client.ui.remote.RemoteImages;
 import com.mineui.client.ui.toast.MineUiToasts;
 import com.mineui.client.ui.UiStateStore;
@@ -14,6 +15,7 @@ import com.mineui.protocol.ProtocolException;
 import com.mineui.protocol.msg.Action;
 import com.mineui.protocol.msg.Hello;
 import com.mineui.protocol.msg.HelloAck;
+import com.mineui.protocol.msg.Keybinds;
 import com.mineui.protocol.msg.Open;
 import com.mineui.protocol.msg.RemoteImagePolicy;
 import com.mineui.protocol.msg.Patch;
@@ -67,7 +69,7 @@ public final class ProtocolClient {
                 Envelope.PROTOCOL_VERSION,
                 MineUiClient.version(),
                 MineUiClient.MINECRAFT_VERSION,
-                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image", "toast"));
+                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image", "toast", "keybind"));
         send(new Envelope(MessageType.HELLO, 0, 0, JsonCodec.encode(hello)));
     }
 
@@ -145,6 +147,7 @@ public final class ProtocolClient {
             case HELLO_ACK -> handleHelloAck(envelope);
             case REMOTE_POLICY -> handleRemotePolicy(envelope);
             case TOAST -> handleToast(envelope);
+            case KEYBIND -> handleKeybinds(envelope);
             case OPEN -> handleOpen(envelope);
             case SNAPSHOT -> handleSnapshot(envelope);
             case PATCH -> handlePatch(envelope);
@@ -174,6 +177,14 @@ public final class ProtocolClient {
         }
     }
 
+    private static void handleKeybinds(Envelope envelope) {
+        try {
+            MineUiKeybinds.apply(JsonCodec.decode(envelope.payload(), Keybinds.class));
+        } catch (ProtocolException e) {
+            MineUiClient.LOGGER.warn("KEYBIND 载荷非法: {}", e.getMessage());
+        }
+    }
+
     /** 断线/切服清理：状态、界面、图片句柄、协商版本全部复位。 */
     public static void reset() {
         STATE.end();
@@ -181,6 +192,7 @@ public final class ProtocolClient {
         MineUiHuds.reset();
         RemoteImages.reset();
         MineUiToasts.reset();
+        MineUiKeybinds.reset();
         serverProtocol = -1;
         helloRetries = 0;
         ticksSinceHello = 0;

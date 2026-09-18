@@ -154,6 +154,16 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 - 全局动作：`MineUi.onAction(owner, actionId, handler)`（客户端 `session=0` 的 ACTION）；owner 停用自动清理
 - 演示：`/mineui toast`
 
+## 2.10 服务端声明键位
+
+- 客户端预注册 8 个通用键位槽（`key.mineui.slot1..8`，默认 1=F7、2=F8，其余留空）；
+  改键/冲突检测/持久化全部走原版「设置 → 按键」
+- 服务端：`MineUi.keybind(owner, player, slot, actionId, label)` 声明（owner 停用自动清理）；
+  按键时客户端回传全局动作，由 `MineUi.onAction` 处理
+- 页面按键提示：文本里写 `{key.<actionId>}`，客户端解析为当前按键名（未声明/未绑定为空）
+- 玩家加入（HELLO）后服务端全量重发声明；旧客户端能力位不含 `keybind` 时不发送
+- 演示：`/mineui keybind`（声明槽位 1 → 按下打开歌词页）
+
 ---
 
 ## 3. 交互：装饰即按钮

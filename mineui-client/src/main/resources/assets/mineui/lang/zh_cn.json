@@ -1,4 +1,12 @@
 {
   "key.mineui.toggle_hud": "开关 MineUI HUD",
-  "key.categories.misc": "杂项"
+  "key.categories.misc": "杂项",
+  "key.mineui.slot1": "MineUI 动作 1",
+  "key.mineui.slot2": "MineUI 动作 2",
+  "key.mineui.slot3": "MineUI 动作 3",
+  "key.mineui.slot4": "MineUI 动作 4",
+  "key.mineui.slot5": "MineUI 动作 5",
+  "key.mineui.slot6": "MineUI 动作 6",
+  "key.mineui.slot7": "MineUI 动作 7",
+  "key.mineui.slot8": "MineUI 动作 8"
 }

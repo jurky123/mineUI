@@ -37,7 +37,9 @@ public enum MessageType {
     /** 服务端 → 客户端：远程图片策略（白名单/大小/缓存上限） */
     REMOTE_POLICY(0x0D),
     /** 服务端 → 客户端：短提示（切歌/错误等） */
-    TOAST(0x0E);
+    TOAST(0x0E),
+    /** 服务端 → 客户端：键位声明（槽位 → 全局动作） */
+    KEYBIND(0x0F);
 
     private final int id;
 

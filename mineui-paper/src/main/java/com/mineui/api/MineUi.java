@@ -33,6 +33,9 @@ public interface MineUi {
     /** 能力位：客户端支持 Toast 短提示与全局动作（0.10+）。 */
     String CAPABILITY_TOAST = "toast";
 
+    /** 能力位：客户端支持服务端声明的通用键位（0.11+）。 */
+    String CAPABILITY_KEYBIND = "keybind";
+
     /** 玩家是否已安装并握手 MineUI 客户端 mod。 */
     boolean hasClient(Player player);
 
@@ -107,6 +110,24 @@ public interface MineUi {
      * 同一 owner 对同一 id 重复注册会覆盖；owner 插件停用时自动清理。
      */
     void onAction(Plugin owner, String actionId, java.util.function.Consumer<MineUiAction> handler);
+
+    /** 客户端是否支持服务端声明的键位；不支持时业务应降级（如只提供界面按钮）。 */
+    default boolean supportsKeybind(Player player) {
+        return capabilities(player).contains(CAPABILITY_KEYBIND);
+    }
+
+    /**
+     * 声明一条客户端键位：按下槽位对应的按键时回传全局动作。
+     *
+     * @param owner    所有者：插件停用时其键位声明自动清理
+     * @param slot     客户端键位池槽位（"1".."8"）；默认 1=F7、2=F8，其余留空由玩家在原版按键设置中绑定
+     * @param actionId 按键触发的全局动作 id（用 {@link #onAction} 注册处理器）
+     * @param label    展示名（页面 {@code {key.<actionId>}} 提示可用）
+     */
+    void keybind(Plugin owner, Player player, String slot, String actionId, String label);
+
+    /** 清除该 owner 在玩家上的全部键位声明。 */
+    void clearKeybinds(Plugin owner, Player player);
 
     /** 关闭某插件拥有的全部会话（含 HUD）。 */
     void closeAll(Plugin owner);

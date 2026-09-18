@@ -84,6 +84,12 @@ public final class MineUiCommand {
                             toast(context.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
+                .then(Commands.literal("keybind")
+                        .requires(source -> source.getSender().hasPermission("mineui.admin"))
+                        .executes(context -> {
+                            keybind(context.getSource().getSender());
+                            return Command.SINGLE_SUCCESS;
+                        }))
                 .then(Commands.literal("gallery")
                         .requires(source -> source.getSender().hasPermission("mineui.admin"))
                         .executes(context -> {
@@ -270,6 +276,23 @@ public final class MineUiCommand {
         }, 40L, 20L);
         session.onClose(task::cancel);
         player.sendMessage(Component.text("已打开列表演示（歌词高亮自动居中，/mineui close 关闭）", NamedTextColor.GREEN));
+    }
+
+    /** /mineui keybind：声明通用键位（槽位 1，默认 F7）→ 按下打开歌词页。 */
+    private void keybind(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.sessions().isModClient(player.getUniqueId())) {
+            sender.sendMessage(Component.text("你需要安装 MineUI 客户端 mod 才能使用声明键位", NamedTextColor.RED));
+            return;
+        }
+        plugin.globalActions().on(plugin, "mineui_demo_keybind", action -> lyrics(action.player()));
+        plugin.keybinds().set(plugin, player, "1", "mineui_demo_keybind", "打开歌词");
+        player.sendMessage(Component.text(
+                "已声明键位 1（默认 F7，可在 设置→按键 中改）；按下将打开歌词页，歌词页会显示当前按键",
+                NamedTextColor.GREEN));
     }
 
     /** /mineui toast：短提示 + 全局动作（点击回调）演示。 */

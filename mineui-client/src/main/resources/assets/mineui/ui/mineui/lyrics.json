@@ -30,6 +30,7 @@
           }
         },
         { "type": "text", "text": "滚轮滚动 · 高亮行自动居中", "color": "#9FB0C0" },
+        { "type": "text", "text": "按键提示：{key.mineui_demo_keybind}", "color": "#7FB07F" },
         { "type": "button", "skin": "vanilla:button", "text": "关闭", "action": "close", "width": 100 }
       ]
     }

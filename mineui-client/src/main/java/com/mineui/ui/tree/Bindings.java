@@ -13,7 +13,7 @@ public final class Bindings {
 
     /** 可解析的绑定路径（限定命名空间，避免误吃文本里的普通花括号）。 */
     private static final Pattern PATTERN =
-            Pattern.compile("\\{((?:state|item|itemIndex|itemHighlight)(?:\\.[a-zA-Z0-9_\\-]+)*)}");
+            Pattern.compile("\\{((?:state|item|itemIndex|itemHighlight|key)(?:\\.[a-zA-Z0-9_\\-]+)*)}");
     /** list 的 items / highlightIndex 只接受整体 state 绑定。 */
     private static final Pattern STATE_PATH = Pattern.compile("\\{state\\.([a-zA-Z0-9_.\\-]+)}");
 

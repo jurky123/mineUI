@@ -92,6 +92,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 | `/mineui hud` | 打开 HUD 演示（服务端声明布局；F6 本地开关） |
 | `/mineui lyrics` | 打开列表演示（歌词高亮 + 自动居中 + 滚轮） |
 | `/mineui toast` | 发送 Toast 短提示（打开界面后点击可触发全局动作） |
+| `/mineui keybind` | 声明通用键位（槽位 1，默认 F7）→ 按下打开歌词页 |
 | `/mineui close` | 关闭当前 MineUI 界面 |
 
 ---
@@ -112,6 +113,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
   网易云封面（JPEG）实测通过，失败有原因提示与超时保护
 - ✅ 列表：`list` 节点（items 绑定 + 任意 itemTemplate + 高亮行自动居中 + 滚轮）；`/mineui lyrics` 演示
 - ✅ Toast：服务端短提示（图标/时长）+ 界面内点击回传全局动作；`MineUi.onAction`；`/mineui toast` 演示
+- ✅ 键位：客户端通用键位池（`key.mineui.slot1..8`，改键走原版）+ 服务端 `keybind` 声明 + `{key.<action>}` 页面提示
 - ⏳ 标签页/下拉框等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
 

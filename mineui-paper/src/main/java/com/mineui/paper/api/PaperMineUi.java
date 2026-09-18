@@ -53,6 +53,16 @@ public final class PaperMineUi implements MineUi {
     }
 
     @Override
+    public void keybind(Plugin owner, Player player, String slot, String actionId, String label) {
+        plugin.keybinds().set(owner, player, slot, actionId, label);
+    }
+
+    @Override
+    public void clearKeybinds(Plugin owner, Player player) {
+        plugin.keybinds().clear(owner, player);
+    }
+
+    @Override
     public void closeAll(Plugin owner) {
         plugin.uiSessions().closeOwned(owner);
     }

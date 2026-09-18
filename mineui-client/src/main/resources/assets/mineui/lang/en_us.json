@@ -1,3 +1,11 @@
 {
-  "key.mineui.toggle_hud": "Toggle MineUI HUD"
+  "key.mineui.toggle_hud": "Toggle MineUI HUD",
+  "key.mineui.slot1": "MineUI Action 1",
+  "key.mineui.slot2": "MineUI Action 2",
+  "key.mineui.slot3": "MineUI Action 3",
+  "key.mineui.slot4": "MineUI Action 4",
+  "key.mineui.slot5": "MineUI Action 5",
+  "key.mineui.slot6": "MineUI Action 6",
+  "key.mineui.slot7": "MineUI Action 7",
+  "key.mineui.slot8": "MineUI Action 8"
 }

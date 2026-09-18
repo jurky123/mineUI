@@ -34,6 +34,7 @@ final class PlayerConnectionListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         plugin.sessions().remove(event.getPlayer().getUniqueId());
         plugin.uiSessions().discard(event.getPlayer().getUniqueId());
+        plugin.keybinds().clearPlayer(event.getPlayer().getUniqueId());
         plugin.clearInbound(event.getPlayer().getUniqueId());
     }
 }

@@ -47,6 +47,7 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
     private SessionManager sessions;
     private UiSessionManager uiSessions;
     private GlobalActionManager globalActions;
+    private KeybindManager keybinds;
     private RemoteImagePolicy remoteImagePolicy = RemoteImagePolicy.disabled();
     private Transport transport;
     private final Map<UUID, RateWindow> inboundWindows = new ConcurrentHashMap<>();
@@ -57,6 +58,7 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         sessions = new SessionManager();
         uiSessions = new UiSessionManager(this);
         globalActions = new GlobalActionManager(this);
+        keybinds = new KeybindManager(this);
         transport = new Transport(this);
         loadRemoteImagePolicy();
 
@@ -86,6 +88,9 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         if (globalActions != null) {
             globalActions.clear();
         }
+        if (keybinds != null) {
+            keybinds.clear();
+        }
         inboundWindows.clear();
         MineUiProvider.unregister();
     }
@@ -101,6 +106,9 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         }
         if (globalActions != null) {
             globalActions.clearOwned(event.getPlugin());
+        }
+        if (keybinds != null) {
+            keybinds.clearOwned(event.getPlugin());
         }
     }
 
@@ -167,6 +175,8 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         HelloAck ack = new HelloAck(Envelope.PROTOCOL_VERSION, getPluginMeta().getVersion(), MIN_CLIENT_VERSION);
         transport.sendLater(player, new Envelope(MessageType.HELLO_ACK, 0, 0, JsonCodec.encode(ack)));
         transport.sendLater(player, new Envelope(MessageType.REMOTE_POLICY, 0, 0, JsonCodec.encode(remoteImagePolicy)));
+        // 键位声明在握手应答后重发（客户端能力需已登记）
+        Bukkit.getScheduler().runTask(this, () -> keybinds.sendTo(player));
     }
     private void warnBadPacket(Player player, String reason) {
         long now = System.currentTimeMillis();
@@ -219,6 +229,10 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
 
     public GlobalActionManager globalActions() {
         return globalActions;
+    }
+
+    public KeybindManager keybinds() {
+        return keybinds;
     }
 
     public SessionManager sessions() {

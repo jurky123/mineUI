@@ -29,7 +29,8 @@
   期间修复：策略随 OPEN 补发 + 握手重试（加载期丢包）、断线复位线程安全、解析/下载超时与 15 秒看门狗、blit 整图采样修复
 - ✅ **P4a 列表 + Toast + 全局动作**（0.10.0）：`list` 节点（items 绑定 + 任意 `itemTemplate` + `highlightIndex`
   高亮 + 自动滚动居中 + 滚轮）、Toast 短提示（图标/时长，界面内点击回传）、全局动作 `MineUi.onAction`（`session=0` 的 ACTION）
-- ⏳ P4b 客户端键位（FR-6）：通用键位池 + `KEYBIND` 声明 + 按键触发全局动作
+- ✅ **P4b 客户端键位**（0.11.0）：客户端通用键位池（`key.mineui.slot1..8`，改键/冲突/持久化走原版）、
+  服务端 `KEYBIND` 声明 + `MineUi.keybind`、按键回传全局动作、页面 `{key.<actionId>}` 提示
 
 ---
 
