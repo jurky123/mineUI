@@ -240,18 +240,20 @@ HUD 与屏幕使用同一套 JSON 节点，不占屏幕、可与屏幕并存；�
 // 服务端（业务插件）
 UiSession hud = mineUi.openHud(this, player, "example", "nowplaying", definition,
         new HudLayout("top_right", 6f, 6f, 1f));   // anchor / offsetX / offsetY / scale
+// 也支持 HudLayout.parse(json)：{ anchor, offsetX, offsetY, scale, visible, z }
 hud.state("title", "正在播放");
 hud.snapshot();
 ```
 
 - 锚点：`top_left / top_center / top_right / center_left / center / center_right / bottom_left / bottom_center / bottom_right`
-- 客户端偏好：`config/mineui/client.json`（`hudEnabled` 总开关、`hudHideOnScreen` 开界面自动隐藏、逐 `app/view` 覆盖 anchor/offset/scale/开关）
+- 布局字段：`visible`（服务端默认可见性）、`z`（同屏多个 HUD 的渲染顺序，小的先画）
+- 客户端偏好：`config/mineui/client.json`（`hudEnabled` 总开关、`hudHideOnScreen` 开界面自动隐藏、逐 `app/view` 覆盖 anchor/offset/scale/开关；本地开关优先于服务端 `visible`）
 - 无边框半透明：HUD 推荐 `"skin": "mineui:glass"`（半透明圆角、无边框，程序化绘制**无需新素材**）；
   更实的底可用 `mineui:glass_dense`，也可自行写 `"background": "#8A0E141B", "radius": 6`
 - 游戏内：**F6** 开关 HUD（可在原版按键设置改键）；未安装 mod 的玩家不受影响
 - 能力位：`hud_v2`（业务用 `MineUi.supportsHud(player)` 判断，旧客户端自动降级）
 - 生命周期：owner 停用 / 玩家退出 / 断线自动清理；HUD 与屏幕互不干扰
-- 安全区建议：默认 `top_right`/`top_left` + 小偏移避开 hotbar；底部锚点请留足 `offsetY`
+- 安全区：**底部锚点默认自动上移 44px 避开原版 hotbar**；顶部/两侧建议用 `top_right`/`top_left` 小偏移
 - 本阶段 HUD 为显示型（不响应点击），交互型 HUD 在后续阶段
 
 ---

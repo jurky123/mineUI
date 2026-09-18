@@ -86,8 +86,10 @@ public final class MineUiHuds {
         if (config.hudHideOnScreen && Minecraft.getInstance().gui.screen() != null) {
             return;
         }
-        for (HudSession session : new LinkedHashMap<>(SESSIONS).values()) {
-            if (!config.isHudEnabled(session.app(), session.view())) {
+        java.util.List<HudSession> sessions = new java.util.ArrayList<>(SESSIONS.values());
+        sessions.sort(java.util.Comparator.comparingInt(HudSession::z));
+        for (HudSession session : sessions) {
+            if (!config.isHudEnabled(session.app(), session.view(), session.serverVisible())) {
                 continue;
             }
             try {

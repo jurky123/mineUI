@@ -48,6 +48,16 @@ final class HudSession {
         return view;
     }
 
+    /** 服务端默认可见性（客户端本地开关优先）。 */
+    boolean serverVisible() {
+        return serverLayout.visible();
+    }
+
+    /** 同屏渲染顺序（小的先画）。 */
+    int z() {
+        return serverLayout.z();
+    }
+
     UiStateStore state() {
         return state;
     }

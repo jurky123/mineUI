@@ -15,6 +15,17 @@ class HudLayoutTest {
         assertEquals(4f, layout.offsetX(), 0.001f);
         assertEquals(4f, layout.offsetY(), 0.001f);
         assertEquals(1f, layout.scale(), 0.001f);
+        assertEquals(true, layout.visible());
+        assertEquals(0, layout.z());
+    }
+
+    @Test
+    void parsesVisibleAndZ() {
+        HudLayout layout = HudLayout.parse(JsonParser.parseString("""
+                { "visible": false, "z": 5 }
+                """).getAsJsonObject());
+        assertEquals(false, layout.visible());
+        assertEquals(5, layout.z());
     }
 
     @Test

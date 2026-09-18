@@ -72,13 +72,18 @@ public final class MineUiConfig {
         }
     }
 
-    /** 该 HUD 是否启用：逐页覆盖 > 总开关。 */
+    /** 该 HUD 是否启用：逐页本地覆盖 > 服务端默认可见性 > 总开关。 */
     public boolean isHudEnabled(String app, String view) {
+        return isHudEnabled(app, view, true);
+    }
+
+    /** 该 HUD 是否启用（带服务端默认可见性）。 */
+    public boolean isHudEnabled(String app, String view, boolean serverVisible) {
         HudPref pref = hud.get(app + "/" + view);
         if (pref != null && pref.enabled != null) {
             return pref.enabled;
         }
-        return hudEnabled;
+        return serverVisible && hudEnabled;
     }
 
     /** 本地覆盖优先的服务端布局合并。 */
@@ -92,7 +97,9 @@ public final class MineUiConfig {
                 pref.anchor != null ? pref.anchor : base.anchor(),
                 pref.offsetX != null ? pref.offsetX : base.offsetX(),
                 pref.offsetY != null ? pref.offsetY : base.offsetY(),
-                pref.scale != null ? pref.scale : base.scale());
+                pref.scale != null ? pref.scale : base.scale(),
+                base.visible(),
+                base.z());
     }
 
     private static Path file() {

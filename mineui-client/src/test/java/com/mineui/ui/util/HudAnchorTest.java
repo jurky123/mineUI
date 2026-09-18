@@ -27,9 +27,9 @@ class HudAnchorTest {
         assertPosition("center_left", 4f, (SH - H) / 2f + OFF);
         assertPosition("center", (SW - W) / 2f + OFF, (SH - H) / 2f + OFF);
         assertPosition("center_right", SW - W - OFF, (SH - H) / 2f + OFF);
-        assertPosition("bottom_left", 4f, SH - H - OFF);
-        assertPosition("bottom_center", (SW - W) / 2f + OFF, SH - H - OFF);
-        assertPosition("bottom_right", SW - W - OFF, SH - H - OFF);
+        assertPosition("bottom_left", 4f, SH - H - OFF - HudAnchor.SAFE_BOTTOM);
+        assertPosition("bottom_center", (SW - W) / 2f + OFF, SH - H - OFF - HudAnchor.SAFE_BOTTOM);
+        assertPosition("bottom_right", SW - W - OFF, SH - H - OFF - HudAnchor.SAFE_BOTTOM);
     }
 
     @Test
@@ -40,13 +40,19 @@ class HudAnchorTest {
 
     @Test
     void anchorIsCaseInsensitive() {
-        assertPosition("BOTTOM_RIGHT", SW - W - OFF, SH - H - OFF);
+        assertPosition("BOTTOM_RIGHT", SW - W - OFF, SH - H - OFF - HudAnchor.SAFE_BOTTOM);
     }
 
     @Test
     void zeroOffsetSnapsToEdge() {
         assertArrayEquals(new float[]{0f, 0f}, HudAnchor.resolve("top_left", 0f, 0f, W, H, SW, SH), 0.001f);
-        assertArrayEquals(new float[]{SW - W, SH - H},
+        assertArrayEquals(new float[]{SW - W, SH - H - HudAnchor.SAFE_BOTTOM},
                 HudAnchor.resolve("bottom_right", 0f, 0f, W, H, SW, SH), 0.001f);
+    }
+
+    @Test
+    void zeroSafeBottomRestoresEdge() {
+        assertArrayEquals(new float[]{SW - W, SH - H},
+                HudAnchor.resolve("bottom_right", 0f, 0f, W, H, SW, SH, 0f), 0.001f);
     }
 }
