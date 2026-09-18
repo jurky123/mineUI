@@ -38,7 +38,8 @@ public class MineUiClient implements ClientModInitializer {
                 context.client().execute(() -> ProtocolClient.handleIncoming(payload.data())));
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> ProtocolClient.onJoin());
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ProtocolClient.reset());
+        // 断线回调在网络线程：复位会触碰界面/纹理，必须切回渲染线程执行
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(ProtocolClient::reset));
 
         // HUD 渲染层（服务端声明布局，本地偏好可覆盖）
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, "hud"),

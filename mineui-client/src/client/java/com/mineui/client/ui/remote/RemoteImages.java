@@ -7,6 +7,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
 import java.io.ByteArrayOutputStream;
@@ -27,9 +28,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 /**
@@ -48,9 +53,19 @@ public final class RemoteImages {
     public record Entry(State state, Identifier texture, int width, int height) {
     }
 
+    /** 域名解析超时（部分被墙/污染的域名解析会长时间阻塞，不能拖住下载线程）。 */
+    private static final long DNS_TIMEOUT_SECONDS = 5L;
+
     private static final Map<String, Entry> ENTRIES = new ConcurrentHashMap<>();
+    /** 已提示过失败的 URL，避免重复刷屏。 */
+    private static final Set<String> REPORTED = ConcurrentHashMap.newKeySet();
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(2, runnable -> {
         Thread thread = new Thread(runnable, "MineUI-RemoteImage");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private static final ExecutorService RESOLVER = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "MineUI-RemoteImage-DNS");
         thread.setDaemon(true);
         return thread;
     });
@@ -94,7 +109,7 @@ public final class RemoteImages {
         if (check != RemoteUrlGuard.Result.OK) {
             Entry failed = new Entry(State.FAILED, null, 0, 0);
             ENTRIES.put(url, failed);
-            MineUiClient.LOGGER.warn("远程图片被拒绝（{}）: {}", check, url);
+            reportFailure(url, "被拒绝（" + check + "）");
             return failed;
         }
         Entry loading = new Entry(State.LOADING, null, 0, 0);
@@ -116,6 +131,7 @@ public final class RemoteImages {
             }
         }
         ENTRIES.clear();
+        REPORTED.clear();
     }
 
     // ---------- 异步加载 ----------
@@ -130,8 +146,23 @@ public final class RemoteImages {
             Minecraft.getInstance().execute(() -> register(url, image));
         } catch (Exception e) {
             ENTRIES.put(url, new Entry(State.FAILED, null, 0, 0));
-            MineUiClient.LOGGER.warn("远程图片加载失败 {}: {}", url, e.getMessage());
+            reportFailure(url, e.getMessage());
         }
+    }
+
+    /** 记录并提示一次失败（含原因），同一 URL 每会话只提示一次。 */
+    private static void reportFailure(String url, String reason) {
+        if (!REPORTED.add(url)) {
+            return;
+        }
+        String detail = reason == null || reason.isBlank() ? "未知原因" : reason;
+        MineUiClient.LOGGER.warn("远程图片加载失败 {}: {}", url, detail);
+        Minecraft.getInstance().execute(() -> {
+            var player = Minecraft.getInstance().player;
+            if (player != null) {
+                player.sendSystemMessage(Component.literal("[MineUI] 远程图片加载失败（" + detail + "）: " + url));
+            }
+        });
     }
 
     private static void register(String url, NativeImage image) {
@@ -144,7 +175,7 @@ public final class RemoteImages {
         } catch (Exception e) {
             image.close();
             ENTRIES.put(url, new Entry(State.FAILED, null, 0, 0));
-            MineUiClient.LOGGER.warn("远程图片注册失败 {}: {}", url, e.getMessage());
+            reportFailure(url, "注册失败: " + e.getMessage());
         }
     }
 
@@ -192,16 +223,22 @@ public final class RemoteImages {
     }
 
     private static void requirePublicAddress(String host) throws IOException {
+        InetAddress[] addresses;
         try {
-            for (InetAddress address : InetAddress.getAllByName(host)) {
-                if (RemoteUrlGuard.isPrivateAddress(address)) {
-                    throw new IOException("解析到受限地址: " + address.getHostAddress());
-                }
+            addresses = RESOLVER.submit(() -> InetAddress.getAllByName(host))
+                    .get(DNS_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            throw new IOException("域名解析超时: " + host);
+        } catch (ExecutionException e) {
+            throw new IOException("域名解析失败: " + host, e.getCause());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("下载被中断");
+        }
+        for (InetAddress address : addresses) {
+            if (RemoteUrlGuard.isPrivateAddress(address)) {
+                throw new IOException("解析到受限地址: " + address.getHostAddress());
             }
-        } catch (IOException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new IOException("域名解析失败: " + host);
         }
     }
 
