@@ -106,7 +106,10 @@ public final class ListViewNode extends ContainerNode {
         boolean first = true;
         for (int i = 0; i < items.size(); i++) {
             UiNode item = items.get(i);
-            item.measure(context.withAvailable(contentW, viewportH).withState(itemState(context.state(), i)));
+            // 条目上下文同时用于度量与渲染（渲染器读取 node.stateContext()）
+            StateAccess itemContext = itemState(context.state(), i);
+            item.setStateContext(itemContext);
+            item.measure(context.withAvailable(contentW, viewportH).withState(itemContext));
             if (!item.visibleNow()) {
                 continue;
             }

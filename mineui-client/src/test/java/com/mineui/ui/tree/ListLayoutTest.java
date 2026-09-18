@@ -8,6 +8,7 @@ import com.mineui.ui.spec.SizeSpec;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -65,6 +66,8 @@ class ListLayoutTest {
         assertEquals(1, list.children().size());
         // "x-y" 3 字符 × 6 = 18
         assertEquals(18, list.children().get(0).width(), 0.01);
+        // 条目上下文必须挂到节点上，渲染器才能解析 {item.*}
+        assertNotNull(list.children().get(0).stateContext(), "条目节点必须带状态上下文");
     }
 
     @Test
@@ -94,6 +97,29 @@ class ListLayoutTest {
 
         list.scrollTo(9999);
         assertEquals(78, list.scrollOffset(), 0.01); // 118 - 40
+    }
+
+    @Test
+    void parsedPageBuildsListItemsAndHighlight() throws Exception {
+        JsonObject page = JsonParser.parseString("""
+                {"type":"column","children":[
+                  {"type":"text","text":"标题"},
+                  {"type":"list","width":260,"height":150,"gap":4,
+                   "items":"{state.lyrics}","highlightIndex":"{state.current}","highlightColor":"#FFFFFF",
+                   "itemTemplate":{"type":"text","text":"{item}","width":"100%"}}
+                ]}
+                """).getAsJsonObject();
+        UiNode root = com.mineui.ui.spec.UiSpecParser.parse(page);
+        JsonState state = state("{\"lyrics\":[\"a\",\"bb\",\"ccc\"],\"current\":1}");
+        root.measure(ctx(state, 300, 300));
+        root.layout(0, 0);
+
+        UiNode second = root.children().get(1);
+        assertTrue(second instanceof ListViewNode, "第二个子节点应为 list");
+        ListViewNode list = (ListViewNode) second;
+        assertEquals(3, list.children().size());
+        assertEquals(1, list.highlightIndex());
+        assertSame(list.children().get(1), list.highlightedItem());
     }
 
     /** 简易 JSON 状态：get/getElement 支持点分路径。 */
