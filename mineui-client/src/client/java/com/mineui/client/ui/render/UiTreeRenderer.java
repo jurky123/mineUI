@@ -326,10 +326,11 @@ public final class UiTreeRenderer {
         if (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://")) {
             RemoteImages.Entry entry = RemoteImages.resolve(resolvedUrl, node.sha256());
             if (entry.state() == RemoteImages.State.READY && entry.texture() != null) {
+                // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)：整图采样为 0,1,0,1
                 graphics.blit(entry.texture(),
                         Math.round(node.x()), Math.round(node.y()),
                         Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
-                        0f, 0f, 1f, 1f);
+                        0f, 1f, 0f, 1f);
             } else {
                 // 加载中/失败：半透明占位，避免空白闪烁
                 int color = entry.state() == RemoteImages.State.LOADING ? 0x33FFFFFF : 0x66FF4444;
