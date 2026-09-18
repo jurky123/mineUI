@@ -108,6 +108,19 @@ class InputNodeTest {
     }
 
     @Test
+    void clearResetsTextAndCursorKeepsFocus() {
+        InputNode node = input(32);
+        node.focus();
+        node.insert("hello");
+        node.clear();
+        assertEquals("", node.text());
+        assertEquals(0, node.cursor());
+        assertTrue(node.focused());
+        assertTrue(node.insert("x"));
+        assertEquals("x", node.text());
+    }
+
+    @Test
     void mouseClickHitsOnlyInside() {
         InputNode node = input(32);
         node.measure(ctx());

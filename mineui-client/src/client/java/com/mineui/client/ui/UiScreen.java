@@ -329,6 +329,7 @@ public final class UiScreen extends Screen {
         JsonObject payload = new JsonObject();
         payload.addProperty("text", input.text());
         ProtocolClient.sendAction(input.action(), payload);
+        input.clear(); // 发送后清空，便于连续发言
     }
 
     @Override

@@ -65,6 +65,12 @@ public final class InputNode extends UiNode {
         focused = false;
     }
 
+    /** 清空内容并把光标移到开头（提交后调用，保留聚焦状态方便连续输入）。 */
+    public void clear() {
+        text.setLength(0);
+        cursor = 0;
+    }
+
     /** 在光标处插入（超长截断）。返回是否发生变化。 */
     public boolean insert(String value) {
         if (value == null || value.isEmpty()) {
