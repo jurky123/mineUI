@@ -3,6 +3,7 @@ package com.mineui.client;
 import com.mineui.client.net.MineUiPayload;
 import com.mineui.client.net.ProtocolClient;
 import com.mineui.client.ui.hud.MineUiHuds;
+import com.mineui.client.ui.toast.MineUiToasts;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -10,6 +11,8 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
@@ -44,6 +47,20 @@ public class MineUiClient implements ClientModInitializer {
         // HUD 渲染层（服务端声明布局，本地偏好可覆盖）
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, "hud"),
                 (graphics, deltaTracker) -> MineUiHuds.render(graphics, Minecraft.getInstance().font));
+
+        // Toast 渲染层：无界面时走 HUD；打开界面时叠加到界面之上
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MOD_ID, "toasts"),
+                (graphics, deltaTracker) -> {
+                    if (Minecraft.getInstance().gui.screen() == null) {
+                        MineUiToasts.render(graphics, Minecraft.getInstance().font);
+                    }
+                });
+        ScreenEvents.BEFORE_INIT.register((client, screen, width, height) -> {
+            ScreenEvents.afterExtract(screen).register((ignored, graphics, mouseX, mouseY, tickDelta) ->
+                    MineUiToasts.render(graphics, Minecraft.getInstance().font));
+            ScreenMouseEvents.allowMouseClick(screen).register((ignored, event) ->
+                    !MineUiToasts.mouseClicked(event.x(), event.y()));
+        });
 
         // 本地 HUD 总开关（F6，可在原版按键设置里改键；不影响服务端）
         toggleHudKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(

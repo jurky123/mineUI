@@ -10,6 +10,7 @@ import com.mineui.ui.tree.GenerationSource;
 import com.mineui.ui.tree.ImageNode;
 import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
+import com.mineui.ui.tree.ListViewNode;
 import com.mineui.client.ui.remote.RemoteImages;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
@@ -42,11 +43,15 @@ public final class UiTreeRenderer {
 
     private final GuiGraphicsExtractor graphics;
     private final Font font;
-    private final StateAccess state;
+    /** 当前状态上下文；列表条目渲染时临时切换为条目状态。 */
+    private StateAccess state;
     private final UiPainter painter;
     private final Deque<float[]> clips = new ArrayDeque<>();
     /** 延迟到整棵树画完后再画的模态节点（避免被内容容器的裁剪波及）。 */
     private final List<UiNode> deferredOverlays = new ArrayList<>();
+
+    /** 列表高亮行的文字颜色覆盖（仅对高亮条目内的 TextNode 生效）。 */
+    private Integer highlightTextColor;
 
     private int mouseX;
     private int mouseY;
@@ -112,12 +117,27 @@ public final class UiTreeRenderer {
     private static final String SPRITE_PREFIX = "sprite:";
 
     private void renderNode(UiNode node, float inheritedOpacity) {
+        StateAccess previousState = state;
+        Integer previousHighlight = highlightTextColor;
+        if (node.stateContext() != null) {
+            state = node.stateContext();
+        }
+        try {
+            renderNodeInner(node, inheritedOpacity);
+        } finally {
+            state = previousState;
+            highlightTextColor = previousHighlight;
+        }
+    }
+
+    private void renderNodeInner(UiNode node, float inheritedOpacity) {
         if (!node.visibleNow()) {
             return;
         }
         float opacity = inheritedOpacity * node.animOpacity();
         boolean clipped = false;
-        if ((node instanceof ScrollViewNode || node.style().clip()) && node.width() > 0 && node.height() > 0) {
+        if ((node instanceof ScrollViewNode || node instanceof ListViewNode || node.style().clip())
+                && node.width() > 0 && node.height() > 0) {
             pushClip(node);
             clipped = true;
         }
@@ -146,12 +166,21 @@ public final class UiTreeRenderer {
                 drawSurface(container, opacity);
                 List<UiNode> children = new ArrayList<>(container.children());
                 children.sort(Comparator.comparingInt(child -> child.style().z()));
+                UiNode highlighted = container instanceof ListViewNode list ? list.highlightedItem() : null;
+                Integer highlightColor = container instanceof ListViewNode list ? list.highlightColor() : null;
                 for (UiNode child : children) {
                     if (child.style().modal()) {
                         deferredOverlays.add(child);
                         continue;
                     }
+                    boolean highlightThis = highlighted != null && child == highlighted && highlightColor != null;
+                    if (highlightThis) {
+                        highlightTextColor = highlightColor;
+                    }
                     renderNode(child, opacity);
+                    if (highlightThis) {
+                        highlightTextColor = null;
+                    }
                 }
                 if (container instanceof ScrollViewNode scrollView) {
                     drawScrollbar(scrollView, opacity);
@@ -282,7 +311,12 @@ public final class UiTreeRenderer {
             return;
         }
         float scale = node instanceof TextNode textNode ? textNode.scale() : 1f;
-        int color = node instanceof TextNode textNode ? textNode.color() : ((ButtonNode) node).textColor();
+        int color;
+        if (node instanceof TextNode textNode) {
+            color = highlightTextColor != null ? highlightTextColor : textNode.color();
+        } else {
+            color = ((ButtonNode) node).textColor();
+        }
         if (node.style().cycle() != null && !node.style().cycle().colors().isEmpty()) {
             color = node.style().cycle().colorAt(System.currentTimeMillis(), color);
         }

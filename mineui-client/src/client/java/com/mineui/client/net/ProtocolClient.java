@@ -5,6 +5,7 @@ import com.mineui.client.MineUiClient;
 import com.mineui.client.ui.MineUiScreens;
 import com.mineui.client.ui.hud.MineUiHuds;
 import com.mineui.client.ui.remote.RemoteImages;
+import com.mineui.client.ui.toast.MineUiToasts;
 import com.mineui.client.ui.UiStateStore;
 import com.mineui.protocol.Envelope;
 import com.mineui.protocol.JsonCodec;
@@ -17,6 +18,7 @@ import com.mineui.protocol.msg.Open;
 import com.mineui.protocol.msg.RemoteImagePolicy;
 import com.mineui.protocol.msg.Patch;
 import com.mineui.protocol.msg.Snapshot;
+import com.mineui.protocol.msg.Toast;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -65,7 +67,7 @@ public final class ProtocolClient {
                 Envelope.PROTOCOL_VERSION,
                 MineUiClient.version(),
                 MineUiClient.MINECRAFT_VERSION,
-                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image"));
+                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image", "toast"));
         send(new Envelope(MessageType.HELLO, 0, 0, JsonCodec.encode(hello)));
     }
 
@@ -98,6 +100,14 @@ public final class ProtocolClient {
         }
         Action action = new Action(actionId, payload);
         send(new Envelope(MessageType.ACTION, STATE.session(), STATE.revision(), JsonCodec.encode(action)));
+    }
+
+    /** 全局动作（无会话，Toast 点击 / 键位等）：session=0，由服务端全局处理器接收。 */
+    public static void sendGlobalAction(String actionId) {
+        if (actionId == null || actionId.isEmpty()) {
+            return;
+        }
+        send(new Envelope(MessageType.ACTION, 0, 0, JsonCodec.encode(new Action(actionId, null))));
     }
 
     public static void sendClose() {
@@ -134,6 +144,7 @@ public final class ProtocolClient {
         switch (envelope.type()) {
             case HELLO_ACK -> handleHelloAck(envelope);
             case REMOTE_POLICY -> handleRemotePolicy(envelope);
+            case TOAST -> handleToast(envelope);
             case OPEN -> handleOpen(envelope);
             case SNAPSHOT -> handleSnapshot(envelope);
             case PATCH -> handlePatch(envelope);
@@ -155,12 +166,21 @@ public final class ProtocolClient {
         }
     }
 
+    private static void handleToast(Envelope envelope) {
+        try {
+            MineUiToasts.show(JsonCodec.decode(envelope.payload(), Toast.class));
+        } catch (ProtocolException e) {
+            MineUiClient.LOGGER.warn("TOAST 载荷非法: {}", e.getMessage());
+        }
+    }
+
     /** 断线/切服清理：状态、界面、图片句柄、协商版本全部复位。 */
     public static void reset() {
         STATE.end();
         MineUiScreens.closeFromServer();
         MineUiHuds.reset();
         RemoteImages.reset();
+        MineUiToasts.reset();
         serverProtocol = -1;
         helloRetries = 0;
         ticksSinceHello = 0;

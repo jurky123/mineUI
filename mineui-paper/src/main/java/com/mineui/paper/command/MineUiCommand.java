@@ -72,6 +72,18 @@ public final class MineUiCommand {
                             hud(context.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
+                .then(Commands.literal("lyrics")
+                        .requires(source -> source.getSender().hasPermission("mineui.admin"))
+                        .executes(context -> {
+                            lyrics(context.getSource().getSender());
+                            return Command.SINGLE_SUCCESS;
+                        }))
+                .then(Commands.literal("toast")
+                        .requires(source -> source.getSender().hasPermission("mineui.admin"))
+                        .executes(context -> {
+                            toast(context.getSource().getSender());
+                            return Command.SINGLE_SUCCESS;
+                        }))
                 .then(Commands.literal("gallery")
                         .requires(source -> source.getSender().hasPermission("mineui.admin"))
                         .executes(context -> {
@@ -227,6 +239,75 @@ public final class MineUiCommand {
         session.onClose(task::cancel);
         player.sendMessage(Component.text("已打开 HUD 演示（1Hz 更新，客户端插值；F6 开关，/mineui close 关闭）", NamedTextColor.GREEN));
     }
+
+    /** /mineui lyrics：列表（歌词）演示，1Hz 推进高亮行验证自动滚动居中。 */
+    private void lyrics(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.sessions().isModClient(player.getUniqueId())) {
+            sender.sendMessage(Component.text("你需要安装 MineUI 客户端 mod 才能查看列表演示", NamedTextColor.RED));
+            return;
+        }
+        var lyrics = new com.google.gson.JsonArray();
+        for (String line : LYRICS_DEMO) {
+            lyrics.add(line);
+        }
+        UiSession session = plugin.uiSessions().open(player, "mineui", "lyrics");
+        session.state("lyrics", lyrics);
+        session.state("current", 0);
+        session.on("close", event -> session.close());
+        session.snapshot();
+
+        int[] current = {0};
+        var task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (session.closed()) {
+                return;
+            }
+            current[0] = (current[0] + 1) % LYRICS_DEMO.length;
+            session.state("current", current[0]);
+        }, 40L, 20L);
+        session.onClose(task::cancel);
+        player.sendMessage(Component.text("已打开列表演示（歌词高亮自动居中，/mineui close 关闭）", NamedTextColor.GREEN));
+    }
+
+    /** /mineui toast：短提示 + 全局动作（点击回调）演示。 */
+    private void toast(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.sessions().isModClient(player.getUniqueId())) {
+            sender.sendMessage(Component.text("你需要安装 MineUI 客户端 mod 才能看到 Toast", NamedTextColor.RED));
+            return;
+        }
+        plugin.globalActions().on(plugin, "mineui_demo_toast", action ->
+                action.player().sendMessage(Component.text(
+                        "[MineUI] Toast 点击动作已回传: " + action.id(), NamedTextColor.GREEN)));
+        plugin.sendToast(player, new com.mineui.protocol.msg.Toast(
+                "切歌：示例歌曲 - 示例歌手（打开界面后可点击）",
+                "minecraft:music_disc_cat", "mineui_demo_toast", 6000, 0xFFFFFFFF));
+        player.sendMessage(Component.text("已发送 Toast；打开任意界面后点击可触发全局动作", NamedTextColor.GREEN));
+    }
+
+    private static final String[] LYRICS_DEMO = {
+            "（列表演示）",
+            "我曾经跨过山和大海",
+            "也穿过人山人海",
+            "我曾经拥有着的一切",
+            "转眼都飘散如烟",
+            "我曾经失落失望失掉所有方向",
+            "直到看见平凡才是唯一的答案",
+            "当你仍然 还在幻想",
+            "你的明天",
+            "她会好吗 还是更烂",
+            "对我而言是另一天",
+            "我曾经毁了我的一切",
+            "只想永远地离开",
+            "我曾经堕入无边黑暗",
+            "想挣扎无法自拔",
+    };
 
     /** /mineui gallery：打开组件画廊（物品/头颅装饰、悬浮动效、时间轮换、精灵素材）。 */
     private void gallery(CommandSender sender) {

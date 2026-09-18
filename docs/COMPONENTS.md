@@ -129,6 +129,33 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 
 ---
 
+## 2.8 列表 / 歌词（list）
+
+```json
+{
+  "type": "list", "width": 260, "height": 150, "gap": 4,
+  "items": "{state.lyrics}",
+  "itemTemplate": { "type": "text", "text": "{item}", "color": "#8090A0", "width": "100%" },
+  "highlightIndex": "{state.current}", "highlightColor": "#FFFFFF", "autoScroll": true
+}
+```
+
+- `items` 绑定状态数组（字符串或对象）；`itemTemplate` 为任意节点子树，按条目实例化
+- 条目内绑定：`{item}` / `{item.xxx}`（当前条目）、`{itemIndex}`、`{itemHighlight}`；`{state.xxx}` 仍读全局状态
+- `highlightIndex` 指定当前行；`highlightColor` 覆盖高亮条目内文本颜色；`autoScroll` 在高亮变化时自动滚动居中
+- 滚轮滚动 + 自动裁剪；条目可正常点击（`action`）；单列表最多 512 条，模板内不支持嵌套 `list`
+- 演示：`/mineui lyrics`（1Hz 推进高亮）
+
+## 2.9 Toast 短提示 + 全局动作
+
+- 服务端：`MineUi.toast(player, new Toast(text, iconItem, actionId, durationMillis, color))`（能力位 `toast`）
+- 客户端右上角队列（最多 5 条）、淡入淡出；`iconItem` 为物品 id（如 `minecraft:music_disc_cat`）
+- 无界面时随 HUD 显示；打开界面时叠绘在界面之上，点击带 `action` 的 Toast 通过**全局动作**回传
+- 全局动作：`MineUi.onAction(owner, actionId, handler)`（客户端 `session=0` 的 ACTION）；owner 停用自动清理
+- 演示：`/mineui toast`
+
+---
+
 ## 3. 交互：装饰即按钮
 
 任意节点写 `action` 即为按钮；`hoverScale` 控制悬浮缩放（>1 放大，<1 缩小），`hoverItem` 让物品节点悬浮时换成另一个图案：

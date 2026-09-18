@@ -11,6 +11,10 @@ public abstract class ContainerNode extends UiNode {
         addChildInternal(child);
     }
 
+    protected void clearChildren() {
+        clearChildrenInternal();
+    }
+
     protected float gap() {
         return style().gap();
     }

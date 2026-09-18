@@ -12,7 +12,7 @@ public final class ActionEvent implements MineUiAction {
     private final String id;
     private final JsonObject payload;
 
-    ActionEvent(Player player, String id, JsonObject payload) {
+    public ActionEvent(Player player, String id, JsonObject payload) {
         this.player = player;
         this.id = id;
         this.payload = payload;

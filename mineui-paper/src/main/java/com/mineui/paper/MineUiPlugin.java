@@ -7,8 +7,10 @@ import com.mineui.protocol.ProtocolException;
 import com.mineui.protocol.msg.Hello;
 import com.mineui.protocol.msg.RemoteImagePolicy;
 import com.mineui.protocol.msg.HelloAck;
+import com.mineui.api.MineUi;
 import com.mineui.api.MineUiProvider;
 import com.mineui.paper.api.PaperMineUi;
+import com.mineui.protocol.msg.Toast;
 import com.mineui.paper.command.MineUiCommand;
 import com.mineui.paper.ui.UiSessionManager;
 import com.mineui.protocol.session.RateWindow;
@@ -44,6 +46,7 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
 
     private SessionManager sessions;
     private UiSessionManager uiSessions;
+    private GlobalActionManager globalActions;
     private RemoteImagePolicy remoteImagePolicy = RemoteImagePolicy.disabled();
     private Transport transport;
     private final Map<UUID, RateWindow> inboundWindows = new ConcurrentHashMap<>();
@@ -53,6 +56,7 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
     public void onEnable() {
         sessions = new SessionManager();
         uiSessions = new UiSessionManager(this);
+        globalActions = new GlobalActionManager(this);
         transport = new Transport(this);
         loadRemoteImagePolicy();
 
@@ -79,15 +83,24 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         if (uiSessions != null) {
             uiSessions.clear();
         }
+        if (globalActions != null) {
+            globalActions.clear();
+        }
         inboundWindows.clear();
         MineUiProvider.unregister();
     }
 
-    /** 业务插件停用/重载时关闭它拥有的界面会话（避免回调打到已卸载的插件代码）。 */
+    /** 业务插件停用/重载时关闭它拥有的界面会话与全局动作（避免回调打到已卸载的插件代码）。 */
     @EventHandler
     public void onPluginDisable(PluginDisableEvent event) {
-        if (event.getPlugin() != this && uiSessions != null) {
+        if (event.getPlugin() == this) {
+            return;
+        }
+        if (uiSessions != null) {
             uiSessions.closeOwned(event.getPlugin());
+        }
+        if (globalActions != null) {
+            globalActions.clearOwned(event.getPlugin());
         }
     }
 
@@ -112,8 +125,14 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
 
         switch (envelope.type()) {
             case HELLO -> handleHello(player, envelope);
-            case ACTION -> Bukkit.getScheduler().runTask(this,
-                    () -> uiSessions.handleAction(player, envelope));
+            case ACTION -> {
+                if (envelope.session() == 0) {
+                    // 全局动作（Toast 点击 / 键位等）：无会话
+                    Bukkit.getScheduler().runTask(this, () -> globalActions.handle(player, envelope));
+                } else {
+                    Bukkit.getScheduler().runTask(this, () -> uiSessions.handleAction(player, envelope));
+                }
+            }
             case CLOSE -> Bukkit.getScheduler().runTask(this,
                     () -> uiSessions.handleClose(player, envelope.session()));
             case PING -> transport.sendLater(player,
@@ -184,6 +203,22 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
 
     public RemoteImagePolicy remoteImagePolicy() {
         return remoteImagePolicy;
+    }
+
+    /**
+     * 下发 Toast（仅支持该能力的客户端）。
+     * 必须在主线程调用；不需要会话，适合切歌/错误等短提示。
+     */
+    public void sendToast(Player player, Toast toast) {
+        SessionManager.ClientSession session = sessions.get(player.getUniqueId());
+        if (session == null || !session.capabilities().contains(MineUi.CAPABILITY_TOAST)) {
+            return;
+        }
+        transport.sendNow(player, new Envelope(MessageType.TOAST, 0, 0, JsonCodec.encode(toast)));
+    }
+
+    public GlobalActionManager globalActions() {
+        return globalActions;
     }
 
     public SessionManager sessions() {

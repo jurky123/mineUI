@@ -43,6 +43,16 @@ public final class PaperMineUi implements MineUi {
     }
 
     @Override
+    public void toast(Player player, com.mineui.protocol.msg.Toast toast) {
+        plugin.sendToast(player, toast);
+    }
+
+    @Override
+    public void onAction(Plugin owner, String actionId, java.util.function.Consumer<com.mineui.api.MineUiAction> handler) {
+        plugin.globalActions().on(owner, actionId, handler);
+    }
+
+    @Override
     public void closeAll(Plugin owner) {
         plugin.uiSessions().closeOwned(owner);
     }

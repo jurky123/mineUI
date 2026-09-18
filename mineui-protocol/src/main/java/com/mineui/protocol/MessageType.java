@@ -35,7 +35,9 @@ public enum MessageType {
     /** 双向：延迟测量应答 */
     PONG(0x0C),
     /** 服务端 → 客户端：远程图片策略（白名单/大小/缓存上限） */
-    REMOTE_POLICY(0x0D);
+    REMOTE_POLICY(0x0D),
+    /** 服务端 → 客户端：短提示（切歌/错误等） */
+    TOAST(0x0E);
 
     private final int id;
 

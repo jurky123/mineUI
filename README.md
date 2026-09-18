@@ -90,6 +90,8 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 | `/mineui style` | 打开原版风格模板预览（面板/按钮/输入框/滑块/滚动/弹窗） |
 | `/mineui gallery` | 打开组件画廊（物品/头颅装饰、悬浮动效、时间轮换、像素素材） |
 | `/mineui hud` | 打开 HUD 演示（服务端声明布局；F6 本地开关） |
+| `/mineui lyrics` | 打开列表演示（歌词高亮 + 自动居中 + 滚轮） |
+| `/mineui toast` | 发送 Toast 短提示（打开界面后点击可触发全局动作） |
 | `/mineui close` | 关闭当前 MineUI 界面 |
 
 ---
@@ -108,6 +110,8 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 进度条：`progress` 组件（方向/渐变/时间文本）与低频更新客户端插值；滑块步进/禁用态
 - ✅ 远程图片：`image.url` 支持状态绑定；HTTPS 直连 + 服务端域名白名单 + 私网拦截 + 内存/磁盘缓存 + 占位降级；
   网易云封面（JPEG）实测通过，失败有原因提示与超时保护
+- ✅ 列表：`list` 节点（items 绑定 + 任意 itemTemplate + 高亮行自动居中 + 滚轮）；`/mineui lyrics` 演示
+- ✅ Toast：服务端短提示（图标/时长）+ 界面内点击回传全局动作；`MineUi.onAction`；`/mineui toast` 演示
 - ⏳ 标签页/下拉框等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
 

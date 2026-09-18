@@ -100,4 +100,18 @@ public final class UiStateStore implements StateAccess, GenerationSource {
         }
         return element != null && element.isJsonPrimitive() ? element.getAsString() : defaultValue;
     }
+
+    /** 原始 JSON（支持点分路径，供列表 items 等结构绑定读取数组/对象）。 */
+    @Override
+    public JsonElement getElement(String path) {
+        JsonElement element = state;
+        for (String part : path.split("\\.")) {
+            if (element instanceof JsonObject object && object.has(part)) {
+                element = object.get(part);
+            } else {
+                return null;
+            }
+        }
+        return element;
+    }
 }

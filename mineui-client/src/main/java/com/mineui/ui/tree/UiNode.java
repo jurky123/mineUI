@@ -28,6 +28,8 @@ public abstract class UiNode {
     private float hoverProgress;
     private boolean visibleNow = true;
     private boolean hoverEntered;
+    /** 条目级状态上下文（列表项等）：非 null 时渲染该子树的绑定改用它解析。 */
+    private StateAccess stateContext;
 
     protected UiNode(NodeStyle style) {
         this.style = style;
@@ -81,6 +83,20 @@ public abstract class UiNode {
 
     protected void addChildInternal(UiNode child) {
         children.add(child);
+    }
+
+    /** 清空子节点（列表按 items 重建时用）。 */
+    protected void clearChildrenInternal() {
+        children.clear();
+    }
+
+    /** 条目级状态上下文（列表项用）；默认 null 表示沿用父级状态。 */
+    public StateAccess stateContext() {
+        return stateContext;
+    }
+
+    public void setStateContext(StateAccess context) {
+        this.stateContext = context;
     }
 
     /** 计算自身尺寸（含 padding）。 */

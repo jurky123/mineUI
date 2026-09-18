@@ -3,6 +3,7 @@ package com.mineui.ui.spec;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mineui.ui.tree.Bindings;
 import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.BoxNode;
 import com.mineui.ui.tree.ColumnNode;
@@ -13,6 +14,7 @@ import com.mineui.ui.tree.GridNode;
 import com.mineui.ui.tree.ImageNode;
 import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
+import com.mineui.ui.tree.ListViewNode;
 import com.mineui.ui.tree.MainAlign;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
@@ -68,6 +70,7 @@ public final class UiSpecParser {
             case "box", "spacer" -> new BoxNode(style);
             case "image" -> parseImage(json, style);
             case "scroll" -> new ScrollViewNode(style);
+            case "list" -> parseList(json, style);
             case "grid" -> new GridNode(style,
                     optInt(json, "columns", 2),
                     optFloat(json, "rowGap", optFloat(json, "gap", 0f)));
@@ -215,6 +218,63 @@ public final class UiSpecParser {
                 optBool(json, "zoomable", false),
                 optDouble(json, "zoomMin", 0.5),
                 optDouble(json, "zoomMax", 2.0));
+    }
+
+    /**
+     * 列表（歌词/队列）：{@code items} 绑定状态数组，{@code itemTemplate} 为条目子树。
+     * 条目内绑定：{@code {item}} / {@code {item.xxx}} / {@code {itemIndex}} / {@code {itemHighlight}}。
+     */
+    private static ListViewNode parseList(JsonObject json, NodeStyle style) throws UiSpecException {
+        String itemsRaw = requireString(json, "items");
+        String itemsPath = Bindings.statePath(itemsRaw);
+        if (itemsPath == null) {
+            throw new UiSpecException("list.items 必须是单个状态绑定，如 {state.lyrics}");
+        }
+        JsonElement templateElement = json.get("itemTemplate");
+        if (templateElement == null || !templateElement.isJsonObject()) {
+            throw new UiSpecException("list.itemTemplate 必须是节点对象");
+        }
+        JsonObject template = templateElement.getAsJsonObject();
+        rejectNestedList(template);
+        // 预解析一次校验模板合法（运行期按条目重复实例化）
+        parse(template.deepCopy(), 1, new int[]{0});
+        java.util.function.Supplier<UiNode> factory = () -> {
+            try {
+                return parse(template.deepCopy(), 1, new int[]{0});
+            } catch (UiSpecException e) {
+                return null;
+            }
+        };
+        String highlightRaw = optString(json, "highlightIndex", null);
+        String highlightPath = highlightRaw == null ? null : Bindings.statePath(highlightRaw);
+        if (highlightRaw != null && highlightPath == null) {
+            throw new UiSpecException("list.highlightIndex 必须是状态绑定，如 {state.current}");
+        }
+        Integer highlightColor = json.has("highlightColor") && !json.get("highlightColor").isJsonNull()
+                ? parseColor(json.get("highlightColor"), 0xFFFFFFFF)
+                : null;
+        return new ListViewNode(style, itemsPath, factory, highlightPath, highlightColor,
+                optBool(json, "autoScroll", true), optFloat(json, "itemGap", optFloat(json, "gap", 0f)));
+    }
+
+    /** 禁止模板里嵌套 list：避免条目数量与嵌套层数相乘导致节点爆炸。 */
+    private static void rejectNestedList(JsonElement element) throws UiSpecException {
+        if (element == null || element.isJsonNull()) {
+            return;
+        }
+        if (element.isJsonObject()) {
+            JsonObject object = element.getAsJsonObject();
+            if ("list".equals(optString(object, "type", null))) {
+                throw new UiSpecException("list.itemTemplate 暂不支持嵌套 list");
+            }
+            for (var entry : object.entrySet()) {
+                rejectNestedList(entry.getValue());
+            }
+        } else if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                rejectNestedList(child);
+            }
+        }
     }
 
     private static ProgressNode parseProgress(JsonObject json, NodeStyle style) throws UiSpecException {

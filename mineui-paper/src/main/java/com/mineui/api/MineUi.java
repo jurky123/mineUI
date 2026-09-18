@@ -30,6 +30,9 @@ public interface MineUi {
     /** 能力位：客户端支持 HUD 会话（0.8+）。 */
     String CAPABILITY_HUD = "hud_v2";
 
+    /** 能力位：客户端支持 Toast 短提示与全局动作（0.10+）。 */
+    String CAPABILITY_TOAST = "toast";
+
     /** 玩家是否已安装并握手 MineUI 客户端 mod。 */
     boolean hasClient(Player player);
 
@@ -81,6 +84,29 @@ public interface MineUi {
     default MineUiSession openHud(Plugin owner, Player player, String app, String view, JsonObject definition) {
         return openHud(owner, player, app, view, definition, com.mineui.protocol.msg.HudLayout.defaults());
     }
+
+    /** 客户端是否支持 Toast；不支持时业务应降级（如改用聊天提示）。 */
+    default boolean supportsToast(Player player) {
+        return capabilities(player).contains(CAPABILITY_TOAST);
+    }
+
+    /**
+     * 下发短提示（切歌、错误等）。不需要会话；客户端不支持时静默忽略。
+     *
+     * @param actionId 点击动作 id（空表示不可点击）；点击后由 {@link #onAction} 注册的处理器接收
+     */
+    void toast(Player player, com.mineui.protocol.msg.Toast toast);
+
+    /** 便捷下发（无图标、指定时长、不可点击、默认白色）。 */
+    default void toast(Player player, String text, int durationMillis) {
+        toast(player, new com.mineui.protocol.msg.Toast(text, "", "", durationMillis, 0xFFFFFFFF));
+    }
+
+    /**
+     * 注册全局动作处理器（session=0 的 ACTION）：Toast 点击、键位等无会话操作。
+     * 同一 owner 对同一 id 重复注册会覆盖；owner 插件停用时自动清理。
+     */
+    void onAction(Plugin owner, String actionId, java.util.function.Consumer<MineUiAction> handler);
 
     /** 关闭某插件拥有的全部会话（含 HUD）。 */
     void closeAll(Plugin owner);

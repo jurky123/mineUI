@@ -20,4 +20,9 @@ public record MeasureContext(
     public MeasureContext withAvailable(float width, float height) {
         return new MeasureContext(width, height, viewportWidth, viewportHeight, text, state);
     }
+
+    /** 基于父上下文、替换状态（列表条目上下文等）。 */
+    public MeasureContext withState(StateAccess newState) {
+        return new MeasureContext(availableWidth, availableHeight, viewportWidth, viewportHeight, text, newState);
+    }
 }

@@ -27,7 +27,9 @@
   异步下载解码（PNG/JPEG）+ 内存/磁盘 LRU 缓存 + 加载/失败占位；`/mineui image <url>` 自测命令。
   验收：`mc-heads.net` / `minotar.net` / `httpbin.org` / `placehold.co` 与**网易云封面**（`music.126.net`，JPEG）实测通过；
   期间修复：策略随 OPEN 补发 + 握手重试（加载期丢包）、断线复位线程安全、解析/下载超时与 15 秒看门狗、blit 整图采样修复
-- ⏳ P4 list（歌词/队列）+ Toast + 服务端声明键位
+- ✅ **P4a 列表 + Toast + 全局动作**（0.10.0）：`list` 节点（items 绑定 + 任意 `itemTemplate` + `highlightIndex`
+  高亮 + 自动滚动居中 + 滚轮）、Toast 短提示（图标/时长，界面内点击回传）、全局动作 `MineUi.onAction`（`session=0` 的 ACTION）
+- ⏳ P4b 客户端键位（FR-6）：通用键位池 + `KEYBIND` 声明 + 按键触发全局动作
 
 ---
 
