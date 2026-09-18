@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.mineui.client.MineUiClient;
 import com.mineui.client.ui.MineUiScreens;
 import com.mineui.client.ui.hud.MineUiHuds;
+import com.mineui.client.ui.remote.RemoteImages;
 import com.mineui.client.ui.UiStateStore;
 import com.mineui.protocol.Envelope;
 import com.mineui.protocol.JsonCodec;
@@ -13,6 +14,7 @@ import com.mineui.protocol.msg.Action;
 import com.mineui.protocol.msg.Hello;
 import com.mineui.protocol.msg.HelloAck;
 import com.mineui.protocol.msg.Open;
+import com.mineui.protocol.msg.RemoteImagePolicy;
 import com.mineui.protocol.msg.Patch;
 import com.mineui.protocol.msg.Snapshot;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -50,7 +52,7 @@ public final class ProtocolClient {
                 Envelope.PROTOCOL_VERSION,
                 MineUiClient.version(),
                 MineUiClient.MINECRAFT_VERSION,
-                List.of("screen", "hud", "server_ui", "hud_v2"));
+                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image"));
         send(new Envelope(MessageType.HELLO, 0, 0, JsonCodec.encode(hello)));
     }
 
@@ -101,6 +103,7 @@ public final class ProtocolClient {
 
         switch (envelope.type()) {
             case HELLO_ACK -> handleHelloAck(envelope);
+            case REMOTE_POLICY -> handleRemotePolicy(envelope);
             case OPEN -> handleOpen(envelope);
             case SNAPSHOT -> handleSnapshot(envelope);
             case PATCH -> handlePatch(envelope);
@@ -114,11 +117,20 @@ public final class ProtocolClient {
         }
     }
 
-    /** 断线/切服清理：状态、界面、协商版本全部复位。 */
+    private static void handleRemotePolicy(Envelope envelope) {
+        try {
+            RemoteImages.setPolicy(JsonCodec.decode(envelope.payload(), RemoteImagePolicy.class));
+        } catch (ProtocolException e) {
+            MineUiClient.LOGGER.warn("REMOTE_POLICY 载荷非法: {}", e.getMessage());
+        }
+    }
+
+    /** 断线/切服清理：状态、界面、图片句柄、协商版本全部复位。 */
     public static void reset() {
         STATE.end();
         MineUiScreens.closeFromServer();
         MineUiHuds.reset();
+        RemoteImages.reset();
         serverProtocol = -1;
         MineUiClient.LOGGER.info("已断开连接，MineUI 状态已清理");
     }

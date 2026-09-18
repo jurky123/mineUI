@@ -1,0 +1,25 @@
+{
+  "type": "stack",
+  "width": "100%",
+  "height": "100%",
+  "align": "center",
+  "justify": "center",
+  "children": [
+    {
+      "type": "column",
+      "skin": "mineui:glass",
+      "width": 300,
+      "gap": 8,
+      "align": "center",
+      "children": [
+        { "type": "text", "text": "远程图片测试", "color": "#FFFFFF" },
+        {
+          "type": "image", "url": "{state.url}", "width": 160, "height": 160, "radius": 6,
+          "tooltip": "加载中为白色占位，失败为红色占位"
+        },
+        { "type": "text", "text": "{state.url}", "color": "#9FB0C0" },
+        { "type": "button", "skin": "vanilla:button", "text": "关闭", "action": "close", "width": 100 }
+      ]
+    }
+  ]
+}

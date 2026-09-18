@@ -10,6 +10,7 @@ import com.mineui.ui.tree.GenerationSource;
 import com.mineui.ui.tree.ImageNode;
 import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
+import com.mineui.client.ui.remote.RemoteImages;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
 import com.mineui.ui.tree.ProgressNode;
@@ -161,7 +162,7 @@ public final class UiTreeRenderer {
                 drawButtonBackground(button, opacity);
                 renderText(button, opacity);
             }
-            case ImageNode image -> renderImage(image);
+            case ImageNode image -> renderImage(image, opacity);
             case ItemViewNode item -> renderItem(item);
             case EntityViewNode entityView -> renderEntityPreview(entityView);
             case PlayerViewNode playerView -> renderPlayerPreview(playerView);
@@ -316,8 +317,25 @@ public final class UiTreeRenderer {
         }
     }
 
-    private void renderImage(ImageNode node) {
+    private void renderImage(ImageNode node, float opacity) {
         if (node.width() <= 0 || node.height() <= 0) {
+            return;
+        }
+        String resolvedUrl = cache.resolvedTemplate(generation(), node.texture(),
+                template -> Bindings.resolve(template, state));
+        if (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://")) {
+            RemoteImages.Entry entry = RemoteImages.resolve(resolvedUrl, node.sha256());
+            if (entry.state() == RemoteImages.State.READY && entry.texture() != null) {
+                graphics.blit(entry.texture(),
+                        Math.round(node.x()), Math.round(node.y()),
+                        Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
+                        0f, 0f, 1f, 1f);
+            } else {
+                // 加载中/失败：半透明占位，避免空白闪烁
+                int color = entry.state() == RemoteImages.State.LOADING ? 0x33FFFFFF : 0x33FF6666;
+                painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
+                        Math.max(0f, node.style().radius()), color, opacity);
+            }
             return;
         }
         java.util.Optional<RenderCache.TextureRef> resolved = resolveTexture(node.texture());

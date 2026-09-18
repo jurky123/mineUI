@@ -1,0 +1,10 @@
+# MineUI 服务端配置
+remote-images:
+  # 是否允许业务页面使用远程图片（HTTPS）
+  enabled: true
+  # 允许的域名白名单（精确或子域匹配；为空则全部拒绝）
+  allowed-domains: []
+  # 单张图片大小上限（字节，默认 1 MiB）
+  max-bytes: 1048576
+  # 客户端磁盘缓存上限（字节，默认 64 MiB）
+  cache-bytes: 67108864

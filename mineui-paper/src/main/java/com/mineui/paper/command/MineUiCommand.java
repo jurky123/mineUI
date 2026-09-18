@@ -4,6 +4,7 @@ import com.mineui.paper.MineUiPlugin;
 import com.mineui.paper.SessionManager;
 import com.mineui.paper.ui.UiSession;
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -58,6 +59,13 @@ public final class MineUiCommand {
                             style(context.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
+                .then(Commands.literal("image")
+                        .requires(source -> source.getSender().hasPermission("mineui.admin"))
+                        .then(Commands.argument("url", StringArgumentType.greedyString())
+                                .executes(context -> {
+                                    image(context.getSource().getSender(), StringArgumentType.getString(context, "url"));
+                                    return Command.SINGLE_SUCCESS;
+                                })))
                 .then(Commands.literal("hud")
                         .requires(source -> source.getSender().hasPermission("mineui.admin"))
                         .executes(context -> {
@@ -143,6 +151,38 @@ public final class MineUiCommand {
         session.snapshot();
 
         player.sendMessage(Component.text("已打开 MineUI 测试界面（点按钮 +1，Esc 关闭）", NamedTextColor.GREEN));
+    }
+
+    /** /mineui image <url>：远程图片端到端测试（白名单由 config.yml 控制）。 */
+    private void image(CommandSender sender, String url) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.sessions().isModClient(player.getUniqueId())) {
+            sender.sendMessage(Component.text("你需要安装 MineUI 客户端 mod", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.remoteImagePolicy().enabled()) {
+            sender.sendMessage(Component.text("远程图片未开启：请在 config.yml 的 remote-images.allowed-domains 中添加域名",
+                    NamedTextColor.YELLOW));
+            return;
+        }
+        String host;
+        try {
+            host = java.net.URI.create(url).getHost();
+        } catch (Exception e) {
+            host = null;
+        }
+        if (host == null || !plugin.remoteImagePolicy().allowsHost(host)) {
+            sender.sendMessage(Component.text("域名不在白名单: " + host, NamedTextColor.RED));
+            return;
+        }
+        UiSession session = plugin.uiSessions().open(player, "mineui", "image");
+        session.state("url", url);
+        session.on("close", event -> session.close());
+        session.snapshot();
+        player.sendMessage(Component.text("已打开远程图片测试页", NamedTextColor.GREEN));
     }
 
     /** /mineui hud：打开 HUD 演示（服务端声明布局，F6 本地开关）。 */

@@ -164,6 +164,17 @@ class UiSpecParserTest {
     }
 
     @Test
+    void parsesRemoteImageUrlAndSha() throws Exception {
+        UiNode root = UiSpecParser.parse(json("""
+                { "type": "image", "url": "https://i.imgur.com/a.png", "sha256": "abc123",
+                  "width": 64, "height": 64 }
+                """));
+        com.mineui.ui.tree.ImageNode image = (com.mineui.ui.tree.ImageNode) root;
+        assertEquals("https://i.imgur.com/a.png", image.texture());
+        assertEquals("abc123", image.sha256());
+    }
+
+    @Test
     void rejectsTooDeeplyNestedDefinition() {
         int depth = UiSpecParser.MAX_DEPTH + 5;
         StringBuilder nested = new StringBuilder();

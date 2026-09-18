@@ -102,6 +102,24 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 
 ---
 
+## 2.7 远程图片（HTTPS 直连 + 白名单）
+
+```json
+{ "type": "image", "url": "https://i.imgur.com/xxxx.png", "width": 160, "height": 160, "radius": 6 }
+{ "type": "image", "url": "{state.cover}", "sha256": "可选校验值（十六进制）" }
+```
+
+- 服务端策略 `plugins/MineUI/config.yml`：
+  `remote-images.enabled` / `allowed-domains`（精确或子域匹配）/ `max-bytes` / `cache-bytes`
+- 客户端强制校验：仅 HTTPS；域名必须在白名单；DNS 解析到私网/回环/链路本地一律拒绝；
+  单张大小上限；可选 sha256 完整性校验；不执行任何远程代码（只解码图片）
+- 异步下载 + 解码（PNG/JPEG），不阻塞渲染；加载中为白色半透明占位、失败为红色占位
+- 缓存：内存 map + 磁盘 `mineui/cache/images/`（LRU 上限）；断线/切服释放纹理句柄
+- 能力位 `remote_image`；旧客户端遇到 URL 会按非法 Identifier 安全跳过
+- 端到端自测（管理员）：`/mineui image https://<白名单域名>/xxx.png`
+
+---
+
 ## 3. 交互：装饰即按钮
 
 任意节点写 `action` 即为按钮；`hoverScale` 控制悬浮缩放（>1 放大，<1 缩小），`hoverItem` 让物品节点悬浮时换成另一个图案：

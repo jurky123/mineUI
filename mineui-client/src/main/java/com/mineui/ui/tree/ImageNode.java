@@ -10,9 +10,16 @@ public final class ImageNode extends UiNode {
     private final float regionHeight;
     private final float textureWidth;
     private final float textureHeight;
+    private final String sha256;
 
     public ImageNode(NodeStyle style, String texture, float u, float v,
                      float regionWidth, float regionHeight, float textureWidth, float textureHeight) {
+        this(style, texture, u, v, regionWidth, regionHeight, textureWidth, textureHeight, null);
+    }
+
+    public ImageNode(NodeStyle style, String texture, float u, float v,
+                     float regionWidth, float regionHeight, float textureWidth, float textureHeight,
+                     String sha256) {
         super(style);
         this.texture = texture == null ? "" : texture;
         this.u = u;
@@ -22,6 +29,7 @@ public final class ImageNode extends UiNode {
         this.regionHeight = Math.max(0f, regionHeight);
         this.textureWidth = Math.max(0f, textureWidth);
         this.textureHeight = Math.max(0f, textureHeight);
+        this.sha256 = sha256 == null || sha256.isBlank() ? null : sha256;
     }
 
     public String texture() {
@@ -50,6 +58,11 @@ public final class ImageNode extends UiNode {
 
     public float textureHeight() {
         return textureHeight;
+    }
+
+    /** 远程图片的可选 sha256 校验值。 */
+    public String sha256() {
+        return sha256;
     }
 
     @Override

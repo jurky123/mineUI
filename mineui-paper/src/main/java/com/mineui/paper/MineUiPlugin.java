@@ -5,6 +5,7 @@ import com.mineui.protocol.JsonCodec;
 import com.mineui.protocol.MessageType;
 import com.mineui.protocol.ProtocolException;
 import com.mineui.protocol.msg.Hello;
+import com.mineui.protocol.msg.RemoteImagePolicy;
 import com.mineui.protocol.msg.HelloAck;
 import com.mineui.api.MineUiProvider;
 import com.mineui.paper.api.PaperMineUi;
@@ -43,6 +44,7 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
 
     private SessionManager sessions;
     private UiSessionManager uiSessions;
+    private RemoteImagePolicy remoteImagePolicy = RemoteImagePolicy.disabled();
     private Transport transport;
     private final Map<UUID, RateWindow> inboundWindows = new ConcurrentHashMap<>();
     private volatile long lastBadPacketWarn;
@@ -52,6 +54,7 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
         sessions = new SessionManager();
         uiSessions = new UiSessionManager(this);
         transport = new Transport(this);
+        loadRemoteImagePolicy();
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
@@ -144,6 +147,7 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
 
         HelloAck ack = new HelloAck(Envelope.PROTOCOL_VERSION, getPluginMeta().getVersion(), MIN_CLIENT_VERSION);
         transport.sendLater(player, new Envelope(MessageType.HELLO_ACK, 0, 0, JsonCodec.encode(ack)));
+        transport.sendLater(player, new Envelope(MessageType.REMOTE_POLICY, 0, 0, JsonCodec.encode(remoteImagePolicy)));
     }
     private void warnBadPacket(Player player, String reason) {
         long now = System.currentTimeMillis();
@@ -163,6 +167,23 @@ public final class MineUiPlugin extends JavaPlugin implements PluginMessageListe
     /** 玩家退出时清理入口限流状态。 */
     public void clearInbound(UUID playerId) {
         inboundWindows.remove(playerId);
+    }
+
+    private void loadRemoteImagePolicy() {
+        saveDefaultConfig();
+        var domains = getConfig().getStringList("remote-images.allowed-domains").stream()
+                .map(String::trim)
+                .filter(domain -> !domain.isEmpty())
+                .toList();
+        boolean enabled = getConfig().getBoolean("remote-images.enabled", true) && !domains.isEmpty();
+        long maxBytes = getConfig().getLong("remote-images.max-bytes", 1024 * 1024);
+        long cacheBytes = getConfig().getLong("remote-images.cache-bytes", 64L * 1024 * 1024);
+        remoteImagePolicy = new RemoteImagePolicy(enabled, domains, maxBytes, cacheBytes);
+        getLogger().info("远程图片: " + (enabled ? "开启（" + domains.size() + " 个域名）" : "关闭"));
+    }
+
+    public RemoteImagePolicy remoteImagePolicy() {
+        return remoteImagePolicy;
     }
 
     public SessionManager sessions() {

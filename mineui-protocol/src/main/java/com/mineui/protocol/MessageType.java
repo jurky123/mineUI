@@ -33,7 +33,9 @@ public enum MessageType {
     /** 双向：延迟测量 */
     PING(0x0B),
     /** 双向：延迟测量应答 */
-    PONG(0x0C);
+    PONG(0x0C),
+    /** 服务端 → 客户端：远程图片策略（白名单/大小/缓存上限） */
+    REMOTE_POLICY(0x0D);
 
     private final int id;
 

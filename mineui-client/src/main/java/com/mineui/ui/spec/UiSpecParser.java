@@ -243,7 +243,11 @@ public final class UiSpecParser {
     }
 
     private static ImageNode parseImage(JsonObject json, NodeStyle style) throws UiSpecException {
-        String texture = requireString(json, "texture");
+        // texture 支持 URL/模板；也可用 "url" 字段显式表达远程图片
+        String texture = optString(json, "url", null);
+        if (texture == null) {
+            texture = requireString(json, "texture");
+        }
         float textureWidth = 0;
         float textureHeight = 0;
         if (json.has("textureSize")) {
@@ -259,7 +263,8 @@ public final class UiSpecParser {
                 optFloat(json, "v", 0f),
                 optFloat(json, "regionWidth", 0f),
                 optFloat(json, "regionHeight", 0f),
-                textureWidth, textureHeight);
+                textureWidth, textureHeight,
+                optString(json, "sha256", null));
     }
 
     public static int parseColor(JsonElement element, int fallback) throws UiSpecException {
