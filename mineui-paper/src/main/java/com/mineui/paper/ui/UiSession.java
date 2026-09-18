@@ -205,7 +205,13 @@ public final class UiSession implements MineUiSession {
                     plugin.getLogger().fine(() -> "未注册的 MineUI 动作: " + action.id() + " (" + app + "/" + view + ")");
                 } else {
                     int before = patchSeq;
-                    handler.accept(new ActionEvent(player, action.id(), action.payload()));
+                    try {
+                        handler.accept(new ActionEvent(player, action.id(), action.payload()));
+                    } catch (Exception e) {
+                        // 业务处理器异常隔离：不阻断修订号同步，也不影响其他会话/动作
+                        plugin.getLogger().warning("MineUI 动作处理器异常 " + app + "/" + view
+                                + " #" + action.id() + "（" + player.getName() + "）: " + e);
+                    }
                     if (patchSeq == before && !closed) {
                         // 处理器没有改变状态：发空 PATCH 同步修订号，避免下一次动作被判过期
                         sendPatch(List.of());
@@ -265,6 +271,12 @@ public final class UiSession implements MineUiSession {
     }
 
     private void send(MessageType type, int revision, byte[] payload) {
+        // 双端上限：客户端 Envelope 解码同样按此上限校验；这里给出可定位的业务报错
+        if (payload.length > Envelope.MAX_PAYLOAD_SIZE) {
+            throw new IllegalStateException("MineUI " + type + " 载荷过大: " + payload.length
+                    + "B（上限 " + Envelope.MAX_PAYLOAD_SIZE + "B），请缩减 " + app + "/" + view
+                    + " 的界面定义或状态字段");
+        }
         Transport transport = plugin.transport();
         transport.sendNow(player, new Envelope(type, id, revision, payload));
     }
