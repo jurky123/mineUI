@@ -159,8 +159,21 @@ public final class MineUiCommand {
                 new com.mineui.protocol.msg.HudLayout("top_right", 6f, 6f, 1f));
         session.state("title", "正在播放");
         session.state("subtitle", "MineUI HUD 演示 · F6 开关");
+        session.state("duration", 180.0);
+        session.state("position", 0.0);
+        session.state("playing", true);
         session.snapshot();
-        player.sendMessage(Component.text("已打开 HUD 演示（F6 本地开关，/mineui close 关闭）", NamedTextColor.GREEN));
+        // 服务端 1Hz 更新；客户端按本地时钟插值，进度平滑
+        double[] position = {0.0};
+        var task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (session.closed()) {
+                return;
+            }
+            position[0] = (position[0] + 1) % 180.0;
+            session.state("position", position[0]);
+        }, 20L, 20L);
+        session.onClose(task::cancel);
+        player.sendMessage(Component.text("已打开 HUD 演示（1Hz 更新，客户端插值；F6 开关，/mineui close 关闭）", NamedTextColor.GREEN));
     }
 
     /** /mineui gallery：打开组件画廊（物品/头颅装饰、悬浮动效、时间轮换、精灵素材）。 */

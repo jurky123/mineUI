@@ -145,6 +145,28 @@ session.on("decor_click", action -> session.state("clicks", session.getInt("clic
 
 ---
 
+## 4.2 进度条与客户端插值
+
+```json
+{
+  "type": "progress", "width": 160, "height": 14, "radius": 4,
+  "background": "#40000000",
+  "color": "#3FA9F5", "fillGradient": ["#3FA9F5", "#8A5FD0"],
+  "value": "{state.position}", "min": 0, "max": 180,
+  "playing": "{state.playing}", "interpolate": true,
+  "text": "{value} / {max}", "timeFormat": "mm:ss", "textColor": "#D0E0F0"
+}
+```
+
+- `direction`：`left_right`(默认) / `right_left` / `top_bottom` / `bottom_top`
+- `interpolate`：服务端 1Hz 更新即可，客户端按本地时钟外推；`playing` 为 false 时暂停外推
+- `rate`：显式速率（单位/秒）；缺省时由相邻两次样本自动推算
+- `snap`：跳变超过该值视为 seek，立即对齐（默认 3）；外推超过 5s 无新样本自动停止
+- 文本占位：`{value}` / `{max}` / `{percent}`（`timeFormat: mm:ss | hh:mm:ss` 时格式化为时间），另支持 `{state.x}`
+- 滑块增强：`step` 步进吸附；`enabled`（支持 `{state.x}` 绑定）禁用后不响应拖动、灰度显示
+
+---
+
 ## 4.5 HUD（常驻叠加层）
 
 HUD 与屏幕使用同一套 JSON 节点，不占屏幕、可与屏幕并存；服务端声明布局，客户端本地可覆盖。

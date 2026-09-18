@@ -21,6 +21,12 @@ public interface MineUiSession {
     /** 注册动作处理器。 */
     MineUiSession on(String actionId, Consumer<MineUiAction> handler);
 
+    /**
+     * 注册关闭回调（close/discard/owner 停用均会触发一次）。
+     * 用于取消业务侧的定时任务、订阅等资源。
+     */
+    void onClose(Runnable callback);
+
     /** 下发完整状态，并开始按修订号增量同步。 */
     void snapshot();
 

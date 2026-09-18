@@ -1,5 +1,6 @@
 package com.mineui.ui.tree;
 
+import com.mineui.ui.spec.BooleanSpec;
 import com.mineui.ui.spec.DoubleSpec;
 
 import java.util.Locale;
@@ -18,11 +19,19 @@ public final class SliderNode extends UiNode {
     private final String action;
     private final String message;
     private final int textColor;
+    private final double step;
+    private final BooleanSpec enabled;
 
     private Double dragValue;
+    private boolean enabledNow = true;
 
     public SliderNode(NodeStyle style, DoubleSpec valueSpec, double min, double max,
                       String action, String message, int textColor) {
+        this(style, valueSpec, min, max, action, message, textColor, 0, BooleanSpec.TRUE);
+    }
+
+    public SliderNode(NodeStyle style, DoubleSpec valueSpec, double min, double max,
+                      String action, String message, int textColor, double step, BooleanSpec enabled) {
         super(style);
         this.valueSpec = valueSpec == null ? DoubleSpec.of(min) : valueSpec;
         this.min = min;
@@ -30,6 +39,8 @@ public final class SliderNode extends UiNode {
         this.action = action == null ? "" : action;
         this.message = message == null ? "" : message;
         this.textColor = textColor;
+        this.step = Math.max(0, step);
+        this.enabled = enabled == null ? BooleanSpec.TRUE : enabled;
     }
 
     public double min() {
@@ -46,6 +57,16 @@ public final class SliderNode extends UiNode {
 
     public int textColor() {
         return textColor;
+    }
+
+    /** 步进（0 = 连续）。 */
+    public double step() {
+        return step;
+    }
+
+    /** 是否可用（禁用时不响应拖动）。 */
+    public boolean enabledNow() {
+        return enabledNow;
     }
 
     public boolean dragging() {
@@ -65,11 +86,11 @@ public final class SliderNode extends UiNode {
         return (value(state) - min) / (max - min);
     }
 
-    /** 由位置比例换算数值（会钳制）。 */
+    /** 由位置比例换算数值（钳制 + 可选步进吸附）。 */
     public double valueFromX(double mouseX) {
         float usable = Math.max(1f, width - HANDLE_WIDTH);
         double ratio = (mouseX - x - HANDLE_WIDTH / 2.0) / usable;
-        return clamp(min + ratio * (max - min));
+        return snap(clamp(min + ratio * (max - min)));
     }
 
     /** 标签文本：支持 {value} 与 {state.x} 绑定。 */
@@ -84,7 +105,7 @@ public final class SliderNode extends UiNode {
     }
 
     public boolean beginDrag(double mouseX, double mouseY) {
-        if (!contains(mouseX, mouseY)) {
+        if (!enabledNow || !contains(mouseX, mouseY)) {
             return false;
         }
         dragValue = valueFromX(mouseX);
@@ -113,6 +134,7 @@ public final class SliderNode extends UiNode {
             height = 0;
             return;
         }
+        enabledNow = enabled.test(context.state());
         float resolvedW = resolveWidth(context);
         float resolvedH = resolveHeight(context);
         width = resolvedW >= 0 ? resolvedW : 160f;
@@ -121,7 +143,15 @@ public final class SliderNode extends UiNode {
 
     @Override
     public UiNode mouseClicked(double mx, double my, int button) {
-        return contains(mx, my) ? this : null;
+        return enabledNow && contains(mx, my) ? this : null;
+    }
+
+    private double snap(double value) {
+        if (step <= 0) {
+            return value;
+        }
+        double steps = Math.round((value - min) / step);
+        return clamp(min + steps * step);
     }
 
     private double clamp(double value) {

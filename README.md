@@ -105,6 +105,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 动态贴图：`image.texture` / `item.item` 支持状态绑定，换图不重开界面（棋盘/棋子等）
 - ✅ 业务 API `com.mineui.api`（含 `server_ui` / `hud_v2` 能力协商与 owner 生命周期）
 - ✅ HUD：服务端声明布局（锚点/偏移/缩放）、与屏幕并存、客户端本地偏好（F6 开关，`config/mineui/client.json`）
+- ✅ 进度条：`progress` 组件（方向/渐变/时间文本）与低频更新客户端插值；滑块步进/禁用态
 - ⏳ HUD Overlay、标签页/下拉框/滑块等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
 

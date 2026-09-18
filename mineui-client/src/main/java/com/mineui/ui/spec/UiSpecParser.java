@@ -16,6 +16,7 @@ import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.MainAlign;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
+import com.mineui.ui.tree.ProgressNode;
 import com.mineui.ui.tree.RowNode;
 import com.mineui.ui.tree.ScrollViewNode;
 import com.mineui.ui.tree.SliderNode;
@@ -99,7 +100,10 @@ public final class UiSpecParser {
                     optDouble(json, "max", 100),
                     optString(json, "action", ""),
                     optString(json, "text", ""),
-                    parseColor(json.get("color"), 0xFFFFFFFF));
+                    parseColor(json.get("color"), 0xFFFFFFFF),
+                    optDouble(json, "step", 0),
+                    BooleanSpec.parse(json.get("enabled")));
+            case "progress" -> parseProgress(json, style);
             default -> throw new UiSpecException("未知节点类型: " + type);
         };
 
@@ -211,6 +215,31 @@ public final class UiSpecParser {
                 optBool(json, "zoomable", false),
                 optDouble(json, "zoomMin", 0.5),
                 optDouble(json, "zoomMax", 2.0));
+    }
+
+    private static ProgressNode parseProgress(JsonObject json, NodeStyle style) throws UiSpecException {
+        Integer fillGradientTo = null;
+        if (json.has("fillGradient") && !json.get("fillGradient").isJsonNull()) {
+            JsonArray gradient = json.getAsJsonArray("fillGradient");
+            if (gradient.size() != 2) {
+                throw new UiSpecException("fillGradient 必须是 [起始色, 结束色]");
+            }
+            fillGradientTo = parseColor(gradient.get(1), 0);
+        }
+        return new ProgressNode(style,
+                DoubleSpec.parse(json.get("value"), 0),
+                optDouble(json, "min", 0),
+                optDouble(json, "max", 100),
+                ProgressNode.Direction.parse(optString(json, "direction", null), ProgressNode.Direction.LEFT_RIGHT),
+                parseColor(json.get("color"), 0xFF3FA9F5),
+                fillGradientTo,
+                BooleanSpec.parse(json.get("playing")),
+                optBool(json, "interpolate", false),
+                optDouble(json, "rate", 0),
+                optDouble(json, "snap", 3.0),
+                optString(json, "text", ""),
+                optString(json, "timeFormat", null),
+                parseColor(json.get("textColor"), 0xFFFFFFFF));
     }
 
     private static ImageNode parseImage(JsonObject json, NodeStyle style) throws UiSpecException {

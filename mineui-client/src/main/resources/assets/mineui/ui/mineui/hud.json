@@ -18,6 +18,23 @@
           ]
         }
       ]
+    },
+    {
+      "type": "progress",
+      "width": 160,
+      "height": 14,
+      "radius": 4,
+      "background": "#40000000",
+      "color": "#3FA9F5",
+      "fillGradient": ["#3FA9F5", "#8A5FD0"],
+      "value": "{state.position}",
+      "min": 0,
+      "max": 180,
+      "playing": "{state.playing}",
+      "interpolate": true,
+      "text": "{value} / {max}",
+      "timeFormat": "mm:ss",
+      "textColor": "#D0E0F0"
     }
   ]
 }

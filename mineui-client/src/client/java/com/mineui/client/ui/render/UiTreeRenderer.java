@@ -12,6 +12,7 @@ import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
+import com.mineui.ui.tree.ProgressNode;
 import com.mineui.ui.tree.ScrollViewNode;
 import com.mineui.ui.tree.SliderNode;
 import com.mineui.ui.tree.StateAccess;
@@ -166,6 +167,7 @@ public final class UiTreeRenderer {
             case PlayerViewNode playerView -> renderPlayerPreview(playerView);
             case InputNode input -> renderInput(input, opacity);
             case SliderNode slider -> renderSlider(slider, opacity);
+            case ProgressNode progress -> renderProgress(progress, opacity);
             case BoxNode box -> drawSurface(box, opacity);
             default -> {
             }
@@ -484,11 +486,13 @@ public final class UiTreeRenderer {
         if (node.width() <= 0 || node.height() <= 0) {
             return;
         }
-        boolean active = node.dragging() || node.hovered();
+        boolean enabled = node.enabledNow();
+        boolean active = enabled && (node.dragging() || node.hovered());
+        int tint = enabled ? 0xFFFFFFFF : 0xFF808080;
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED,
                 active ? SLIDER_HIGHLIGHTED_SPRITE : SLIDER_SPRITE,
                 Math.round(node.x()), Math.round(node.y()),
-                Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
+                Math.round(node.width()), Math.round(node.height()), tint);
 
         float handleWidth = 8f;
         float ratio = (float) Math.max(0.0, Math.min(1.0, node.ratio(state)));
@@ -496,9 +500,63 @@ public final class UiTreeRenderer {
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED,
                 active ? SLIDER_HANDLE_HIGHLIGHTED_SPRITE : SLIDER_HANDLE_SPRITE,
                 Math.round(handleX), Math.round(node.y()),
-                Math.round(handleWidth), Math.round(node.height()), 0xFFFFFFFF);
+                Math.round(handleWidth), Math.round(node.height()), tint);
 
         String label = node.label(state);
+        if (!label.isEmpty()) {
+            int textWidth = font.width(label);
+            graphics.text(font, label,
+                    Math.round(node.x() + (node.width() - textWidth) / 2f),
+                    Math.round(node.y() + (node.height() - font.lineHeight) / 2f),
+                    UiColors.withOpacity(enabled ? node.textColor() : 0xFF808080, opacity), true);
+        }
+    }
+
+    // ---------- 进度条（支持客户端插值） ----------
+
+    private void renderProgress(ProgressNode node, float opacity) {
+        drawSurface(node, opacity);
+        if (node.width() <= 0 || node.height() <= 0) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        double display = node.displayValue(state, now);
+        float ratio = (float) Math.max(0.0, Math.min(1.0, node.ratioOf(display)));
+
+        float inset = node.style().borderWidth();
+        float x = node.x() + inset;
+        float y = node.y() + inset;
+        float width = Math.max(0f, node.width() - inset * 2f);
+        float height = Math.max(0f, node.height() - inset * 2f);
+
+        float fillX = x;
+        float fillY = y;
+        float fillW = width;
+        float fillH = height;
+        switch (node.direction()) {
+            case LEFT_RIGHT -> fillW = width * ratio;
+            case RIGHT_LEFT -> {
+                fillW = width * ratio;
+                fillX = x + width - fillW;
+            }
+            case TOP_BOTTOM -> fillH = height * ratio;
+            case BOTTOM_TOP -> {
+                fillH = height * ratio;
+                fillY = y + height - fillH;
+            }
+        }
+
+        if (fillW > 0.5f && fillH > 0.5f) {
+            float radius = Math.max(0f, node.style().radius() - inset);
+            if (node.fillGradientTo() != null) {
+                painter.fillRoundedGradient(fillX, fillY, fillW, fillH, radius,
+                        node.fillColor(), node.fillGradientTo(), opacity);
+            } else {
+                painter.fillRounded(fillX, fillY, fillW, fillH, radius, node.fillColor(), opacity);
+            }
+        }
+
+        String label = node.label(state, display);
         if (!label.isEmpty()) {
             int textWidth = font.width(label);
             graphics.text(font, label,

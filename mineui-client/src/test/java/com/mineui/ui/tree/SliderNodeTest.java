@@ -104,6 +104,38 @@ class SliderNodeTest {
     }
 
     @Test
+    void stepSnapsDraggedValue() {
+        SliderNode node = new SliderNode(NodeStyle.defaults(), DoubleSpec.of(0), 0, 100, "set", "", 0xFFFFFFFF,
+                10, com.mineui.ui.spec.BooleanSpec.TRUE);
+        layout(node);
+
+        assertTrue(node.beginDrag(50, 20));
+        double value = node.valueFromX(10 + 4 + (160 - 8) / 3.0);
+        assertEquals(0, value % 10, 0.001, "应吸附到 10 的倍数");
+    }
+
+    @Test
+    void disabledIgnoresDragAndClick() {
+        SliderNode node = new SliderNode(NodeStyle.defaults(), DoubleSpec.of(0), 0, 100, "set", "", 0xFFFFFFFF,
+                0, com.mineui.ui.spec.BooleanSpec.FALSE);
+        layout(node);
+
+        assertFalse(node.enabledNow());
+        assertFalse(node.beginDrag(50, 20));
+        assertNull(node.mouseClicked(60, 20, 0));
+    }
+
+    @Test
+    void enabledBindingFollowsState() {
+        SliderNode node = new SliderNode(NodeStyle.defaults(), DoubleSpec.of(0), 0, 100, "set", "", 0xFFFFFFFF,
+                0, com.mineui.ui.spec.BooleanSpec.parse(new com.google.gson.JsonPrimitive("{state.on}")));
+        node.measure(new MeasureContext(200, 200, 200, 200, TEXT, (path, fallback) -> "false"));
+        assertFalse(node.enabledNow());
+        node.measure(new MeasureContext(200, 200, 200, 200, TEXT, (path, fallback) -> "true"));
+        assertTrue(node.enabledNow());
+    }
+
+    @Test
     void mouseClickHitsInsideOnly() {
         SliderNode node = slider(0, 100, DoubleSpec.of(0));
         layout(node);

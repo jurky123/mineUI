@@ -52,6 +52,7 @@ public final class UiSession implements MineUiSession {
     private final JsonObject state = new JsonObject();
     private final RevisionGuard revisionGuard = new RevisionGuard();
     private final Map<String, Consumer<MineUiAction>> handlers = new HashMap<>();
+    private final java.util.List<Runnable> closeHooks = new java.util.ArrayList<>();
     private final RateWindow actionRate = new RateWindow(MAX_ACTIONS_PER_SECOND, RATE_WINDOW_MILLIS);
 
     private boolean snapshotSent;
@@ -123,6 +124,7 @@ public final class UiSession implements MineUiSession {
         }
         closed = true;
         handlers.clear();
+        runCloseHooks();
         plugin.uiSessions().remove(this);
         if (player.isOnline()) {
             send(MessageType.CLOSE, revisionGuard.revision(), new byte[0]);
@@ -173,6 +175,11 @@ public final class UiSession implements MineUiSession {
         return element != null && element.isJsonPrimitive() ? element.getAsInt() : defaultValue;
     }
 
+    public double getDouble(String key, double defaultValue) {
+        JsonElement element = state.get(key);
+        return element != null && element.isJsonPrimitive() ? element.getAsDouble() : defaultValue;
+    }
+
     public boolean getBoolean(String key, boolean defaultValue) {
         JsonElement element = state.get(key);
         return element != null && element.isJsonPrimitive() ? element.getAsBoolean() : defaultValue;
@@ -220,6 +227,25 @@ public final class UiSession implements MineUiSession {
     void discard() {
         closed = true;
         handlers.clear();
+        runCloseHooks();
+    }
+
+    @Override
+    public void onClose(Runnable callback) {
+        if (callback != null) {
+            closeHooks.add(callback);
+        }
+    }
+
+    private void runCloseHooks() {
+        for (Runnable hook : closeHooks) {
+            try {
+                hook.run();
+            } catch (RuntimeException e) {
+                plugin.getLogger().warning("MineUI 关闭回调异常: " + e.getMessage());
+            }
+        }
+        closeHooks.clear();
     }
 
     void resync() {
