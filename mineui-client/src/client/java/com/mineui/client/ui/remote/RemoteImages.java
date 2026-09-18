@@ -55,8 +55,11 @@ public final class RemoteImages {
 
     /** 域名解析超时（部分被墙/污染的域名解析会长时间阻塞，不能拖住下载线程）。 */
     private static final long DNS_TIMEOUT_SECONDS = 5L;
+    /** 兜底看门狗：超过该时长仍未完成（含线程卡死/任务未执行）一律判失败，不再永久"加载中"。 */
+    private static final long LOAD_TIMEOUT_MILLIS = 15_000L;
 
     private static final Map<String, Entry> ENTRIES = new ConcurrentHashMap<>();
+    private static final Map<String, Long> STARTED = new ConcurrentHashMap<>();
     /** 已提示过失败的 URL，避免重复刷屏。 */
     private static final Set<String> REPORTED = ConcurrentHashMap.newKeySet();
     private static final ExecutorService EXECUTOR = Executors.newFixedThreadPool(2, runnable -> {
@@ -71,7 +74,7 @@ public final class RemoteImages {
     });
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
+            .connectTimeout(Duration.ofSeconds(5))
             .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
@@ -100,9 +103,15 @@ public final class RemoteImages {
     public static Entry resolve(String url, String sha256) {
         Entry cached = ENTRIES.get(url);
         if (cached != null && cached.state() != State.FAILED) {
+            if (cached.state() == State.LOADING && loadExpired(url)) {
+                Entry failed = new Entry(State.FAILED, null, 0, 0);
+                ENTRIES.put(url, failed);
+                reportFailure(url, "下载超时（超过 " + (LOAD_TIMEOUT_MILLIS / 1000) + " 秒）");
+                return failed;
+            }
             return cached;
         }
-        if (cached != null && cached.state() == State.FAILED) {
+        if (cached != null) {
             return cached;
         }
         RemoteUrlGuard.Result check = RemoteUrlGuard.check(url, policy);
@@ -114,8 +123,15 @@ public final class RemoteImages {
         }
         Entry loading = new Entry(State.LOADING, null, 0, 0);
         ENTRIES.put(url, loading);
+        STARTED.put(url, System.currentTimeMillis());
+        MineUiClient.LOGGER.info("远程图片开始下载: {}", url);
         EXECUTOR.execute(() -> download(url, sha256));
         return loading;
+    }
+
+    private static boolean loadExpired(String url) {
+        Long started = STARTED.get(url);
+        return started != null && System.currentTimeMillis() - started > LOAD_TIMEOUT_MILLIS;
     }
 
     /** 断线/切服：释放纹理句柄并清空内存缓存（磁盘缓存保留，受 LRU 上限约束）。 */
@@ -131,6 +147,7 @@ public final class RemoteImages {
             }
         }
         ENTRIES.clear();
+        STARTED.clear();
         REPORTED.clear();
     }
 
@@ -138,6 +155,7 @@ public final class RemoteImages {
 
     private static void download(String url, String sha256) {
         try {
+            MineUiClient.LOGGER.info("远程图片下载中: {}", url);
             byte[] raw = loadBytes(url);
             if (sha256 != null && !sha256.isBlank() && !sha256.equalsIgnoreCase(sha256Hex(raw))) {
                 throw new IOException("sha256 校验失败");
@@ -172,6 +190,7 @@ public final class RemoteImages {
             DynamicTexture texture = new DynamicTexture(() -> "MineUI remote image", image);
             Minecraft.getInstance().getTextureManager().register(id, texture);
             ENTRIES.put(url, new Entry(State.READY, id, image.getWidth(), image.getHeight()));
+            MineUiClient.LOGGER.info("远程图片已加载: {} ({}x{})", url, image.getWidth(), image.getHeight());
         } catch (Exception e) {
             image.close();
             ENTRIES.put(url, new Entry(State.FAILED, null, 0, 0));
@@ -194,7 +213,7 @@ public final class RemoteImages {
             }
 
             HttpRequest request = HttpRequest.newBuilder(uri)
-                    .timeout(Duration.ofSeconds(15))
+                    .timeout(Duration.ofSeconds(8))
                     .header("User-Agent", "MineUI/1.0")
                     .GET()
                     .build();

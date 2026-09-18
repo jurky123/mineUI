@@ -332,7 +332,7 @@ public final class UiTreeRenderer {
                         0f, 0f, 1f, 1f);
             } else {
                 // 加载中/失败：半透明占位，避免空白闪烁
-                int color = entry.state() == RemoteImages.State.LOADING ? 0x33FFFFFF : 0x33FF6666;
+                int color = entry.state() == RemoteImages.State.LOADING ? 0x33FFFFFF : 0x66FF4444;
                 painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
                         Math.max(0f, node.style().radius()), color, opacity);
             }
