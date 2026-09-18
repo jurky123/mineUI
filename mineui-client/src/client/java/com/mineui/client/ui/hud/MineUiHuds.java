@@ -83,6 +83,9 @@ public final class MineUiHuds {
             return;
         }
         MineUiConfig config = MineUiConfig.get();
+        if (config.hudHideOnScreen && Minecraft.getInstance().gui.screen() != null) {
+            return;
+        }
         for (HudSession session : new LinkedHashMap<>(SESSIONS).values()) {
             if (!config.isHudEnabled(session.app(), session.view())) {
                 continue;

@@ -1,32 +1,32 @@
 {
   "type": "column",
-  "skin": "vanilla:panel",
-  "gap": 6,
+  "skin": "mineui:glass",
+  "gap": 5,
   "children": [
     {
       "type": "row",
-      "gap": 8,
+      "gap": 7,
       "align": "center",
       "children": [
-        { "type": "item", "item": "minecraft:music_disc_cat", "scale": 1.5 },
+        { "type": "item", "item": "minecraft:music_disc_cat", "scale": 1.4 },
         {
           "type": "column",
-          "gap": 2,
+          "gap": 1,
           "children": [
-            { "type": "text", "text": "{state.title}", "color": "#FFFFFF" },
-            { "type": "text", "text": "{state.subtitle}", "color": "#A0A0A0" }
+            { "type": "text", "text": "{state.title}", "color": "#F0F4F8" },
+            { "type": "text", "text": "{state.subtitle}", "color": "#9FB0C0" }
           ]
         }
       ]
     },
     {
       "type": "progress",
-      "width": 160,
-      "height": 14,
-      "radius": 4,
-      "background": "#40000000",
-      "color": "#3FA9F5",
-      "fillGradient": ["#3FA9F5", "#8A5FD0"],
+      "width": 140,
+      "height": 10,
+      "radius": 5,
+      "background": "#33FFFFFF",
+      "color": "#5AA9E6",
+      "fillGradient": ["#5AA9E6", "#8A5FD0"],
       "value": "{state.position}",
       "min": 0,
       "max": 180,
@@ -34,7 +34,7 @@
       "interpolate": true,
       "text": "{value} / {max}",
       "timeFormat": "mm:ss",
-      "textColor": "#D0E0F0"
+      "textColor": "#C8D8E8"
     }
   ]
 }

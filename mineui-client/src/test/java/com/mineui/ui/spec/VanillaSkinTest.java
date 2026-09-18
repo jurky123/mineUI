@@ -67,6 +67,25 @@ class VanillaSkinTest {
     }
 
     @Test
+    void glassSkinIsBorderlessTranslucent() throws Exception {
+        UiNode root = UiSpecParser.parse(json("""
+                { "type": "column", "skin": "mineui:glass", "children": [] }
+                """));
+        assertEquals(0x8A0E141B, root.style().background());
+        assertNull(root.style().borderColor());
+        assertEquals(6f, root.style().radius(), 0.001f);
+        assertEquals(8f, root.style().padding().top(), 0.001f);
+    }
+
+    @Test
+    void glassShorthandWithoutNamespaceWorks() throws Exception {
+        UiNode root = UiSpecParser.parse(json("""
+                { "type": "column", "skin": "glass", "children": [] }
+                """));
+        assertEquals(0x8A0E141B, root.style().background());
+    }
+
+    @Test
     void unknownSkinIsIgnored() throws Exception {
         UiNode root = UiSpecParser.parse(json("""
                 { "type": "button", "skin": "vanilla:unknown", "text": "x" }

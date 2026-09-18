@@ -32,6 +32,8 @@ public final class MineUiConfig {
 
     /** HUD 总开关（F6 切换）。 */
     public boolean hudEnabled = true;
+    /** 打开任意界面（背包/聊天/MineUI 屏幕）时自动隐藏 HUD，减少遮挡。 */
+    public boolean hudHideOnScreen = true;
     /** key = "app/view" */
     public Map<String, HudPref> hud = new HashMap<>();
 

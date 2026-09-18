@@ -38,6 +38,13 @@ public final class VanillaSkins {
         put("vanilla:slot", """
                 { "sprite": "minecraft:widget/slot_frame" }
                 """);
+        // HUD/浮层用：无边框半透明圆角（程序化绘制，无需素材）
+        put("mineui:glass", """
+                { "background": "#8A0E141B", "radius": 6, "padding": 8 }
+                """);
+        put("mineui:glass_dense", """
+                { "background": "#A00B1017", "radius": 6, "padding": 10 }
+                """);
     }
 
     private VanillaSkins() {
@@ -54,9 +61,13 @@ public final class VanillaSkins {
         if (skin == null || skin.isEmpty()) {
             return json;
         }
-        if ("vanilla".equals(skin)) {
-            String type = json.has("type") ? json.get("type").getAsString() : "";
-            skin = "vanilla:" + type;
+        if (skin.indexOf(':') < 0) {
+            if ("vanilla".equals(skin)) {
+                String type = json.has("type") ? json.get("type").getAsString() : "";
+                skin = "vanilla:" + type;
+            } else {
+                skin = "mineui:" + skin;
+            }
         }
         JsonObject defaults = SKINS.get(skin);
         if (defaults == null) {

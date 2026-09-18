@@ -51,7 +51,8 @@
 
 通用字段（所有节点）：`width/height`（px / `%` / `vw` / `vh` / auto）、`padding`、`background`、`radius`、`border`、`shadow`、`gradient`、`sprite/spriteHover/spriteFocus`、`z`、`clip`、`visible`（状态绑定）、`tooltip`、`modal`、`action`（任意节点可点击）、`hoverAction`（悬浮动作）、`hoverScale`、`cycle`。
 
-样式皮肤：`"skin": "vanilla:button | input | slider | panel | dialog | slot"`，或写 `"skin": "vanilla"` 按节点类型自动选择。
+样式皮肤：`"skin": "vanilla:button | input | slider | panel | dialog | slot"`（写 `"skin": "vanilla"` 按节点类型自动选择）；
+HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无边框，无需素材），无前缀简写 `"skin": "glass"`。
 
 ---
 
@@ -180,7 +181,9 @@ hud.snapshot();
 ```
 
 - 锚点：`top_left / top_center / top_right / center_left / center / center_right / bottom_left / bottom_center / bottom_right`
-- 客户端偏好：`config/mineui/client.json`（`hudEnabled` 总开关 + 逐 `app/view` 覆盖 anchor/offset/scale/开关）
+- 客户端偏好：`config/mineui/client.json`（`hudEnabled` 总开关、`hudHideOnScreen` 开界面自动隐藏、逐 `app/view` 覆盖 anchor/offset/scale/开关）
+- 无边框半透明：HUD 推荐 `"skin": "mineui:glass"`（半透明圆角、无边框，程序化绘制**无需新素材**）；
+  更实的底可用 `mineui:glass_dense`，也可自行写 `"background": "#8A0E141B", "radius": 6`
 - 游戏内：**F6** 开关 HUD（可在原版按键设置改键）；未安装 mod 的玩家不受影响
 - 能力位：`hud_v2`（业务用 `MineUi.supportsHud(player)` 判断，旧客户端自动降级）
 - 生命周期：owner 停用 / 玩家退出 / 断线自动清理；HUD 与屏幕互不干扰
