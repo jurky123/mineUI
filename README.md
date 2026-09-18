@@ -106,8 +106,9 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 业务 API `com.mineui.api`（含 `server_ui` / `hud_v2` 能力协商与 owner 生命周期）
 - ✅ HUD：服务端声明布局（锚点/偏移/缩放）、与屏幕并存、客户端本地偏好（F6 开关，`config/mineui/client.json`）
 - ✅ 进度条：`progress` 组件（方向/渐变/时间文本）与低频更新客户端插值；滑块步进/禁用态
-- ✅ 远程图片：`image.url` 支持状态绑定；HTTPS 直连 + 服务端域名白名单 + 私网拦截 + 内存/磁盘缓存 + 占位降级
-- ⏳ HUD Overlay、标签页/下拉框/滑块等扩展控件
+- ✅ 远程图片：`image.url` 支持状态绑定；HTTPS 直连 + 服务端域名白名单 + 私网拦截 + 内存/磁盘缓存 + 占位降级；
+  网易云封面（JPEG）实测通过，失败有原因提示与超时保护
+- ⏳ 标签页/下拉框等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
 
 ---

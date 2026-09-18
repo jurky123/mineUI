@@ -22,9 +22,11 @@
 - ✅ **P1 HUD 基础**（0.8.0）：HUD 会话（`openHud`）、锚点/偏移/缩放、客户端偏好与 F6 总开关、生命周期清理、能力位 `hud_v2`、`/mineui hud` 演示
 - ✅ **P2 进度条 + 客户端插值 + 滑块增强**（0.8.1）：`progress` 组件（方向/渐变/时间文本/`{percent}`）、
   `interpolate` 本地外推（seek 对齐、暂停、外推上限）、滑块 `step`/`enabled`、`MineUiSession.onClose` 关闭回调
-- ✅ **P3 远程图片**（0.9.0）：`image.url`（支持 `{state.x}` 绑定）HTTPS 直连，
+- ✅ **P3 远程图片**（0.9.0 起，0.9.4 验收通过）：`image.url`（支持 `{state.x}` 绑定）HTTPS 直连，
   服务端 `config.yml` 白名单策略 + 客户端强制执行（仅 HTTPS/域名白名单/私网拦截/大小上限/sha256），
-  异步下载解码 + 内存/磁盘 LRU 缓存 + 加载/失败占位；`/mineui image <url>` 自测命令
+  异步下载解码（PNG/JPEG）+ 内存/磁盘 LRU 缓存 + 加载/失败占位；`/mineui image <url>` 自测命令。
+  验收：`mc-heads.net` / `minotar.net` / `httpbin.org` / `placehold.co` 与**网易云封面**（`music.126.net`，JPEG）实测通过；
+  期间修复：策略随 OPEN 补发 + 握手重试（加载期丢包）、断线复位线程安全、解析/下载超时与 15 秒看门狗、blit 整图采样修复
 - ⏳ P4 list（歌词/队列）+ Toast + 服务端声明键位
 
 ---
