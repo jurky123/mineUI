@@ -168,18 +168,30 @@ public final class MineUiCommand {
                     NamedTextColor.YELLOW));
             return;
         }
+        String normalized = url.trim();
+        if (normalized.isEmpty() || normalized.chars().anyMatch(Character::isWhitespace)) {
+            sender.sendMessage(Component.text("URL 不能包含空格（多条命令请分开发送）", NamedTextColor.RED));
+            return;
+        }
+        if (!normalized.contains("://")) {
+            normalized = "https://" + normalized;
+        }
         String host;
         try {
-            host = java.net.URI.create(url).getHost();
+            host = java.net.URI.create(normalized).getHost();
         } catch (Exception e) {
             host = null;
         }
-        if (host == null || !plugin.remoteImagePolicy().allowsHost(host)) {
+        if (host == null) {
+            sender.sendMessage(Component.text("URL 格式不正确: " + url, NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.remoteImagePolicy().allowsHost(host)) {
             sender.sendMessage(Component.text("域名不在白名单: " + host, NamedTextColor.RED));
             return;
         }
         UiSession session = plugin.uiSessions().open(player, "mineui", "image");
-        session.state("url", url);
+        session.state("url", normalized);
         session.on("close", event -> session.close());
         session.snapshot();
         player.sendMessage(Component.text("已打开远程图片测试页", NamedTextColor.GREEN));

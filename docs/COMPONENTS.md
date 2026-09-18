@@ -116,7 +116,9 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 - 异步下载 + 解码（PNG/JPEG），不阻塞渲染；加载中为白色半透明占位、失败为红色占位
 - 缓存：内存 map + 磁盘 `mineui/cache/images/`（LRU 上限）；断线/切服释放纹理句柄
 - 能力位 `remote_image`；旧客户端遇到 URL 会按非法 Identifier 安全跳过
-- 端到端自测（管理员）：`/mineui image https://<白名单域名>/xxx.png`
+- 策略在握手（HELLO_ACK）时下发；每次打开会话（OPEN）前服务端会再补发一次（幂等），
+  避免客户端加载期丢包导致策略缺失；客户端 2 秒未收到 ACK 会自动重试握手（最多 3 次）
+- 端到端自测（管理员）：`/mineui image <白名单域名>/xxx.png`（可省略 `https://`；URL 含空格会被拒绝）
 
 ---
 

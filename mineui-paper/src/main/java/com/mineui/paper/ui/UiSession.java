@@ -80,6 +80,9 @@ public final class UiSession implements MineUiSession {
      */
     public void open() {
         requireOpen();
+        // 握手期的策略包可能因客户端仍在加载而丢失：每次开会话随 OPEN 前补发（幂等，保证渲染前策略就绪）
+        plugin.transport().sendNow(player, new Envelope(MessageType.REMOTE_POLICY, 0, 0,
+                JsonCodec.encode(plugin.remoteImagePolicy())));
         send(MessageType.OPEN, 0, JsonCodec.encode(new Open(app, view, definition, mode, layout)));
     }
 

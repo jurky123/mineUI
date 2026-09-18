@@ -37,7 +37,7 @@ public class MineUiClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(MineUiPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> ProtocolClient.handleIncoming(payload.data())));
 
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> ProtocolClient.sendHello());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> ProtocolClient.onJoin());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ProtocolClient.reset());
 
         // HUD 渲染层（服务端声明布局，本地偏好可覆盖）
@@ -48,6 +48,7 @@ public class MineUiClient implements ClientModInitializer {
         toggleHudKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.mineui.toggle_hud", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F6, KeyMapping.Category.MISC));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            ProtocolClient.tick();
             while (toggleHudKey.consumeClick()) {
                 MineUiConfig config = MineUiConfig.get();
                 config.hudEnabled = !config.hudEnabled;

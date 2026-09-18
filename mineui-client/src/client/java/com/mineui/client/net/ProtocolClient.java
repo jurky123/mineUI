@@ -31,7 +31,13 @@ public final class ProtocolClient {
 
     private static final UiStateStore STATE = new UiStateStore();
 
+    /** 握手未完成时的重试间隔（tick）与次数上限。 */
+    private static final int HELLO_RETRY_TICKS = 40;
+    private static final int MAX_HELLO_RETRIES = 3;
+
     private static volatile int serverProtocol = -1;
+    private static int helloRetries;
+    private static int ticksSinceHello;
 
     private ProtocolClient() {
     }
@@ -47,6 +53,13 @@ public final class ProtocolClient {
 
     // ---------- 发送 ----------
 
+    /** 进入服务器时开始握手。 */
+    public static void onJoin() {
+        helloRetries = 0;
+        ticksSinceHello = 0;
+        sendHello();
+    }
+
     public static void sendHello() {
         Hello hello = new Hello(
                 Envelope.PROTOCOL_VERSION,
@@ -54,6 +67,23 @@ public final class ProtocolClient {
                 MineUiClient.MINECRAFT_VERSION,
                 List.of("screen", "hud", "server_ui", "hud_v2", "remote_image"));
         send(new Envelope(MessageType.HELLO, 0, 0, JsonCodec.encode(hello)));
+    }
+
+    /** 客户端 tick：加载期发出的握手响应可能丢失，未收到 ACK 时定时重试（仅服务端注册了通道时）。 */
+    public static void tick() {
+        if (serverProtocol >= 0) {
+            return;
+        }
+        ticksSinceHello++;
+        if (ticksSinceHello < HELLO_RETRY_TICKS || helloRetries >= MAX_HELLO_RETRIES) {
+            return;
+        }
+        ticksSinceHello = 0;
+        helloRetries++;
+        if (ClientPlayNetworking.canSend(MineUiPayload.ID)) {
+            MineUiClient.LOGGER.info("尚未收到 HELLO_ACK，重试握手（第 {} 次）", helloRetries);
+            sendHello();
+        }
     }
 
     public static void sendAction(String actionId) {
@@ -132,6 +162,8 @@ public final class ProtocolClient {
         MineUiHuds.reset();
         RemoteImages.reset();
         serverProtocol = -1;
+        helloRetries = 0;
+        ticksSinceHello = 0;
         MineUiClient.LOGGER.info("已断开连接，MineUI 状态已清理");
     }
 
@@ -204,7 +236,12 @@ public final class ProtocolClient {
             return;
         }
 
+        boolean firstAck = serverProtocol < 0;
         serverProtocol = ack.protocol();
+        if (!firstAck) {
+            MineUiClient.LOGGER.debug("忽略重复的 HELLO_ACK（protocol {}）", ack.protocol());
+            return;
+        }
         MineUiClient.LOGGER.info("已连接 MineUI 服务端: protocol={} server={} minClient={}",
                 ack.protocol(), ack.serverVersion(), ack.minimumClient());
 

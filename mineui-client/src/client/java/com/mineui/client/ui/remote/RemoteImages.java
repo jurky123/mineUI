@@ -66,9 +66,15 @@ public final class RemoteImages {
     }
 
     public static void setPolicy(RemoteImagePolicy newPolicy) {
-        policy = newPolicy == null ? RemoteImagePolicy.disabled() : newPolicy;
-        MineUiClient.LOGGER.info("远程图片策略: enabled={} domains={} maxBytes={}",
-                policy.enabled(), policy.allowedDomains(), policy.maxBytes());
+        RemoteImagePolicy normalized = newPolicy == null ? RemoteImagePolicy.disabled() : newPolicy;
+        boolean changed = !normalized.equals(policy);
+        policy = normalized;
+        if (changed) {
+            MineUiClient.LOGGER.info("远程图片策略: enabled={} domains={} maxBytes={}",
+                    policy.enabled(), policy.allowedDomains(), policy.maxBytes());
+        } else {
+            MineUiClient.LOGGER.debug("远程图片策略未变化");
+        }
     }
 
     public static RemoteImagePolicy policy() {
