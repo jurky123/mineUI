@@ -11,9 +11,9 @@ public final class Bindings {
 
     private static final String STATE_PREFIX = "state.";
 
-    /** 可解析的绑定路径（限定命名空间，避免误吃文本里的普通花括号）。 */
+    /** 可解析的绑定路径（限定命名空间，避免误吃文本里的普通花括号）；key/local 允许 "插件名:动作" 形式的 id。 */
     private static final Pattern PATTERN =
-            Pattern.compile("\\{((?:state|item|itemIndex|itemHighlight|key|local)(?:\\.[a-zA-Z0-9_\\-]+)*)}");
+            Pattern.compile("\\{((?:state|item|itemIndex|itemHighlight|key|local)(?:\\.[a-zA-Z0-9_:\\-]+)*)}");
     /** list 的 items / highlightIndex 只接受整体 state 绑定。 */
     private static final Pattern STATE_PATH = Pattern.compile("\\{state\\.([a-zA-Z0-9_.\\-]+)}");
 
