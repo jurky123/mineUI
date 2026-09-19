@@ -37,6 +37,12 @@ public final class GlobalActionManager {
         }
         List<Handler> list = handlers.computeIfAbsent(actionId, ignored -> new CopyOnWriteArrayList<>());
         list.removeIf(existing -> existing.owner() == owner);
+        boolean collision = list.stream().anyMatch(existing -> existing.owner() != owner);
+        if (collision) {
+            // 同名动作会被所有 owner 的处理器一起触发：提示改用 "<插件名>:<动作>" 命名，避免串触发
+            plugin.getLogger().warning("全局动作 id 冲突: \"" + actionId + "\" 已被其他插件注册，"
+                    + owner.getName() + " 仍会追加处理器；建议改用 \"插件名:动作\" 形式（如 \"minea:open_ui\"）");
+        }
         list.add(new Handler(owner, handler));
     }
 

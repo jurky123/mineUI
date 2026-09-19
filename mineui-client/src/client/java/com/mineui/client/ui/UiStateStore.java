@@ -108,9 +108,12 @@ public final class UiStateStore implements StateAccess, GenerationSource {
         return element != null && element.isJsonPrimitive() ? element.getAsString() : defaultValue;
     }
 
-    /** 原始 JSON（支持点分路径，供列表 items 等结构绑定读取数组/对象）。 */
+    /** 原始 JSON（支持点分路径，供列表 items 等结构绑定读取数组/对象）；{@code local.*} 转本地值。 */
     @Override
     public JsonElement getElement(String path) {
+        if (path.startsWith("local.")) {
+            return com.mineui.client.ui.local.MineUiLocalBridge.element(path.substring("local.".length()));
+        }
         JsonElement element = state;
         for (String part : path.split("\\.")) {
             if (element instanceof JsonObject object && object.has(part)) {

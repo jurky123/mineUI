@@ -23,6 +23,9 @@ public final class MineUiClientRegistry {
 
     private static final Map<String, Entry> ENTRIES = new ConcurrentHashMap<>();
     private static final Set<String> CAPABILITIES = ConcurrentHashMap.newKeySet();
+    /** 注册表版本：注册/注销时自增，保证结构变化能触发页面重排。 */
+    private static final java.util.concurrent.atomic.AtomicLong VERSION =
+            new java.util.concurrent.atomic.AtomicLong();
 
     private static final MineUiClientBridge BRIDGE = new MineUiClientBridge() {
         @Override
@@ -32,7 +35,12 @@ public final class MineUiClientRegistry {
             }
             Entry entry = new Entry(state, actions);
             ENTRIES.put(namespace, entry);
-            return () -> ENTRIES.remove(namespace, entry);
+            VERSION.incrementAndGet();
+            return () -> {
+                if (ENTRIES.remove(namespace, entry)) {
+                    VERSION.incrementAndGet();
+                }
+            };
         }
 
         @Override
@@ -76,9 +84,12 @@ public final class MineUiClientRegistry {
         }
     }
 
-    /** 汇总所有本地状态提供者的结构代数（求和，任一变化都能反映）。 */
+    /**
+     * 汇总结构代数：注册表版本（注册/注销）+ 各提供者的 {@link ClientStateProvider#generation()}。
+     * 任一变化都会反映出来，用于触发页面重排。
+     */
     public static long generation() {
-        long total = 0L;
+        long total = VERSION.get();
         for (Entry entry : ENTRIES.values()) {
             if (entry.state() == null) {
                 continue;

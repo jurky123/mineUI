@@ -70,8 +70,8 @@ class MineUiClientRegistryTest {
     }
 
     @Test
-    void generationSumsProviders() {
-        assertEquals(0L, MineUiClientRegistry.generation());
+    void generationIncludesRegistryVersionAndProviders() {
+        long before = MineUiClientRegistry.generation();
         MineUiClientBridge.get().register("a", new ClientStateProvider() {
             @Override
             public Object get(String key) {
@@ -94,6 +94,19 @@ class MineUiClientRegistryTest {
                 return 4L;
             }
         }, null);
-        assertEquals(7L, MineUiClientRegistry.generation());
+        // 注册表版本（+2）加上两个 provider 的 generation（3+4）
+        assertEquals(before + 2 + 7, MineUiClientRegistry.generation());
+    }
+
+    @Test
+    void registerAndUnregisterChangeGeneration() throws Exception {
+        long before = MineUiClientRegistry.generation();
+        AutoCloseable handle = MineUiClientBridge.get().register("ns", key -> null, null);
+        long afterRegister = MineUiClientRegistry.generation();
+        assertTrue(afterRegister > before, "注册应改变结构代数");
+
+        handle.close();
+        long afterClose = MineUiClientRegistry.generation();
+        assertTrue(afterClose > afterRegister, "注销应改变结构代数");
     }
 }

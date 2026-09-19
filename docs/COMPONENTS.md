@@ -152,6 +152,8 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 - 客户端右上角队列（最多 5 条）、淡入淡出；`iconItem` 为物品 id（如 `minecraft:music_disc_cat`）
 - 无界面时随 HUD 显示；打开界面时叠绘在界面之上，点击带 `action` 的 Toast 通过**全局动作**回传
 - 全局动作：`MineUi.onAction(owner, actionId, handler)`（客户端 `session=0` 的 ACTION）；owner 停用自动清理
+- 命名约定：actionId 建议 **`"插件名:动作"`** 形式（如 `"mineaudio:open_ui"`）；不同插件注册同名 id 时
+  会**全部触发**并在服务端日志给出冲突警告
 - 演示：`/mineui toast`
 
 ## 2.10 服务端声明键位

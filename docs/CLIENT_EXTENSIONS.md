@@ -67,6 +67,21 @@ public interface MineUiClientBridge {
 - 注销句柄关闭后对应绑定为空、动作忽略；业务断开/停用时自行关闭句柄
 - `generation()` 自增时 MineUI 触发一次重排；屏幕与 HUD 都会响应
 
+## 4.1 标量绑定与结构绑定的支持范围（重要）
+
+| 绑定用途 | 更新时机 | 是否需要 `generation()` |
+|---|---|---|
+| 文本内容（`text` 等） | 每帧读取 | ❌ 不需要 |
+| `progress.value` / `slider.value` | 每帧读取 | ❌ 不需要 |
+| `list.items` / `itemTemplate` 内条目绑定 | 仅重排时读取 | ✅ 结构变化（列表项增删）时自增 |
+| `visible` / slider `enabled` | 仅重排时求值 | ✅ 可见性/可用性切换时自增 |
+| 播放位置等高频数值 | 每帧读取 | ❌ 不要自增（否则每帧重排） |
+
+- 注册表版本在**注册/注销**时自增（即使 provider 的 `generation()` 恒为 0，注册生命周期变化也会触发一次重排）
+- 纯数值变化**不会**触发重排——不要把位置变化转成重排事件
+- 方法引用注册（如 `key -> clock.position()`）默认 `generation()` 恒为 0：若该命名空间的
+  `visible`/`enabled`/列表需要跟随本地状态变化，请让 provider 自行维护并自增 generation
+
 ## 5. 安全边界（写死）
 
 - `local.*` 是客户端本地数据（可信本地 mod 提供），**只在本机解析，协议里不出现，服务端无法读取**
@@ -108,3 +123,10 @@ compileOnly "com.mineui:mineui-client-api:0.12.0"
 - 未装 api mod / 未注册命名空间时页面安全降级
 - 能力位正确上报（`/mineui status` 可见 caps）
 - 命名空间隔离：A 的 `local:` 动作不会派发到 B
+
+## 8. 与服务端 PATCH 的配合（节流）
+
+- `UiSession.state()` 对**相等值直接跳过**（Gson 数值语义），业务每秒重复 push 相同字段不再产生网络包
+- `session.batch(() -> { ... })` 把多次 `state()` 合并成一个 PATCH（按字段去重，保留最后一次）；
+  动作处理器内的状态修改默认已按批合并
+- 业务侧仍应避免推送客户端本地已拥有的字段（position/time/volume 等），详见 R9 建议

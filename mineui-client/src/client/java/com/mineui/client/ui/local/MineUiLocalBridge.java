@@ -70,6 +70,28 @@ public final class MineUiLocalBridge {
         return caps;
     }
 
+    /**
+     * 本地结构读取（列表/对象绑定用）：把本地值转成 JSON 树。
+     * 支持 List / Map / String / Number / Boolean / 已有 JsonElement。
+     */
+    public static com.google.gson.JsonElement element(String path) {
+        int dot = path.indexOf('.');
+        String namespace = dot < 0 ? path : path.substring(0, dot);
+        String key = dot < 0 ? "" : path.substring(dot + 1);
+        Object value = rawState(namespace, key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof com.google.gson.JsonElement json) {
+            return json;
+        }
+        try {
+            return com.google.gson.JsonParser.parseString(com.mineui.protocol.JsonCodec.toJson(value));
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     /** 本地结构代数：变化时应触发页面重排（纯数值变化不会）。 */
     public static long generation() {
         try {

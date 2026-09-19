@@ -15,8 +15,23 @@ public interface MineUiSession {
     /** 会话玩家。 */
     Player player();
 
-    /** 设置顶层状态字段；snapshot 之后会立即下发 PATCH。 */
+    /**
+     * 设置顶层状态字段；snapshot 之后会立即下发 PATCH。
+     * <p>
+     * 值未变化时不发送；相同字段重复设置只保留最后一次。
+     */
     MineUiSession state(String key, Object value);
+
+    /**
+     * 批量更新：期间多次 {@link #state} 合并成一个 PATCH 发送，减少高频刷新时的包数。
+     * <pre>{@code
+     * session.batch(() -> {
+     *     session.state("title", t);
+     *     session.state("percent", p);
+     * });
+     * }</pre>
+     */
+    MineUiSession batch(Runnable updates);
 
     /** 注册动作处理器。 */
     MineUiSession on(String actionId, Consumer<MineUiAction> handler);

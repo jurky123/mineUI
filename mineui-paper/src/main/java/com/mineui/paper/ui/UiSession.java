@@ -58,6 +58,10 @@ public final class UiSession implements MineUiSession {
     private boolean snapshotSent;
     private volatile boolean closed;
     private int patchSeq;
+    /** 批量更新中：state() 只记录待发 op，由 batch() 结束时合并成一个 PATCH。 */
+    private boolean batching;
+    /** 待发 op（按 pointer 去重，保留最后一次写入）。 */
+    private final Map<String, PatchOp> pendingOps = new java.util.LinkedHashMap<>();
 
     UiSession(MineUiPlugin plugin, Plugin owner, Player player, int id, String app, String view,
               JsonObject definition, String mode, com.mineui.protocol.msg.HudLayout layout) {
@@ -86,15 +90,64 @@ public final class UiSession implements MineUiSession {
         send(MessageType.OPEN, 0, JsonCodec.encode(new Open(app, view, definition, mode, layout)));
     }
 
-    /** 设置顶层状态字段；snapshot 之后会立即下发 PATCH。 */
+    /**
+     * 设置顶层状态字段；snapshot 之后会立即下发 PATCH。
+     * <p>
+     * 值未变化时不发 PATCH；处于 {@link #batch} 中时只登记待发 op，由批结束时合并成一个 PATCH。
+     */
     @Override
     public UiSession state(String key, Object value) {
         boolean existed = state.has(key);
-        state.add(key, JsonCodec.toJsonTree(value));
-        if (snapshotSent && !closed) {
-            JsonElement element = state.get(key);
-            PatchOp op = existed ? PatchOp.replace(pointer(key), element) : PatchOp.add(pointer(key), element);
+        JsonElement next = JsonCodec.toJsonTree(value);
+        JsonElement previous = state.get(key);
+        state.add(key, next);
+        if (!snapshotSent || closed) {
+            return this;
+        }
+        if (next.equals(previous)) {
+            // 相等值去重：本地已拥有该字段时，业务每秒重复 push 不再产生网络包
+            return this;
+        }
+        PatchOp op = existed ? PatchOp.replace(pointer(key), next) : PatchOp.add(pointer(key), next);
+        if (batching) {
+            pendingOps.put(key, op);
+        } else {
             sendPatch(List.of(op));
+        }
+        return this;
+    }
+
+    /**
+     * 批量更新：期间多次 {@link #state} 只在结束时合并成一个 PATCH（按字段去重，保留最后一次）。
+     * <pre>{@code
+     * session.batch(() -> {
+     *     session.state("title", t);
+     *     session.state("percent", p);
+     * });
+     * }</pre>
+     */
+    @Override
+    public UiSession batch(Runnable updates) {
+        if (updates == null) {
+            return this;
+        }
+        if (batching) {
+            // 嵌套批量：并入外层，由最外层统一发送
+            updates.run();
+            return this;
+        }
+        batching = true;
+        try {
+            updates.run();
+        } finally {
+            batching = false;
+            if (!pendingOps.isEmpty() && !closed) {
+                List<PatchOp> ops = new java.util.ArrayList<>(pendingOps.values());
+                pendingOps.clear();
+                sendPatch(ops);
+            } else {
+                pendingOps.clear();
+            }
         }
         return this;
     }
@@ -205,13 +258,16 @@ public final class UiSession implements MineUiSession {
                     plugin.getLogger().fine(() -> "未注册的 MineUI 动作: " + action.id() + " (" + app + "/" + view + ")");
                 } else {
                     int before = patchSeq;
-                    try {
-                        handler.accept(new ActionEvent(player, action.id(), action.payload()));
-                    } catch (Exception e) {
-                        // 业务处理器异常隔离：不阻断修订号同步，也不影响其他会话/动作
-                        plugin.getLogger().warning("MineUI 动作处理器异常 " + app + "/" + view
-                                + " #" + action.id() + "（" + player.getName() + "）: " + e);
-                    }
+                    // 把一次动作的状态修改合并成一个 PATCH（业务可继续自行 batch，嵌套时并入）
+                    batch(() -> {
+                        try {
+                            handler.accept(new ActionEvent(player, action.id(), action.payload()));
+                        } catch (Exception e) {
+                            // 业务处理器异常隔离：不阻断修订号同步，也不影响其他会话/动作
+                            plugin.getLogger().warning("MineUI 动作处理器异常 " + app + "/" + view
+                                    + " #" + action.id() + "（" + player.getName() + "）: " + e);
+                        }
+                    });
                     if (patchSeq == before && !closed) {
                         // 处理器没有改变状态：发空 PATCH 同步修订号，避免下一次动作被判过期
                         sendPatch(List.of());
