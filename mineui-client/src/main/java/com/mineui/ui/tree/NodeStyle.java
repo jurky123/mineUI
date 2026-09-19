@@ -27,6 +27,8 @@ import com.mineui.ui.spec.BooleanSpec;
  * @param spriteFocus   聚焦时的背景精灵（输入框用；null 表示不变）
  * @param hoverScale    悬停时的缩放倍数（1 表示不缩放；任意节点可用）
  * @param cycle         本地时间轮换（背景色/物品；null 表示不轮换）
+ * @param spin          持续旋转周期（秒/圈，本地时间驱动；0/缺省不旋转）
+ * @param spinPlaying   旋转开关（false 冻结角度；默认 true）
  */
 public record NodeStyle(
         String id,
@@ -56,14 +58,16 @@ public record NodeStyle(
         String spriteHover,
         String spriteFocus,
         float hoverScale,
-        com.mineui.ui.spec.CycleSpec cycle) {
+        com.mineui.ui.spec.CycleSpec cycle,
+        float spin,
+        BooleanSpec spinPlaying) {
 
     /** Phase 2 兼容构造器（无视觉扩展）。 */
     public NodeStyle(String id, SizeSpec width, SizeSpec height, Insets padding, Integer background,
                      CrossAlign align, MainAlign justify, float gap) {
         this(id, width, height, padding, background, align, justify, gap,
                 0f, null, 0f, null, 0f, 0f, null, 0, false, false, BooleanSpec.TRUE, null, false, null, null,
-                null, null, null, 1f, null);
+                null, null, null, 1f, null, 0f, BooleanSpec.TRUE);
     }
 
     public static NodeStyle defaults() {

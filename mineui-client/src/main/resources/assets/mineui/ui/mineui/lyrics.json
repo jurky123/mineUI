@@ -14,6 +14,16 @@
       "children": [
         { "type": "text", "text": "歌词 / 列表（list 节点）", "color": "#FFFFFF" },
         {
+          "type": "image",
+          "texture": "minecraft:textures/item/music_disc_cat.png",
+          "width": 28,
+          "height": 28,
+          "spin": 8,
+          "spinPlaying": "{state.spin}",
+          "action": "toggle_spin",
+          "tooltip": "点击暂停/继续旋转"
+        },
+        {
           "type": "list",
           "width": 260,
           "height": 150,

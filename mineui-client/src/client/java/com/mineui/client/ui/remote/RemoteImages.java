@@ -111,6 +111,21 @@ public final class RemoteImages {
         return policy;
     }
 
+    /** 读取磁盘缓存中的原始字节（遮罩烘焙用）；未缓存返回 null。 */
+    public static byte[] cachedBytes(String url) {
+        try {
+            Path file = cacheFile(url);
+            return Files.isRegularFile(file) ? Files.readAllBytes(file) : null;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /** 解码 PNG/JPEG（遮罩烘焙复用）。 */
+    public static NativeImage decodeBytes(byte[] bytes) throws IOException {
+        return decode(bytes);
+    }
+
     /** 渲染线程调用：返回当前状态；未加载且允许时触发异步加载。 */
     public static Entry resolve(String url, String sha256) {
         Entry cached = ENTRIES.get(url);

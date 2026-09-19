@@ -144,7 +144,9 @@ public final class UiTreeRenderer {
 
         float hoverFactor = 1f + (node.style().hoverScale() - 1f) * node.hoverProgress();
         float scale = node.animScale() * hoverFactor;
-        boolean transformed = node.hasTransform() || Math.abs(scale - 1f) > 0.001f;
+        // 持续旋转（本地时钟）叠加动画旋转；任一非零都走变换路径
+        float rotation = node.animRotation() + node.spinAngle(System.currentTimeMillis(), state);
+        boolean transformed = node.hasTransform() || Math.abs(scale - 1f) > 0.001f || rotation != 0f;
         var pose = graphics.pose();
         if (transformed) {
             float centerX = node.x() + node.width() / 2f;
@@ -152,8 +154,8 @@ public final class UiTreeRenderer {
             pose.pushMatrix();
             pose.translate(node.animOffsetX(), node.animOffsetY());
             pose.translate(centerX, centerY);
-            if (node.animRotation() != 0f) {
-                pose.rotate((float) Math.toRadians(node.animRotation()));
+            if (rotation != 0f) {
+                pose.rotate((float) Math.toRadians(rotation));
             }
             if (Math.abs(scale - 1f) > 0.001f) {
                 pose.scale(scale, scale);
@@ -360,8 +362,13 @@ public final class UiTreeRenderer {
         if (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://")) {
             RemoteImages.Entry entry = RemoteImages.resolve(resolvedUrl, node.sha256());
             if (entry.state() == RemoteImages.State.READY && entry.texture() != null) {
+                Identifier texture = entry.texture();
+                if (node.style().radius() > 0.5f) {
+                    texture = ImageMasks.remote(resolvedUrl, node.width(), node.height(),
+                            node.style().radius()).orElse(texture);
+                }
                 // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)：整图采样为 0,1,0,1
-                graphics.blit(entry.texture(),
+                graphics.blit(texture,
                         Math.round(node.x()), Math.round(node.y()),
                         Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
                         0f, 1f, 0f, 1f);
@@ -409,7 +416,12 @@ public final class UiTreeRenderer {
         float u1 = (node.u() + regionW) / texW;
         float v1 = (node.v() + regionH) / texH;
         // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)，不是 (u0, v0, u1, v1)
-        graphics.blit(texture,
+        Identifier masked = node.style().radius() > 0.5f
+                ? ImageMasks.local(texture, node.width(), node.height(), node.style().radius())
+                        .filter(id -> u0 == 0f && v0 == 0f && u1 == 1f && v1 == 1f)
+                        .orElse(texture)
+                : texture;
+        graphics.blit(masked,
                 Math.round(node.x()), Math.round(node.y()),
                 Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
                 u0, u1, v0, v1);

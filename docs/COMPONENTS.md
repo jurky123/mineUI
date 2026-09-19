@@ -126,6 +126,21 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
   避免客户端加载期丢包导致策略缺失；客户端 2 秒未收到 ACK 会自动重试握手（最多 3 次）
 - 端到端自测（管理员）：`/mineui image <白名单域名>/xxx.png`（可省略 `https://`；URL 含空格会被拒绝）
 - 音乐封面：白名单加 `music.126.net` 即可覆盖 `p1/p2/p3.music.126.net` 等子域（网易云封面为 JPEG，已实测）
+- 圆角/圆形遮罩：`image` 节点 `radius > 0` 时会**预烘焙一张遮罩纹理**（一次），渲染仍是单次 blit；
+  `radius ≈ min(宽,高)/2` 即圆形（唱片封面）。变体按"源+节点尺寸+radius"缓存，断线释放；
+  精灵（`sprite:`）与子区域采样（`u/v/region`）不参与遮罩，回退为未遮罩原图
+
+## 2.7.1 持续旋转（唱片效果）
+
+```json
+{ "type": "image", "url": "{state.cover}", "width": 56, "height": 56, "radius": 28, "spin": 8.0 }
+```
+
+- `spin`：**秒/圈**，纯客户端本地时钟驱动，不占网络；`0`/缺省不旋转。任意节点可用（不止 image）
+- `spinPlaying`：布尔绑定（`{state.playing}` / `{local.x.playing}` 均可）；false 时**冻结角度**
+  （时间照走，恢复不跳变），默认 true
+- 角度绕节点中心旋转，与 hoverScale/动画旋转共用同一条变换路径；每帧一次角度推进，开销可忽略
+- 演示：`/mineui lyrics` 页中的唱片图标（点击暂停/继续旋转）
 
 ---
 

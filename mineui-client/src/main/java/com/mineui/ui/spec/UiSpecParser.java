@@ -188,7 +188,9 @@ public final class UiSpecParser {
                 optString(json, "spriteHover", null),
                 optString(json, "spriteFocus", null),
                 optFloat(json, "hoverScale", 1f),
-                CycleSpec.parse(json.get("cycle")));
+                CycleSpec.parse(json.get("cycle")),
+                optFloat(json, "spin", 0f),
+                BooleanSpec.parse(json.get("spinPlaying")));
     }
 
     /**

@@ -263,7 +263,9 @@ public final class MineUiCommand {
         UiSession session = plugin.uiSessions().open(player, "mineui", "lyrics");
         session.state("lyrics", lyrics);
         session.state("current", 0);
+        session.state("spin", true);
         session.on("close", event -> session.close());
+        session.on("toggle_spin", event -> session.state("spin", !session.getBoolean("spin", true)));
         session.snapshot();
 
         int[] current = {0};

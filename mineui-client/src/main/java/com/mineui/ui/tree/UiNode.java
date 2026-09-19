@@ -30,6 +30,10 @@ public abstract class UiNode {
     private boolean hoverEntered;
     /** 条目级状态上下文（列表项等）：非 null 时渲染该子树的绑定改用它解析。 */
     private StateAccess stateContext;
+    /** 持续旋转（spin>0）的运行时角度与时间锚。 */
+    private float spinAngle;
+    private long spinLastMillis;
+    private boolean spinStarted;
 
     protected UiNode(NodeStyle style) {
         this.style = style;
@@ -97,6 +101,31 @@ public abstract class UiNode {
 
     public void setStateContext(StateAccess context) {
         this.stateContext = context;
+    }
+
+    /**
+     * 持续旋转角度（度，0..360）：由渲染线程每帧调用，按本地时钟推进。
+     * {@code spinPlaying} 为 false 时冻结角度（时间照走，恢复不跳变）；spin ≤ 0 恒为 0。
+     *
+     * @param nowMillis 当前毫秒（可注入便于测试）
+     */
+    public float spinAngle(long nowMillis, StateAccess state) {
+        float periodSeconds = style().spin();
+        if (periodSeconds <= 0f) {
+            return 0f;
+        }
+        if (!spinStarted) {
+            spinStarted = true;
+            spinLastMillis = nowMillis;
+            return 0f;
+        }
+        long delta = nowMillis - spinLastMillis;
+        spinLastMillis = nowMillis;
+        if (delta > 0 && style().spinPlaying().test(state)) {
+            float periodMillis = Math.max(1f, periodSeconds * 1000f);
+            spinAngle = (spinAngle + delta * 360f / periodMillis) % 360f;
+        }
+        return spinAngle;
     }
 
     /** 计算自身尺寸（含 padding）。 */
