@@ -59,6 +59,8 @@ public final class RemoteImages {
     private static final long DNS_TIMEOUT_SECONDS = 5L;
     /** 兜底看门狗：超过该时长仍未完成（含线程卡死/任务未执行）一律判失败，不再永久"加载中"。 */
     private static final long LOAD_TIMEOUT_MILLIS = 15_000L;
+    /** 失败重试冷却：瞬时网络抖动（如连接超时）不应让封面整首歌都失败。 */
+    private static final long RETRY_COOLDOWN_MILLIS = 10_000L;
     /**
      * 客户端硬上限：服务端 policy 只能收紧这些值，不能放大。
      * 远程图片是客户端直接接触不受信任内容的边界，不能只信服务端下发。
@@ -70,6 +72,8 @@ public final class RemoteImages {
 
     private static final Map<String, Entry> ENTRIES = new ConcurrentHashMap<>();
     private static final Map<String, Long> STARTED = new ConcurrentHashMap<>();
+    /** 失败时间：冷却结束后允许静默重试。 */
+    private static final Map<String, Long> FAILED_AT = new ConcurrentHashMap<>();
     /** 已提示过失败的 URL，避免重复刷屏。 */
     private static final Set<String> REPORTED = ConcurrentHashMap.newKeySet();
     /** 连接代数：reset() 自增，用于丢弃断线/切服后才完成的下载与解码结果。 */
@@ -128,18 +132,25 @@ public final class RemoteImages {
 
     /** 渲染线程调用：返回当前状态；未加载且允许时触发异步加载。 */
     public static Entry resolve(String url, String sha256) {
+        long now = System.currentTimeMillis();
         Entry cached = ENTRIES.get(url);
         if (cached != null && cached.state() != State.FAILED) {
             if (cached.state() == State.LOADING && loadExpired(url)) {
                 Entry failed = new Entry(State.FAILED, null, 0, 0);
                 ENTRIES.put(url, failed);
+                FAILED_AT.put(url, now);
                 reportFailure(url, "下载超时（超过 " + (LOAD_TIMEOUT_MILLIS / 1000) + " 秒）");
                 return failed;
             }
             return cached;
         }
         if (cached != null) {
-            return cached;
+            // 失败占位：冷却期内维持，冷却结束后静默重试一次
+            Long failedAt = FAILED_AT.get(url);
+            if (failedAt != null && now - failedAt < RETRY_COOLDOWN_MILLIS) {
+                return cached;
+            }
+            ENTRIES.remove(url, cached);
         }
         RemoteUrlGuard.Result check = RemoteUrlGuard.check(url, policy);
         if (check != RemoteUrlGuard.Result.OK) {
@@ -178,6 +189,7 @@ public final class RemoteImages {
         GENERATION.incrementAndGet();
         ENTRIES.clear();
         STARTED.clear();
+        FAILED_AT.clear();
         REPORTED.clear();
     }
 
@@ -202,6 +214,7 @@ public final class RemoteImages {
         } catch (Exception e) {
             if (generation == GENERATION.get()) {
                 ENTRIES.put(url, new Entry(State.FAILED, null, 0, 0));
+                FAILED_AT.put(url, System.currentTimeMillis());
                 reportFailure(url, e.getMessage());
             }
         }
@@ -234,6 +247,7 @@ public final class RemoteImages {
             DynamicTexture texture = new DynamicTexture(() -> "MineUI remote image", image);
             Minecraft.getInstance().getTextureManager().register(id, texture);
             ENTRIES.put(url, new Entry(State.READY, id, image.getWidth(), image.getHeight()));
+            FAILED_AT.remove(url);
             MineUiClient.LOGGER.info("远程图片已加载: {} ({}x{})", url, image.getWidth(), image.getHeight());
         } catch (Exception e) {
             image.close();
