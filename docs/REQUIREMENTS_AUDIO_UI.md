@@ -31,6 +31,9 @@
   高亮 + 自动滚动居中 + 滚轮）、Toast 短提示（图标/时长，界面内点击回传）、全局动作 `MineUi.onAction`（`session=0` 的 ACTION）
 - ✅ **P4b 客户端键位**（0.11.0）：客户端通用键位池（`key.mineui.slot1..8`，改键/冲突/持久化走原版）、
   服务端 `KEYBIND` 声明 + `MineUi.keybind`、按键回传全局动作、页面 `{key.<actionId>}` 提示
+- ✅ **P4c 客户端本地状态与动作**（0.12.0，FR-12）：`mineui-client-api` 扩展点，
+  `{local.<ns>.<key>}` 逐帧绑定 + `local:<ns>.<action>` 本地直连，能力位 `local_state` / `local_action`；
+  设计见 [`docs/CLIENT_EXTENSIONS.md`](CLIENT_EXTENSIONS.md)
 
 ---
 
@@ -108,6 +111,13 @@ MineUI 已能承载屏幕页面（会话 / 状态 / 动作 / 组件 / 动态贴�
 ### FR-11 安全与权限
 - HUD 与页面内容仅服务端权威；客户端只渲染
 - 远程资源同受防火墙约束，不把客户端 IP 暴露给任意主机
+
+### FR-12 客户端本地状态与动作（跨 mod 扩展点）
+- 独立 artifact/mod `mineui-client-api`（纯 Java、无 MC 依赖）
+- 绑定 `{local.<ns>.<key>}` 每帧读本地值；动作 `local:<ns>.<action>` 本地直连、不经 Paper
+- 能力位 `local_state` / `local_action`；未注册/旧客户端安全降级
+- 命名空间隔离派发；权威判定仍走服务端
+- 详细设计见 [`docs/CLIENT_EXTENSIONS.md`](CLIENT_EXTENSIONS.md)
 
 ## 4. 与现有 API 的关系
 

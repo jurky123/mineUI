@@ -125,4 +125,5 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 
 - 组件与素材指南（装饰/交互/动效，含示例）：[`docs/COMPONENTS.md`](docs/COMPONENTS.md)
 - 音乐 UI 能力需求与阶段状态：[`docs/REQUIREMENTS_AUDIO_UI.md`](docs/REQUIREMENTS_AUDIO_UI.md)
+- 客户端本地扩展点（业务 mod 接入）：[`docs/CLIENT_EXTENSIONS.md`](docs/CLIENT_EXTENSIONS.md)
 - 技术设计文档：[`docs/DESIGN.md`](docs/DESIGN.md)
