@@ -195,6 +195,7 @@ public final class ListViewNode extends ContainerNode {
             }
             itemData.add(list.get(i));
             items.add(node);
+            node.setItemIndex(i);
             addChild(node);
         }
         scrollOffset = 0f;

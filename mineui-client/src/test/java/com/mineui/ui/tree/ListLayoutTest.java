@@ -34,7 +34,7 @@ class ListLayoutTest {
         return new MeasureContext(w, h, w, h, TEXT, state);
     }
 
-    private static JsonState state(String json) {
+    static JsonState state(String json) {
         return new JsonState(JsonParser.parseString(json).getAsJsonObject());
     }
 
@@ -123,7 +123,7 @@ class ListLayoutTest {
     }
 
     /** 简易 JSON 状态：get/getElement 支持点分路径。 */
-    private static final class JsonState implements StateAccess {
+    static final class JsonState implements StateAccess {
 
         private final JsonObject root;
 

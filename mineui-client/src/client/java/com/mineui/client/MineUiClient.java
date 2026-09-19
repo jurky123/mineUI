@@ -41,6 +41,9 @@ public class MineUiClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(MineUiPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> ProtocolClient.handleIncoming(payload.data())));
 
+        // 主题 token（config/mineui/theme.json：accent 等，供 mineui:accent 皮肤使用）
+        MineUiTheme.load();
+
         // 通用键位池（服务端通过 KEYBIND 声明含义；改键走原版按键设置）
         MineUiKeybinds.init();
 

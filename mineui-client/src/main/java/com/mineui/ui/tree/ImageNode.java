@@ -11,15 +11,17 @@ public final class ImageNode extends UiNode {
     private final float textureWidth;
     private final float textureHeight;
     private final String sha256;
+    /** 着色（ARGB 乘色；0 表示无 tint，用原色渲染）。 */
+    private final int tint;
 
     public ImageNode(NodeStyle style, String texture, float u, float v,
                      float regionWidth, float regionHeight, float textureWidth, float textureHeight) {
-        this(style, texture, u, v, regionWidth, regionHeight, textureWidth, textureHeight, null);
+        this(style, texture, u, v, regionWidth, regionHeight, textureWidth, textureHeight, null, 0);
     }
 
     public ImageNode(NodeStyle style, String texture, float u, float v,
                      float regionWidth, float regionHeight, float textureWidth, float textureHeight,
-                     String sha256) {
+                     String sha256, int tint) {
         super(style);
         this.texture = texture == null ? "" : texture;
         this.u = u;
@@ -30,6 +32,12 @@ public final class ImageNode extends UiNode {
         this.textureWidth = Math.max(0f, textureWidth);
         this.textureHeight = Math.max(0f, textureHeight);
         this.sha256 = sha256 == null || sha256.isBlank() ? null : sha256;
+        this.tint = tint;
+    }
+
+    /** 着色 ARGB（0 表示无 tint）。 */
+    public int tint() {
+        return tint;
     }
 
     public String texture() {

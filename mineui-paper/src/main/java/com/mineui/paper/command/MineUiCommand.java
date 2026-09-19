@@ -312,7 +312,7 @@ public final class MineUiCommand {
                         "[MineUI] Toast 点击动作已回传: " + action.id(), NamedTextColor.GREEN)));
         plugin.sendToast(player, new com.mineui.protocol.msg.Toast(
                 "切歌：示例歌曲 - 示例歌手（打开界面后可点击）",
-                "minecraft:music_disc_cat", "mineui_demo_toast", 6000, 0xFFFFFFFF));
+                "minecraft:music_disc_cat", "mineui_demo_toast", 6000, 0xFFFFFFFF, "success"));
         player.sendMessage(Component.text("已发送 Toast；打开任意界面后点击可触发全局动作", NamedTextColor.GREEN));
     }
 
@@ -347,9 +347,33 @@ public final class MineUiCommand {
         UiSession session = plugin.uiSessions().open(player, "mineui", "gallery");
         session.state("clicks", 0);
         session.state("dialog", false);
+        session.state("check", false);
+        session.state("check_label", "关闭");
+        session.state("tab", 0);
+        session.state("tab_name", "曲库");
         session.on("decor_click", event -> session.state("clicks", session.getInt("clicks", 0) + 1));
         session.on("open_dialog", event -> session.state("dialog", true));
         session.on("close_dialog", event -> session.state("dialog", false));
+        session.on("toggle_check", event -> {
+            boolean now = !session.getBoolean("check", false);
+            session.state("check", now);
+            session.state("check_label", now ? "开启" : "关闭");
+        });
+        session.on("toggle_switch", event -> {
+            boolean now = !session.getBoolean("check", false);
+            session.state("check", now);
+            session.state("check_label", now ? "开启" : "关闭");
+        });
+        session.on("tab_select", event -> {
+            int index = (int) Math.round(event.number("index", 0));
+            session.state("tab", index);
+            session.state("tab_name", switch (index) {
+                case 1 -> "搜索";
+                case 2 -> "队列";
+                default -> "曲库";
+            });
+        });
+        session.on("accent_demo", event -> session.state("clicks", session.getInt("clicks", 0) + 1));
         session.snapshot();
         player.sendMessage(Component.text("已打开组件画廊（/mineui gallery）", NamedTextColor.GREEN));
     }

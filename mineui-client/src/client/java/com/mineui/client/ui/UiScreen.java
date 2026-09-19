@@ -60,6 +60,8 @@ public final class UiScreen extends Screen {
     private UiNode tooltipNode;
     private long tooltipSinceNanos;
     private InputNode focusedInput;
+    /** 按下中的按钮（按下态视觉；松开清除）。 */
+    private ButtonNode pressedButton;
     private SliderNode draggingSlider;
 
     public UiScreen(UiDefinition definition) {
@@ -203,10 +205,25 @@ public final class UiScreen extends Screen {
         }
         if (hit != null && hit.clickable()) {
             playClickPop(hit);
-            ProtocolClient.sendAction(hit.action());
+            if (hit instanceof ButtonNode button) {
+                button.setPressed(true);
+                pressedButton = button;
+            }
+            ProtocolClient.sendAction(hit.action(), actionPayload(hit));
             return true;
         }
         return super.mouseClicked(event, doubled);
+    }
+
+    /** 命中节点在列表条目内时，动作负载携带条目下标：{@code {"index": n}}。 */
+    private static JsonObject actionPayload(UiNode node) {
+        int index = node.enclosingItemIndex();
+        if (index < 0) {
+            return null;
+        }
+        JsonObject payload = new JsonObject();
+        payload.addProperty("index", index);
+        return payload;
     }
 
     @Override
@@ -248,6 +265,10 @@ public final class UiScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        if (pressedButton != null) {
+            pressedButton.setPressed(false);
+            pressedButton = null;
+        }
         if (draggingSlider != null) {
             SliderNode slider = draggingSlider;
             Double value = slider.finishDrag();
@@ -255,6 +276,10 @@ public final class UiScreen extends Screen {
             if (value != null && !slider.action().isEmpty()) {
                 JsonObject payload = new JsonObject();
                 payload.addProperty("value", value);
+                int index = slider.enclosingItemIndex();
+                if (index >= 0) {
+                    payload.addProperty("index", index);
+                }
                 ProtocolClient.sendAction(slider.action(), payload);
             }
             return true;
@@ -332,6 +357,10 @@ public final class UiScreen extends Screen {
         }
         JsonObject payload = new JsonObject();
         payload.addProperty("text", input.text());
+        int index = input.enclosingItemIndex();
+        if (index >= 0) {
+            payload.addProperty("index", index);
+        }
         ProtocolClient.sendAction(input.action(), payload);
         input.clear(); // 发送后清空，便于连续发言
     }

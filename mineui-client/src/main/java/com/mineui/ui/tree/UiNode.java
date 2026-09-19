@@ -34,6 +34,10 @@ public abstract class UiNode {
     private float spinAngle;
     private long spinLastMillis;
     private boolean spinStarted;
+    /** 父节点指针（点击定位所属列表条目等场景用）。 */
+    private UiNode parent;
+    /** 所属列表条目的下标（列表重建时写入；-1 表示不在列表内）。 */
+    private int itemIndex = -1;
 
     protected UiNode(NodeStyle style) {
         this.style = style;
@@ -87,6 +91,7 @@ public abstract class UiNode {
 
     protected void addChildInternal(UiNode child) {
         children.add(child);
+        child.parent = this;
     }
 
     /** 清空子节点（列表按 items 重建时用）。 */
@@ -101,6 +106,27 @@ public abstract class UiNode {
 
     public void setStateContext(StateAccess context) {
         this.stateContext = context;
+    }
+
+    /** 所属列表条目下标（由 ListViewNode 重建时写入）。 */
+    public int getItemIndex() {
+        return itemIndex;
+    }
+
+    public void setItemIndex(int index) {
+        this.itemIndex = index;
+    }
+
+    /** 自身或祖先中最近一个列表条目的下标；不在列表内返回 -1。 */
+    public int enclosingItemIndex() {
+        UiNode cursor = this;
+        while (cursor != null) {
+            if (cursor.itemIndex >= 0) {
+                return cursor.itemIndex;
+            }
+            cursor = cursor.parent;
+        }
+        return -1;
     }
 
     /**

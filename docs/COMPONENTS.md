@@ -144,6 +144,42 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
   首次真正绘制（遮罩就绪）时从 0° 起转；烘焙中显示与加载中相同的圆角占位，不会出现"方形在转"
 - 演示：`/mineui lyrics` 页中的唱片图标（点击暂停/继续旋转）
 
+## 2.7.2 美化皮肤与控件（0.14）
+
+**程序化皮肤**（写在 `"skin":`，无素材依赖；`background` 决定面色）：
+
+| 皮肤 | 效果 |
+|---|---|
+| `mineui:bevel` | 原版式 1px bevel：1px 外描边 + 左上高光 + 右下暗边（按钮**按下自动反转**=凹陷） |
+| `mineui:inset` | 凹陷内槽（原版物品槽风格：上左暗、右下亮），适合槽位/列表容器 |
+| `mineui:grid` | 低对比 8px 网格纹理背景 |
+| `mineui:accent` | 玩家自定义强调色底（`config/mineui/theme.json` 的 `accent`，主操作按钮用） |
+
+**任意纹理 9-slice**：`"skin": "sprite9:<贴图id>#<边距>"`（边距单个数字或 `l,t,r,b`）——
+可套用任何 CC0 像素 GUI 素材包（角 1:1、边拉伸、中心拉伸；hover 用 `spriteHover` 同语法）。
+
+**主题 token**：`config/mineui/theme.json`：`{ "accent": "#FF3FA9F5", "accentHover": "..." }`；
+F9 热重载生效。强调色建议稀缺使用（一屏一个主操作）。
+
+**按钮按下态**：所有按钮自动获得（内容下沉 1px + 加深），无需页面配置。
+
+**文本增强**：
+- `"ellipsis": true`：超出节点宽度自动截断加省略号（配 `"width": "100%"` 等显式宽度）
+- `"outline": "#000000"`：1px 文字描边（亮/杂背景上关键文字的可读性）
+
+**新控件**（选中态走绑定 `{state.x}`，点击发 action）：
+- `{ "type": "checkbox", "value": "{state.check}", "action": "toggle" }`——原版 checkbox 精灵（含 hover/选中变体）
+- `{ "type": "switch", "value": "{state.check}", "action": "toggle" }`——程序化圆角开关（选中=强调色）
+- `{ "type": "tabs", "items": ["曲库","搜索","队列"], "selected": "{state.tab}", "action": "tab_select" }`——
+  原版 tab 精灵一排，点击负载 `{"index": n}`
+
+**Toast 样式**：`MineUi.toast(player, text, icon, duration, actionId, kind)`，kind = `info/success/warn/error`（顶边描边着色）。
+
+**list 动作带索引**：点击列表条目（或条目内任意可点节点/输入框提交/滑块提交）负载携带 `{"index": <条目下标>}`；
+`tabs` 点击同样带 `{"index": 页下标}`。业务侧用 `action.number("index", -1)` 读取。
+
+**间距约定**：padding/gap 建议只用 4/8/16/24（画廊/演示页均已按此书写）。
+
 ---
 
 ## 2.8 列表 / 歌词（list）

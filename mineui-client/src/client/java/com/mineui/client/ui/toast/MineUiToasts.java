@@ -34,6 +34,16 @@ public final class MineUiToasts {
     private static final int BACKGROUND = 0xD0181818;
     private static final int BORDER = 0x40FFFFFF;
 
+    /** 各 kind 的描边色：info / success / warn / error。 */
+    private static int kindBorder(String kind) {
+        return switch (kind == null ? "info" : kind) {
+            case "success" -> 0xC03FBF6F;
+            case "warn" -> 0xC0F5C542;
+            case "error" -> 0xC0FF6666;
+            default -> 0x40FFFFFF;
+        };
+    }
+
     private static final Map<String, ItemStack> ICONS = new HashMap<>();
     private static final Deque<Active> ACTIVE = new ArrayDeque<>();
 
@@ -97,7 +107,7 @@ public final class MineUiToasts {
             int x = screenWidth - MARGIN - WIDTH;
             int y = MARGIN + i * (HEIGHT + GAP);
             graphics.fill(x, y, x + WIDTH, y + HEIGHT, UiColors.withOpacity(BACKGROUND, alpha));
-            graphics.fill(x, y, x + WIDTH, y + 1, UiColors.withOpacity(BORDER, alpha));
+            graphics.fill(x, y, x + WIDTH, y + 1, UiColors.withOpacity(kindBorder(active.toast().kind()), alpha));
             int textX = x + 6;
             ItemStack icon = icon(active.toast().icon());
             if (!icon.isEmpty()) {

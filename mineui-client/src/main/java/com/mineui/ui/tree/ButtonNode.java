@@ -8,6 +8,8 @@ public final class ButtonNode extends UiNode {
     private final int background;
     private final int hoverBackground;
     private final int textColor;
+    /** 按下态（鼠标按住期间）：渲染时反转 bevel/加深并下沉 1px。 */
+    private boolean pressed;
 
     public ButtonNode(NodeStyle style, String template, String action,
                       int background, int hoverBackground, int textColor) {
@@ -26,6 +28,14 @@ public final class ButtonNode extends UiNode {
     @Override
     public String action() {
         return action.isEmpty() ? super.action() : action;
+    }
+
+    public boolean pressed() {
+        return pressed;
+    }
+
+    public void setPressed(boolean pressed) {
+        this.pressed = pressed;
     }
 
     public int background() {

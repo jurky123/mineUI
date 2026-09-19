@@ -67,6 +67,7 @@ public final class MineUiScreens {
     /** F9：清缓存并重新加载当前界面（开发目录覆盖优先）。 */
     public static void reload() {
         UiDefinitionLoader.clearCache();
+        com.mineui.client.MineUiTheme.load();
         UiScreen screen = current;
         if (screen == null) {
             chat("[MineUI] 没有打开的界面，无法重载");

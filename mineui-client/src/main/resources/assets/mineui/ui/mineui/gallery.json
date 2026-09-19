@@ -28,6 +28,44 @@
                 { "type": "text", "text": "MineUI 组件画廊", "color": "#FFFFFF", "align": "center" },
                 { "type": "text", "text": "装饰 / 交互 / 轮换 均由声明式 JSON 驱动", "color": "#A0A0A0", "align": "center" },
 
+
+                { "type": "text", "text": "美化组件（0.14：bevel / 内槽 / 网格 / 强调 / 9-slice / 开关 / 复选 / 页签）", "color": "#FFD966" },
+                {
+                  "type": "row",
+                  "gap": 8,
+                  "align": "center",
+                  "children": [
+                    { "type": "stack", "skin": "mineui:bevel", "width": 90, "height": 18,
+                      "background": "#FFC6C6C6",
+                      "children": [ { "type": "text", "text": "bevel", "color": "#FF404040", "align": "center", "width": "100%", "height": "100%", "justify": "center" } ] },
+                    { "type": "stack", "skin": "mineui:inset", "width": 90, "height": 18,
+                      "children": [ { "type": "text", "text": "inset", "color": "#FFC8C8C8", "align": "center", "width": "100%", "height": "100%", "justify": "center" } ] },
+                    { "type": "stack", "skin": "mineui:grid", "width": 90, "height": 18,
+                      "children": [ { "type": "text", "text": "grid", "color": "#FF9FB0C0", "align": "center", "width": "100%", "height": "100%", "justify": "center" } ] },
+                    { "type": "button", "skin": "mineui:accent", "text": "accent", "action": "accent_demo", "width": 90 }
+                  ]
+                },
+                {
+                  "type": "row",
+                  "gap": 8,
+                  "align": "center",
+                  "children": [
+                    { "type": "checkbox", "value": "{state.check}", "action": "toggle_check",
+                      "tooltip": "点击切换（服务端权威）" },
+                    { "type": "text", "text": "{state.check_label}", "color": "#E0E0E0" },
+                    { "type": "switch", "value": "{state.check}", "action": "toggle_switch",
+                      "tooltip": "开关" },
+                    { "type": "text", "text": "ellipsize 测试：这条超长文本在固定宽度下会自动截断加省略号而不是贯通屏幕", "color": "#9FB0C0", "width": 150, "ellipsis": true }
+                  ]
+                },
+                {
+                  "type": "tabs",
+                  "items": ["曲库", "搜索", "队列"],
+                  "selected": "{state.tab}",
+                  "action": "tab_select",
+                  "width": 240
+                },
+                { "type": "text", "text": "选中页签：{state.tab_name}（点击页签触发 action 带 index）", "color": "#9FB0C0" },
                 { "type": "text", "text": "物品与头颅装饰", "color": "#FFD966" },
                 {
                   "type": "row",

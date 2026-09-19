@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.mineui.ui.tree.Bindings;
 import com.mineui.ui.tree.ButtonNode;
 import com.mineui.ui.tree.BoxNode;
+import com.mineui.ui.tree.CheckboxNode;
 import com.mineui.ui.tree.ColumnNode;
 import com.mineui.ui.tree.ContainerNode;
 import com.mineui.ui.tree.CrossAlign;
@@ -22,6 +23,8 @@ import com.mineui.ui.tree.ProgressNode;
 import com.mineui.ui.tree.RowNode;
 import com.mineui.ui.tree.ScrollViewNode;
 import com.mineui.ui.tree.SliderNode;
+import com.mineui.ui.tree.SwitchNode;
+import com.mineui.ui.tree.TabsNode;
 import com.mineui.ui.tree.StackNode;
 import com.mineui.ui.tree.TextNode;
 import com.mineui.ui.tree.UiNode;
@@ -60,7 +63,9 @@ public final class UiSpecParser {
             case "text" -> new TextNode(style,
                     optString(json, "text", ""),
                     parseColor(json.get("color"), 0xFFFFFFFF),
-                    optFloat(json, "scale", 1f));
+                    optFloat(json, "scale", 1f),
+                    optBool(json, "ellipsis", false),
+                    json.has("outline") ? parseColor(json.get("outline"), 0) : 0);
             case "button" -> new ButtonNode(style,
                     optString(json, "text", ""),
                     optString(json, "action", ""),
@@ -107,6 +112,16 @@ public final class UiSpecParser {
                     optDouble(json, "step", 0),
                     BooleanSpec.parse(json.get("enabled")));
             case "progress" -> parseProgress(json, style);
+            case "checkbox" -> new CheckboxNode(style,
+                    BooleanSpec.parse(json.get("value")),
+                    optString(json, "action", ""));
+            case "switch" -> new SwitchNode(style,
+                    BooleanSpec.parse(json.get("value")),
+                    optString(json, "action", ""));
+            case "tabs" -> new TabsNode(style,
+                    parseStringList(json, "items"),
+                    DoubleSpec.parse(json.get("selected"), 0),
+                    optString(json, "action", ""));
             default -> throw new UiSpecException("未知节点类型: " + type);
         };
 
@@ -326,7 +341,9 @@ public final class UiSpecParser {
                 optFloat(json, "regionWidth", 0f),
                 optFloat(json, "regionHeight", 0f),
                 textureWidth, textureHeight,
-                optString(json, "sha256", null));
+                optString(json, "sha256", null),
+                json.has("tint") && !json.get("tint").isJsonNull()
+                        ? parseColor(json.get("tint"), 0xFFFFFFFF) : 0);
     }
 
     public static int parseColor(JsonElement element, int fallback) throws UiSpecException {

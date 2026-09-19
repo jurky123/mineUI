@@ -102,7 +102,12 @@ public interface MineUi {
 
     /** 便捷下发（无图标、指定时长、不可点击、默认白色）。 */
     default void toast(Player player, String text, int durationMillis) {
-        toast(player, new com.mineui.protocol.msg.Toast(text, "", "", durationMillis, 0xFFFFFFFF));
+        toast(player, new com.mineui.protocol.msg.Toast(text, "", "", durationMillis, 0xFFFFFFFF, "info"));
+    }
+
+    /** 便捷下发：样式 kind 为 info / success / warn / error（决定描边色）。 */
+    default void toast(Player player, String text, String icon, int durationMillis, String actionId, String kind) {
+        toast(player, new com.mineui.protocol.msg.Toast(text, icon, actionId, durationMillis, 0xFFFFFFFF, kind));
     }
 
     /**
