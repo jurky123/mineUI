@@ -31,6 +31,12 @@ public final class PaperMineUi implements MineUi {
     }
 
     @Override
+    public String modVersion(Player player) {
+        SessionManager.ClientSession session = plugin.sessions().get(player.getUniqueId());
+        return session == null ? null : session.modVersion();
+    }
+
+    @Override
     public MineUiSession open(Plugin owner, Player player, String app, String view, JsonObject definition) {
         return plugin.uiSessions().open(owner, player, app, view, definition);
     }

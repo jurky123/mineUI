@@ -43,6 +43,14 @@ public interface MineUi {
     Set<String> capabilities(Player player);
 
     /**
+     * 客户端 mod 版本（如 {@code "0.14.0"}）；未握手时返回 null。
+     * 业务下发新控件页面前可用它做版本门禁（配合 {@code com.mineui.protocol.SemVer} 比较）。
+     */
+    default String modVersion(Player player) {
+        return null;
+    }
+
+    /**
      * 客户端是否支持随 OPEN 下发界面定义。
      * 业务插件应先确认该能力，不支持时回退到原版界面或提示，避免开出一个加载失败的页面。
      */
@@ -113,6 +121,9 @@ public interface MineUi {
     /**
      * 注册全局动作处理器（session=0 的 ACTION）：Toast 点击、键位等无会话操作。
      * 同一 owner 对同一 id 重复注册会覆盖；owner 插件停用时自动清理。
+     * <p>
+     * 命名约定：不同插件注册同名 id 会<b>全部触发</b>（并记冲突警告），
+     * 因此 actionId 必须带插件命名空间，如 {@code "mineaudio:open_ui"}。
      */
     void onAction(Plugin owner, String actionId, java.util.function.Consumer<MineUiAction> handler);
 

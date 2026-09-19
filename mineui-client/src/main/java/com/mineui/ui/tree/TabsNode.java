@@ -18,6 +18,11 @@ public final class TabsNode extends UiNode {
     private final List<Float> itemWidths = new ArrayList<>();
     private int selectedIndex;
     private int clickedIndex = -1;
+    /**
+     * 控件值（与 ListViewNode 写入的条目身份 {@code itemIndex} 分开）：
+     * 最近一次命中的页下标；独立列表外同样可用。
+     */
+    private int tabIndex = -1;
 
     public TabsNode(NodeStyle style, List<String> items, DoubleSpec selected, String action) {
         super(style);
@@ -39,9 +44,19 @@ public final class TabsNode extends UiNode {
         return selectedIndex;
     }
 
+    /** 绘制阶段读取选中下标（本地值变化无需等待重排即可刷新外观）。 */
+    public int selected(StateAccess state) {
+        return (int) Math.round(selected.resolve(state));
+    }
+
     /** 最近一次命中并已记录的页下标（诊断用）。 */
     public int clickedIndex() {
         return clickedIndex;
+    }
+
+    /** 控件值：最近一次命中的页下标（与条目身份分开，见 U6）。 */
+    public int tabIndex() {
+        return tabIndex;
     }
 
     @Override
@@ -79,8 +94,8 @@ public final class TabsNode extends UiNode {
         if (index < 0) {
             return null;
         }
-        // 记录点击下标：UiScreen 会把它放进动作负载 {"index": n}
-        setItemIndex(index);
+        // 控件值走 tabIndex；条目身份（itemIndex）保持 ListViewNode 的写入，不被覆盖
+        tabIndex = index;
         clickedIndex = index;
         return this;
     }

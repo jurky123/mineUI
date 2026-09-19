@@ -26,16 +26,18 @@ public final class TextFit {
         if (widthOf.applyAsInt(ellipsis) > maxWidth) {
             return "";
         }
+        // 按码位二分：不会把代理对（emoji 等）从中间截断；零宽字符不影响收敛
+        int[] codePoints = text.codePoints().toArray();
         int lo = 0;
-        int hi = text.length() - 1;
+        int hi = codePoints.length - 1;
         while (lo < hi) {
             int mid = (lo + hi + 1) / 2;
-            if (widthOf.applyAsInt(text.substring(0, mid) + ellipsis) <= maxWidth) {
+            if (widthOf.applyAsInt(new String(codePoints, 0, mid) + ellipsis) <= maxWidth) {
                 lo = mid;
             } else {
                 hi = mid - 1;
             }
         }
-        return text.substring(0, lo) + ellipsis;
+        return new String(codePoints, 0, lo) + ellipsis;
     }
 }

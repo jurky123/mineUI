@@ -70,10 +70,26 @@ class ActionIndexTest {
         // A: 1*6+16=22；BB: 2*6+16=28 → 第二页从 22 到 50
         tabs.mouseClicked(30, 10, 0);
         assertEquals(1, tabs.clickedIndex());
-        assertEquals(1, tabs.getItemIndex());
+        assertEquals(1, tabs.tabIndex(), "控件值走 tabIndex");
+        assertEquals(-1, tabs.getItemIndex(), "控件值不能覆盖条目身份");
 
         tabs.mouseClicked(10, 10, 0);
         assertEquals(0, tabs.clickedIndex());
+        assertEquals(0, tabs.tabIndex());
+    }
+
+    @Test
+    void tabsInsideListKeepsBothIdentities() {
+        StateAccess state = ListLayoutTest.state("{\"tab\": 0}");
+        TabsNode tabs = new TabsNode(style(SizeSpec.px(200), SizeSpec.px(20)), List.of("A", "BB"),
+                com.mineui.ui.spec.DoubleSpec.of(0), "tab_select");
+        tabs.measure(ctx(state));
+        tabs.layout(0, 0);
+        // 模拟 ListViewNode 把 tabs 作为第 3 个条目根
+        tabs.setItemIndex(2);
+        tabs.mouseClicked(30, 10, 0);
+        assertEquals(2, tabs.enclosingItemIndex(), "条目身份保留");
+        assertEquals(1, tabs.tabIndex(), "页签值独立");
     }
 
     @Test

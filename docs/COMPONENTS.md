@@ -176,7 +176,13 @@ F9 热重载生效。强调色建议稀缺使用（一屏一个主操作）。
 **Toast 样式**：`MineUi.toast(player, text, icon, duration, actionId, kind)`，kind = `info/success/warn/error`（顶边描边着色）。
 
 **list 动作带索引**：点击列表条目（或条目内任意可点节点/输入框提交/滑块提交）负载携带 `{"index": <条目下标>}`；
-`tabs` 点击同样带 `{"index": 页下标}`。业务侧用 `action.number("index", -1)` 读取。
+`tabs` 点击携带 `{"tab": 页下标}`（与条目身份分开，列表内的 tabs 两者兼有）。业务侧用 `action.number("index", -1)` 读取。
+
+**透明度**：所有绘制分支（含新控件/皮肤/tint/精灵/图片变体）统一乘最终 opacity；
+唯一例外是 plain 缩放 blit（26.2 公共 API 无着色版本）——着色或半透明图片自动走带色管线。
+
+**版本门禁**：`MineUi.modVersion(player)` 返回客户端版本（未握手为 null），
+配合 `com.mineui.protocol.SemVer` 比较；客户端低于服务端 `minimumClient` 时游戏内提示更新一次。
 
 **间距约定**：padding/gap 建议只用 4/8/16/24（画廊/演示页均已按此书写）。
 
@@ -263,6 +269,13 @@ F9 热重载生效。强调色建议稀缺使用（一屏一个主操作）。
 ```java
 session.on("decor_click", action -> session.state("clicks", session.getInt("clicks", 0) + 1));
 ```
+
+## 3.1 状态同步：去重与批量
+
+- `state()` 设置相等值时不发 PATCH（Gson 数值语义）；高频重复推送不会产生网络包
+- `session.batch(() -> { ... })` 把多次 `state()` 合并成一个 PATCH（按字段去重，保留最后一次）；
+  批内重复写入新字段时保留第一次的 `add`/`replace` 语义，保证客户端可应用
+- 动作处理器内的状态修改默认按批合并；处理器未改状态时发空 PATCH 同步修订号
 
 ---
 

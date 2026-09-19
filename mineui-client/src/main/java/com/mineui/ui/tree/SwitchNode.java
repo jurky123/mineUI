@@ -29,6 +29,11 @@ public final class SwitchNode extends UiNode {
         return checkedNow;
     }
 
+    /** 绘制阶段读取（本地值变化无需等待重排即可刷新外观）。 */
+    public boolean checked(StateAccess state) {
+        return value.test(state);
+    }
+
     @Override
     public void measure(MeasureContext context) {
         if (!evaluateVisible(context.state())) {

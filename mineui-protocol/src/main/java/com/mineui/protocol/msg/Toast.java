@@ -24,6 +24,14 @@ public record Toast(String text, String icon, String action, int durationMillis,
         kind = normalizeKind(kind);
     }
 
+    /**
+     * 向后兼容构造器（0.13.x 及更早的业务插件）：样式默认 {@code "info"}。
+     * 新增字段必须走此模式（旧构造器逐个保留），避免旧业务报 NoSuchMethodError。
+     */
+    public Toast(String text, String icon, String action, int durationMillis, int color) {
+        this(text, icon, action, durationMillis, color, "info");
+    }
+
     private static String normalizeKind(String kind) {
         if (kind == null) {
             return "info";

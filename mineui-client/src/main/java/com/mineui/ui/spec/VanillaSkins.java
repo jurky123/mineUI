@@ -45,6 +45,19 @@ public final class VanillaSkins {
         put("mineui:glass_dense", """
                 { "background": "#A00B1017", "radius": 6, "padding": 10 }
                 """);
+        // 美化程序化皮肤：把 skin 透传为同名 sprite，由渲染器程序化绘制（面色取 background）
+        put("mineui:bevel", """
+                { "sprite": "mineui:bevel" }
+                """);
+        put("mineui:inset", """
+                { "sprite": "mineui:inset", "padding": 2 }
+                """);
+        put("mineui:grid", """
+                { "sprite": "mineui:grid" }
+                """);
+        put("mineui:accent", """
+                { "sprite": "mineui:accent" }
+                """);
     }
 
     private VanillaSkins() {
@@ -68,6 +81,12 @@ public final class VanillaSkins {
             } else {
                 skin = "mineui:" + skin;
             }
+        }
+        if (skin.startsWith("sprite9:")) {
+            // 任意纹理 9-slice：把整串透传到 sprite 字段，由渲染器切片（格式见 COMPONENTS 2.7.2）
+            JsonObject merged = json.deepCopy();
+            merged.addProperty("sprite", skin);
+            return merged;
         }
         JsonObject defaults = SKINS.get(skin);
         if (defaults == null) {

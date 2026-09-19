@@ -110,7 +110,14 @@ public final class UiSession implements MineUiSession {
         }
         PatchOp op = existed ? PatchOp.replace(pointer(key), next) : PatchOp.add(pointer(key), next);
         if (batching) {
-            pendingOps.put(key, op);
+            PatchOp first = pendingOps.get(key);
+            if (first != null) {
+                // 同一批内重复写入：保留第一次的操作类型（由批次开始时客户端的真实状态决定），只更新值。
+                // 否则 add 会被后来的 replace 覆盖，客户端因缺少该路径而无法应用 PATCH。
+                pendingOps.put(key, new PatchOp(first.op(), first.path(), next));
+            } else {
+                pendingOps.put(key, op);
+            }
         } else {
             sendPatch(List.of(op));
         }

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 图片遮罩变体烘焙：把圆角/圆形 alpha 遮罩**预烘焙**成新纹理（一次），渲染时仍是单次 blit。
@@ -28,12 +29,15 @@ public final class ImageMasks {
         FAILED
     }
 
-    /** 遮罩变体状态：LOADING（烘焙中，渲染器画圆角占位且不推进旋转时钟）、READY（可 blit）、FAILED（回退原图）。 */
+    /** 变体状态：LOADING（烘焙中，渲染器画圆角占位且不推进旋转时钟）、READY（可 blit）、FAILED（回退原图）。 */
     public record Variant(State state, Identifier texture) {
     }
 
     private record Entry(State state, Identifier texture) {
     }
+
+    /** 烘焙源字节上限（与远程下载硬上限一致，防止解码巨型资源）。 */
+    static final long MAX_SOURCE_BYTES = 4L * 1024 * 1024;
 
     private static final Map<String, Entry> CACHE = new ConcurrentHashMap<>();
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
@@ -41,27 +45,33 @@ public final class ImageMasks {
         thread.setDaemon(true);
         return thread;
     });
+    /** 连接代际：reset() 自增；在途烘焙完成后若代际已变则直接丢弃。 */
+    private static final AtomicInteger GENERATION = new AtomicInteger();
 
     private ImageMasks() {
     }
 
-    /** 远程图片遮罩变体；LOADING/FAILED 时 texture 为 null。 */
-    public static Variant remote(String url, float nodeWidth, float nodeHeight, float radius) {
-        return lookup(key("remote", url, nodeWidth, nodeHeight, radius),
+    /** 远程图片变体（遮罩和/或着色）；LOADING/FAILED 时 texture 为 null。 */
+    public static Variant remote(String url, float nodeWidth, float nodeHeight, float radius, int tint) {
+        return lookup(key("remote", url, nodeWidth, nodeHeight, radius, tint),
                 () -> {
                     byte[] raw = RemoteImages.cachedBytes(url);
-                    return raw == null ? null : RemoteImages.decodeBytes(raw);
-                }, nodeWidth, radius);
+                    if (raw == null || raw.length > MAX_SOURCE_BYTES) {
+                        return null;
+                    }
+                    return RemoteImages.decodeBytes(raw);
+                }, nodeWidth, radius, tint, GENERATION.get());
     }
 
-    /** 本地资源图片遮罩变体；不支持（精灵/读取失败）为 FAILED。 */
-    public static Variant local(Identifier source, float nodeWidth, float nodeHeight, float radius) {
-        return lookup(key("local", source.toString(), nodeWidth, nodeHeight, radius),
-                () -> readResource(source), nodeWidth, radius);
+    /** 本地资源图片变体；不支持（精灵/读取失败）为 FAILED。 */
+    public static Variant local(Identifier source, float nodeWidth, float nodeHeight, float radius, int tint) {
+        return lookup(key("local", source.toString(), nodeWidth, nodeHeight, radius, tint),
+                () -> readResource(source), nodeWidth, radius, tint, GENERATION.get());
     }
 
-    /** 断线/切服：释放遮罩纹理句柄并清空缓存。 */
+    /** 断线/切服：先作废代际，再释放纹理句柄并清空缓存。 */
     public static void reset() {
+        GENERATION.incrementAndGet();
         Minecraft minecraft = Minecraft.getInstance();
         for (Entry entry : CACHE.values()) {
             if (entry.state() == State.READY && minecraft != null) {
@@ -81,48 +91,93 @@ public final class ImageMasks {
         NativeImage load() throws Exception;
     }
 
-    private static Variant lookup(String key, SourceLoader loader, float nodeWidth, float radius) {
+    /** 代际是否已过期（断线/切服发生）。 */
+    private static boolean stale(int generation) {
+        return generation != GENERATION.get();
+    }
+
+    private static void fail(String key, int generation) {
+        if (!stale(generation)) {
+            CACHE.put(key, new Entry(State.FAILED, null));
+        }
+    }
+
+    private static Variant lookup(String key, SourceLoader loader, float nodeWidth, float radius, int tint,
+                                  int generation) {
         Entry cached = CACHE.get(key);
         if (cached != null) {
             return new Variant(cached.state(), cached.texture());
         }
         CACHE.put(key, new Entry(State.LOADING, null));
-        EXECUTOR.execute(() -> bake(key, loader, nodeWidth, radius));
+        EXECUTOR.execute(() -> bake(key, loader, nodeWidth, radius, tint, generation));
         return new Variant(State.LOADING, null);
     }
 
-    private static void bake(String key, SourceLoader loader, float nodeWidth, float radius) {
+    private static void bake(String key, SourceLoader loader, float nodeWidth, float radius, int tint,
+                             int generation) {
+        NativeImage source = null;
+        NativeImage image = null;
         try {
-            NativeImage source = loader.load();
-            int maskRadius = ImageMaskMath.maskRadius(radius, nodeWidth,
-                    source.getWidth(), source.getHeight());
-            int[] masked = ImageMaskMath.apply(source.getPixels(),
+            if (stale(generation)) {
+                return;
+            }
+            source = loader.load();
+            if (source == null || stale(generation)) {
+                return;
+            }
+            int maskRadius = radius > 0.5f
+                    ? ImageMaskMath.maskRadius(radius, nodeWidth, source.getWidth(), source.getHeight())
+                    : 0;
+            int[] pixels = ImageMaskMath.apply(source.getPixels(),
                     source.getWidth(), source.getHeight(), maskRadius);
-            NativeImage image = new NativeImage(source.getWidth(), source.getHeight(), true);
+            if (tint != 0) {
+                pixels = ImageMaskMath.tint(pixels, tint);
+            }
+            if (stale(generation)) {
+                return;
+            }
+            image = new NativeImage(source.getWidth(), source.getHeight(), true);
             image.copyFrom(source);
             for (int y = 0; y < image.getHeight(); y++) {
                 for (int x = 0; x < image.getWidth(); x++) {
-                    image.setPixel(x, y, masked[y * image.getWidth() + x]);
+                    image.setPixel(x, y, pixels[y * image.getWidth() + x]);
                 }
             }
-            Minecraft.getInstance().execute(() -> register(key, image));
+            NativeImage done = image;
+            image = null;
+            Minecraft.getInstance().execute(() -> register(key, done, generation));
         } catch (Throwable t) {
-            CACHE.put(key, new Entry(State.FAILED, null));
-            MineUiClient.LOGGER.debug("遮罩烘焙失败（{}）: {}", key, t.toString());
+            fail(key, generation);
+            MineUiClient.LOGGER.debug("变体烘焙失败（{}）: {}", key, t.toString());
+        } finally {
+            if (source != null) {
+                source.close();
+            }
+            if (image != null) {
+                image.close();
+            }
         }
     }
 
-    private static void register(String key, NativeImage image) {
+    private static void register(String key, NativeImage image, int generation) {
+        if (stale(generation)) {
+            image.close();
+            return;
+        }
         try {
             Identifier id = Identifier.fromNamespaceAndPath("mineui",
                     "image_mask/" + sha1Hex(key));
-            DynamicTexture texture = new DynamicTexture(() -> "MineUI masked image", image);
+            DynamicTexture texture = new DynamicTexture(() -> "MineUI image variant", image);
             Minecraft.getInstance().getTextureManager().register(id, texture);
-            CACHE.put(key, new Entry(State.READY, id));
+            if (!stale(generation)) {
+                CACHE.put(key, new Entry(State.READY, id));
+            } else {
+                Minecraft.getInstance().getTextureManager().release(id);
+            }
         } catch (Exception e) {
             image.close();
-            CACHE.put(key, new Entry(State.FAILED, null));
-            MineUiClient.LOGGER.debug("遮罩纹理注册失败（{}）: {}", key, e.getMessage());
+            fail(key, generation);
+            MineUiClient.LOGGER.debug("变体纹理注册失败（{}）: {}", key, e.getMessage());
         }
     }
 
@@ -136,9 +191,10 @@ public final class ImageMasks {
         }
     }
 
-    private static String key(String kind, String source, float nodeWidth, float nodeHeight, float radius) {
+    private static String key(String kind, String source, float nodeWidth, float nodeHeight,
+                              float radius, int tint) {
         return kind + "|" + source + "|w" + Math.round(nodeWidth) + "x" + Math.round(nodeHeight)
-                + "|r" + Math.round(radius);
+                + "|r" + Math.round(radius) + "|t" + String.format("%08x", tint);
     }
 
     private static String sha1Hex(String value) {

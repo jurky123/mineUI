@@ -297,6 +297,13 @@ public final class ProtocolClient {
             player.sendSystemMessage(Component.literal(
                     "[MineUI] 已连接服务端 v" + ack.serverVersion()
                             + "（protocol " + ack.protocol() + "）· 客户端 v" + MineUiClient.version()));
+            if (com.mineui.protocol.SemVer.isOlder(MineUiClient.version(), ack.minimumClient())) {
+                MineUiClient.LOGGER.warn("客户端版本 {} 低于服务端要求的 {}，新页面/控件可能无法显示，请更新",
+                        MineUiClient.version(), ack.minimumClient());
+                player.sendSystemMessage(Component.literal(
+                        "[MineUI] 你的客户端版本过旧（需要 " + ack.minimumClient()
+                                + "），部分新页面可能无法显示，请更新客户端"));
+            }
         }
     }
 }

@@ -205,9 +205,9 @@ public final class UiTreeRenderer {
             case InputNode input -> renderInput(input, opacity);
             case SliderNode slider -> renderSlider(slider, opacity);
             case ProgressNode progress -> renderProgress(progress, opacity);
-            case CheckboxNode checkbox -> renderCheckbox(checkbox);
-            case SwitchNode switchNode -> renderSwitch(switchNode);
-            case TabsNode tabs -> renderTabs(tabs);
+            case CheckboxNode checkbox -> renderCheckbox(checkbox, opacity);
+            case SwitchNode switchNode -> renderSwitch(switchNode, opacity);
+            case TabsNode tabs -> renderTabs(tabs, opacity);
             case BoxNode box -> drawSurface(box, opacity);
             default -> {
             }
@@ -237,40 +237,40 @@ public final class UiTreeRenderer {
         return style.sprite();
     }
 
-    private boolean drawSpriteBackground(UiNode node) {
-        return drawSpriteBackground(node, 0);
+    private boolean drawSpriteBackground(UiNode node, float opacity) {
+        return drawSpriteBackground(node, 0, opacity);
     }
 
     /**
      * 背景精灵：支持原版九宫格精灵，以及程序化皮肤（bevel/inset/grid/accent）
      * 与任意纹理 9-slice（{@code sprite9:<id>#<边距>}）。返回 true 表示已绘制。
      */
-    private boolean drawSpriteBackground(UiNode node, int dy) {
+    private boolean drawSpriteBackground(UiNode node, int dy, float opacity) {
         String sprite = effectiveSprite(node);
         if (sprite == null || sprite.isEmpty()) {
             return false;
         }
         switch (sprite) {
             case "mineui:bevel" -> {
-                drawBevel(node, dy, node instanceof ButtonNode button && button.pressed());
+                drawBevel(node, dy, node instanceof ButtonNode button && button.pressed(), opacity);
                 return true;
             }
             case "mineui:inset" -> {
-                drawInset(node);
+                drawInset(node, opacity);
                 return true;
             }
             case "mineui:grid" -> {
-                drawGrid(node);
+                drawGrid(node, opacity);
                 return true;
             }
             case "mineui:accent" -> {
                 painter.fillRounded(node.x(), node.y() + dy, node.width(), node.height(),
-                        node.style().radius(), MineUiTheme.accent(), 1f);
+                        node.style().radius(), MineUiTheme.accent(), opacity);
                 return true;
             }
             default -> {
                 if (sprite.startsWith("sprite9:")) {
-                    return drawSprite9(node, sprite, dy);
+                    return drawSprite9(node, sprite, dy, opacity);
                 }
             }
         }
@@ -280,17 +280,19 @@ public final class UiTreeRenderer {
         }
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, id,
                 Math.round(node.x()), Math.round(node.y() + dy),
-                Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
+                Math.round(node.width()), Math.round(node.height()),
+                UiColors.withOpacity(0xFFFFFFFF, opacity));
         return true;
     }
 
     /** 原版式 1px bevel：外描边 + 左上高光 + 右下暗边（pressed 反转 = 凹陷）。 */
-    private void drawBevel(UiNode node, int dy, boolean inverted) {
+    private void drawBevel(UiNode node, int dy, boolean inverted, float opacity) {
         NodeStyle style = node.style();
-        int face = style.background() == null ? 0xFFC6C6C6 : style.background();
-        int highlight = UiColors.lerp(face, 0xFFFFFFFF, 0.45f);
-        int shadow = UiColors.lerp(face, 0xFF000000, 0.45f);
-        int outline = UiColors.lerp(face, 0xFF000000, 0.75f);
+        int raw = style.background() == null ? 0xFFC6C6C6 : style.background();
+        int face = UiColors.withOpacity(raw, opacity);
+        int highlight = UiColors.withOpacity(UiColors.lerp(raw, 0xFFFFFFFF, 0.45f), opacity);
+        int shadow = UiColors.withOpacity(UiColors.lerp(raw, 0xFF000000, 0.45f), opacity);
+        int outline = UiColors.withOpacity(UiColors.lerp(raw, 0xFF000000, 0.75f), opacity);
         int x = Math.round(node.x());
         int y = Math.round(node.y()) + dy;
         int w = Math.round(node.width());
@@ -319,16 +321,16 @@ public final class UiTreeRenderer {
     }
 
     /** 凹陷内槽（原版物品槽风格）：面向下 + 上左暗、右下亮。 */
-    private void drawInset(UiNode node) {
+    private void drawInset(UiNode node, float opacity) {
         NodeStyle style = node.style();
-        int face = style.background() == null ? 0xFF8B8B8B : style.background();
+        int raw = style.background() == null ? 0xFF8B8B8B : style.background();
         int x = Math.round(node.x());
         int y = Math.round(node.y());
         int w = Math.round(node.width());
         int h = Math.round(node.height());
-        int faceDark = UiColors.lerp(face, 0xFF000000, 0.55f);
-        int faceLight = UiColors.lerp(face, 0xFFFFFFFF, 0.35f);
-        painter.fillRounded(x, y, w, h, Math.max(0f, style.radius()), face, 1f);
+        int faceDark = UiColors.withOpacity(UiColors.lerp(raw, 0xFF000000, 0.55f), opacity);
+        int faceLight = UiColors.withOpacity(UiColors.lerp(raw, 0xFFFFFFFF, 0.35f), opacity);
+        painter.fillRounded(x, y, w, h, Math.max(0f, style.radius()), raw, opacity);
         graphics.fill(x, y, x + w, y + 1, faceDark);
         graphics.fill(x, y, x + 1, y + h, faceDark);
         graphics.fill(x, y + h - 1, x + w, y + h, faceLight);
@@ -336,19 +338,20 @@ public final class UiTreeRenderer {
     }
 
     /** 低对比网格背景（8px 网格线）。 */
-    private void drawGrid(UiNode node) {
+    private void drawGrid(UiNode node, float opacity) {
         NodeStyle style = node.style();
         int face = style.background() == null ? 0xFF0E141B : style.background();
         int x = Math.round(node.x());
         int y = Math.round(node.y());
         int w = Math.round(node.width());
         int h = Math.round(node.height());
-        painter.fillRounded(x, y, w, h, Math.max(0f, style.radius()), face, 1f);
+        painter.fillRounded(x, y, w, h, Math.max(0f, style.radius()), face, opacity);
+        int line = UiColors.withOpacity(0x14FFFFFF, opacity);
         for (int gx = x; gx <= x + w; gx += 8) {
-            graphics.fill(gx, y, gx + 1, y + h, UiColors.withOpacity(0x14FFFFFF, 1f));
+            graphics.fill(gx, y, gx + 1, y + h, line);
         }
         for (int gy = y; gy <= y + h; gy += 8) {
-            graphics.fill(x, gy, x + w, gy + 1, UiColors.withOpacity(0x14FFFFFF, 1f));
+            graphics.fill(x, gy, x + w, gy + 1, line);
         }
     }
 
@@ -356,7 +359,7 @@ public final class UiTreeRenderer {
      * 任意纹理 9-slice：{@code sprite9:<贴图id>#<边距>}。
      * 边距为单个数字（四边同值）或 {@code l,t,r,b}；角 1:1、边单向拉伸、中心双向拉伸。
      */
-    private boolean drawSprite9(UiNode node, String sprite, int dy) {
+    private boolean drawSprite9(UiNode node, String sprite, int dy, float opacity) {
         int hash = sprite.indexOf('#');
         if (hash <= "sprite9:".length()) {
             return false;
@@ -381,6 +384,7 @@ public final class UiTreeRenderer {
         if (dims[0] <= 0 || dims[1] <= 0) {
             return false;
         }
+        int color = UiColors.withOpacity(0xFFFFFFFF, opacity);
         float uA = (float) l / dims[0];
         float uB = (float) (dims[0] - r) / dims[0];
         float vA = (float) t / dims[1];
@@ -388,23 +392,30 @@ public final class UiTreeRenderer {
         float xm1 = x + l, xm2 = x + w - r;
         float ym1 = y + t, ym2 = y + h - b;
         // 角（1:1）
-        blitRegion(id, x, y, xm1, ym1, 0f, uA, 0f, vA);
-        blitRegion(id, xm2, y, x + w, ym1, uB, 1f, 0f, vA);
-        blitRegion(id, x, ym2, xm1, y + h, 0f, uA, vB, 1f);
-        blitRegion(id, xm2, ym2, x + w, y + h, uB, 1f, vB, 1f);
+        blitRegion(id, dims, x, y, xm1, ym1, 0f, uA, 0f, vA, color);
+        blitRegion(id, dims, xm2, y, x + w, ym1, uB, 1f, 0f, vA, color);
+        blitRegion(id, dims, x, ym2, xm1, y + h, 0f, uA, vB, 1f, color);
+        blitRegion(id, dims, xm2, ym2, x + w, y + h, uB, 1f, vB, 1f, color);
         // 边（单向拉伸）
-        blitRegion(id, xm1, y, xm2, ym1, uA, uB, 0f, vA);
-        blitRegion(id, xm1, ym2, xm2, y + h, uA, uB, vB, 1f);
-        blitRegion(id, x, ym1, xm1, ym2, 0f, uA, vA, vB);
-        blitRegion(id, xm2, ym1, x + w, ym2, uB, 1f, vA, vB);
+        blitRegion(id, dims, xm1, y, xm2, ym1, uA, uB, 0f, vA, color);
+        blitRegion(id, dims, xm1, ym2, xm2, y + h, uA, uB, vB, 1f, color);
+        blitRegion(id, dims, x, ym1, xm1, ym2, 0f, uA, vA, vB, color);
+        blitRegion(id, dims, xm2, ym1, x + w, ym2, uB, 1f, vA, vB, color);
         // 中心（双向拉伸）
-        blitRegion(id, xm1, ym1, xm2, ym2, uA, uB, vA, vB);
+        blitRegion(id, dims, xm1, ym1, xm2, ym2, uA, uB, vA, vB, color);
         return true;
     }
 
-    private void blitRegion(Identifier id, float x0, float y0, float x1, float y1,
-                            float u0, float u1, float v0, float v1) {
-        graphics.blit(id, Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1), u0, u1, v0, v1);
+    private void blitRegion(Identifier id, int[] dims, float x0, float y0, float x1, float y1,
+                            float u0, float u1, float v0, float v1, int color) {
+        if (color == 0xFFFFFFFF) {
+            graphics.blit(id, Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1), u0, u1, v0, v1);
+            return;
+        }
+        int w = Math.round(x1) - Math.round(x0);
+        int h = Math.round(y1) - Math.round(y0);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, id, Math.round(x0), Math.round(y0),
+                Math.round(u0 * dims[0]), Math.round(v0 * dims[1]), w, h, dims[0], dims[1], color);
     }
 
     private static int[] parseInsets(String spec) {
@@ -429,7 +440,7 @@ public final class UiTreeRenderer {
             painter.shadow(node.x(), node.y(), node.width(), node.height(), style.radius(),
                     style.shadowColor(), style.shadowSize(), style.shadowOffsetY(), opacity);
         }
-        if (drawSpriteBackground(node)) {
+        if (drawSpriteBackground(node, opacity)) {
             return;
         }
         boolean cyclic = hasCycleColors(style);
@@ -473,7 +484,7 @@ public final class UiTreeRenderer {
                     style.shadowColor(), style.shadowSize(), style.shadowOffsetY(), opacity);
         }
         int pressedDy = node.pressed() ? 1 : 0;
-        if (drawSpriteBackground(node, pressedDy)) {
+        if (drawSpriteBackground(node, pressedDy, opacity)) {
             return;
         }
         int background = UiColors.lerp(node.background(), node.hoverBackground(), node.hoverProgress());
@@ -489,54 +500,58 @@ public final class UiTreeRenderer {
     private static final Identifier CHECKBOX_SPRITE = Identifier.withDefaultNamespace("widget/checkbox");
     private static final Identifier CHECKBOX_SELECTED_SPRITE = Identifier.withDefaultNamespace("widget/checkbox_selected");
 
-    private void renderCheckbox(CheckboxNode node) {
+    private void renderCheckbox(CheckboxNode node, float opacity) {
         boolean hovered = node.hovered();
-        Identifier sprite = node.checkedNow()
+        boolean checked = node.checked(state);
+        Identifier sprite = checked
                 ? (hovered ? Identifier.withDefaultNamespace("widget/checkbox_selected_highlighted")
                         : CHECKBOX_SELECTED_SPRITE)
                 : (hovered ? Identifier.withDefaultNamespace("widget/checkbox_highlighted")
                         : CHECKBOX_SPRITE);
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite,
                 Math.round(node.x()), Math.round(node.y()),
-                Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
+                Math.round(node.width()), Math.round(node.height()),
+                UiColors.withOpacity(0xFFFFFFFF, opacity));
     }
 
-    private void renderSwitch(SwitchNode node) {
+    private void renderSwitch(SwitchNode node, float opacity) {
         int x = Math.round(node.x());
         int y = Math.round(node.y());
         int w = Math.round(node.width());
         int h = Math.round(node.height());
-        int track = node.checkedNow() ? MineUiTheme.accent() : 0xFF565656;
-        int knob = node.checkedNow() ? 0xFFFFFFFF : 0xFFC6C6C6;
-        painter.fillRounded(x, y, w, h, h / 2f,
-                node.hovered() ? UiColors.lerp(track, 0xFFFFFFFF, 0.15f) : track, 1f);
+        boolean checked = node.checked(state);
+        int track = checked ? (node.hovered() ? MineUiTheme.accentHover() : MineUiTheme.accent()) : 0xFF565656;
+        int knob = checked ? 0xFFFFFFFF : 0xFFC6C6C6;
+        painter.fillRounded(x, y, w, h, h / 2f, track, opacity);
         int knobSize = Math.max(4, h - 4);
-        int knobX = node.checkedNow() ? x + w - knobSize - 2 : x + 2;
-        painter.fillRounded(knobX, y + 2, knobSize, knobSize, knobSize / 2f, knob, 1f);
+        int knobX = checked ? x + w - knobSize - 2 : x + 2;
+        painter.fillRounded(knobX, y + 2, knobSize, knobSize, knobSize / 2f, knob, opacity);
     }
 
-    private void renderTabs(TabsNode node) {
+    private void renderTabs(TabsNode node, float opacity) {
         float cursor = node.x();
+        int selected = node.selected(state);
         for (int i = 0; i < node.items().size(); i++) {
             float itemWidth = node.itemWidth(i);
             if (itemWidth <= 0) {
                 continue;
             }
-            boolean selected = i == node.selectedIndex();
+            boolean isSelected = i == selected;
             boolean hovered = node.hovered()
                     && cursor <= mouseX && mouseX < cursor + itemWidth
                     && node.y() <= mouseY && mouseY < node.y() + node.height();
-            Identifier spriteId = Identifier.tryParse(selected
+            Identifier spriteId = Identifier.tryParse(isSelected
                     ? (hovered ? "minecraft:widget/tab_selected_highlighted" : "minecraft:widget/tab_selected")
                     : (hovered ? "minecraft:widget/tab_highlighted" : "minecraft:widget/tab"));
             if (spriteId != null) {
                 graphics.blitSprite(RenderPipelines.GUI_TEXTURED, spriteId,
                         Math.round(cursor), Math.round(node.y()),
-                        Math.round(itemWidth), Math.round(node.height()), 0xFFFFFFFF);
+                        Math.round(itemWidth), Math.round(node.height()),
+                        UiColors.withOpacity(0xFFFFFFFF, opacity));
             }
             String label = Bindings.resolve(node.items().get(i), state);
             int textWidth = font.width(label);
-            int argb = UiColors.withOpacity(selected ? 0xFFFFFFFF : 0xFFA0A0A0, 1f);
+            int argb = UiColors.withOpacity(isSelected ? 0xFFFFFFFF : 0xFFA0A0A0, opacity);
             graphics.text(font, label,
                     Math.round(cursor + (itemWidth - textWidth) / 2f),
                     Math.round(node.y() + (node.height() - font.lineHeight) / 2f), argb, true);
@@ -566,12 +581,12 @@ public final class UiTreeRenderer {
         } else {
             color = ((ButtonNode) node).textColor();
         }
+        if (node.style().cycle() != null && !node.style().cycle().colors().isEmpty()) {
+            color = node.style().cycle().colorAt(System.currentTimeMillis(), color);
+        }
         if (node instanceof TextNode textNode && textNode.outlineColor() != 0) {
             renderOutlined(node, text, textNode.outlineColor(), color, opacity, scale);
             return;
-        }
-        if (node.style().cycle() != null && !node.style().cycle().colors().isEmpty()) {
-            color = node.style().cycle().colorAt(System.currentTimeMillis(), color);
         }
         int argb = UiColors.withOpacity(color, opacity);
         if (((argb >>> 24) & 0xFF) == 0) {
@@ -651,6 +666,7 @@ public final class UiTreeRenderer {
             return true;
         }
         float radius = image.style().radius();
+        int tint = image.tint();
         String resolvedUrl = cache.resolvedTemplate(generation(), image.texture(),
                 template -> Bindings.resolve(template, state));
         if (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://")) {
@@ -658,26 +674,35 @@ public final class UiTreeRenderer {
             if (entry.state() != RemoteImages.State.READY || entry.texture() == null) {
                 return false;
             }
-            if (radius <= 0.5f) {
+            if (radius <= 0.5f && tint == 0) {
                 return true;
             }
             // READY/FAILED 视为可绘制（FAILED 回退原图），烘焙中为占位
-            return ImageMasks.remote(resolvedUrl, image.width(), image.height(), radius)
+            return ImageMasks.remote(resolvedUrl, image.width(), image.height(), radius, tint)
                     .state() != ImageMasks.State.LOADING;
         }
         java.util.Optional<RenderCache.TextureRef> reference = resolveTexture(image.texture());
         if (reference.isEmpty()) {
             return false;
         }
-        if (reference.get().sprite() || radius <= 0.5f) {
+        if (reference.get().sprite()) {
             return true;
         }
+        if (radius <= 0.5f && tint == 0) {
+            return true;
+        }
+        // 遮罩只做整图；子区域沿用原图绘制
+        int[] dims = TextureSizes.resolve(reference.get().id());
+        float dtexW = image.textureWidth() > 0f ? image.textureWidth() : dims[0];
+        float dtexH = image.textureHeight() > 0f ? image.textureHeight() : dims[1];
+        float dregionW = image.regionWidth() <= 0f ? dtexW : image.regionWidth();
+        float dregionH = image.regionHeight() <= 0f ? dtexH : image.regionHeight();
         boolean fullRegion = image.u() == 0f && image.v() == 0f
-                && image.regionWidth() <= 0f && image.regionHeight() <= 0f;
+                && dregionW >= dtexW && dregionH >= dtexH;
         if (!fullRegion) {
             return true;
         }
-        return ImageMasks.local(reference.get().id(), image.width(), image.height(), radius)
+        return ImageMasks.local(reference.get().id(), image.width(), image.height(), radius, tint)
                 .state() != ImageMasks.State.LOADING;
     }
 
@@ -689,27 +714,33 @@ public final class UiTreeRenderer {
                 template -> Bindings.resolve(template, state));
         if (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://")) {
             RemoteImages.Entry entry = RemoteImages.resolve(resolvedUrl, node.sha256());
-            if (entry.state() == RemoteImages.State.READY && entry.texture() != null) {
-                float radius = node.style().radius();
-                if (radius > 0.5f) {
-                    ImageMasks.Variant mask = ImageMasks.remote(resolvedUrl, node.width(), node.height(), radius);
-                    if (mask.state() == ImageMasks.State.READY) {
-                        blitFull(mask.texture(), node);
-                    } else if (mask.state() == ImageMasks.State.FAILED) {
-                        blitFull(entry.texture(), node);
-                    } else {
-                        // 遮罩烘焙中：与加载中相同的圆角占位，不出方形帧
-                        painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
-                                radius, 0x33FFFFFF, opacity);
-                    }
-                } else {
-                    blitFull(entry.texture(), node);
-                }
-            } else {
+            if (entry.state() != RemoteImages.State.READY || entry.texture() == null) {
                 // 加载中/失败：半透明占位，避免空白闪烁
                 int color = entry.state() == RemoteImages.State.LOADING ? 0x33FFFFFF : 0x66FF4444;
                 painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
                         Math.max(0f, node.style().radius()), color, opacity);
+                return;
+            }
+            float radius = node.style().radius();
+            int tint = node.tint();
+            if (radius <= 0.5f && tint == 0) {
+                blitImage(entry.texture(), entry.width(), entry.height(), 0, 0,
+                        entry.width(), entry.height(), node, opacity);
+                return;
+            }
+            ImageMasks.Variant variant = ImageMasks.remote(resolvedUrl, node.width(), node.height(),
+                    radius, tint);
+            switch (variant.state()) {
+                case READY -> blitImage(variant.texture(), entry.width(), entry.height(), 0, 0,
+                        entry.width(), entry.height(), node, opacity);
+                case FAILED ->
+                        // 烘焙失败：回退未遮罩/未着色原图
+                        blitImage(entry.texture(), entry.width(), entry.height(), 0, 0,
+                                entry.width(), entry.height(), node, opacity);
+                default ->
+                        // 烘焙中：与加载中相同的圆角占位，不出方形帧
+                        painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
+                                radius, 0x33FFFFFF, opacity);
             }
             return;
         }
@@ -719,83 +750,68 @@ public final class UiTreeRenderer {
         }
         RenderCache.TextureRef reference = resolved.get();
         if (reference.sprite()) {
+            int base = node.tint() != 0 ? node.tint() : 0xFFFFFFFF;
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, reference.id(),
                     Math.round(node.x()), Math.round(node.y()),
-                    Math.round(node.width()), Math.round(node.height()), 0xFFFFFFFF);
+                    Math.round(node.width()), Math.round(node.height()),
+                    UiColors.withOpacity(base, opacity));
             return;
         }
         Identifier texture = reference.id();
-        float texW = node.textureWidth();
-        float texH = node.textureHeight();
-        float regionW = node.regionWidth();
-        float regionH = node.regionHeight();
-        if (texW <= 0f || texH <= 0f || regionW <= 0f || regionH <= 0f) {
-            int[] actual = TextureSizes.resolve(texture);
-            if (texW <= 0f) {
-                texW = actual[0];
-            }
-            if (texH <= 0f) {
-                texH = actual[1];
-            }
-            if (regionW <= 0f) {
-                regionW = texW;
-            }
-            if (regionH <= 0f) {
-                regionH = texH;
+        int[] actual = TextureSizes.resolve(texture);
+        float texW = node.textureWidth() > 0f ? node.textureWidth() : actual[0];
+        float texH = node.textureHeight() > 0f ? node.textureHeight() : actual[1];
+        float u = node.u();
+        float v = node.v();
+        float regionW = node.regionWidth() <= 0f ? texW : node.regionWidth();
+        float regionH = node.regionHeight() <= 0f ? texH : node.regionHeight();
+        float radius = node.style().radius();
+        int tint = node.tint();
+        boolean fullRegion = u == 0f && v == 0f
+                && regionW >= texW && regionH >= texH;
+        if ((radius > 0.5f || tint != 0) && fullRegion) {
+            ImageMasks.Variant variant = ImageMasks.local(texture, node.width(), node.height(),
+                    radius, tint);
+            switch (variant.state()) {
+                case READY -> {
+                    blitImage(variant.texture(), texW, texH, 0, 0, texW, texH, node, opacity);
+                    return;
+                }
+                case FAILED -> {
+                    // 回退原图
+                }
+                default -> {
+                    // 烘焙中：圆角占位，不出方形帧
+                    painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
+                            radius, 0x33FFFFFF, opacity);
+                    return;
+                }
             }
         }
-        float u0 = node.u() / texW;
-        float v0 = node.v() / texH;
-        float u1 = (node.u() + regionW) / texW;
-        float v1 = (node.v() + regionH) / texH;
-        boolean fullRegion = u0 == 0f && v0 == 0f && u1 == 1f && v1 == 1f;
-        if (node.style().radius() > 0.5f && fullRegion) {
-            ImageMasks.Variant mask = ImageMasks.local(texture, node.width(), node.height(),
-                    node.style().radius());
-            if (mask.state() == ImageMasks.State.READY) {
-                blitFull(mask.texture(), node);
-                return;
-            }
-            if (mask.state() == ImageMasks.State.LOADING) {
-                // 遮罩烘焙中：圆角占位，不出方形帧
-                painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
-                        node.style().radius(), 0x33FFFFFF, opacity);
-                return;
-            }
-            // FAILED：回退原图
-        }
-        // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)，不是 (u0, v0, u1, v1)
-        if (node.tint() != 0) {
-            graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
-                    Math.round(node.x()), Math.round(node.y()),
-                    Math.round(node.u()), Math.round(node.v()),
-                    Math.round(node.regionWidth()), Math.round(node.regionHeight()),
-                    (int) texW, (int) texH, UiColors.withOpacity(node.tint(), 1f));
-            return;
-        }
-        graphics.blit(texture,
-                Math.round(node.x()), Math.round(node.y()),
-                Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
-                u0, u1, v0, v1);
+        blitImage(texture, texW, texH, u, v, regionW, regionH, node, opacity);
     }
 
-    /** 整图采样 blit（遮罩/原图通用）；tint != 0 时走带色管线 blit。 */
-    private void blitFull(Identifier texture, ImageNode node) {
-        int tint = node.tint();
+    /**
+     * 统一的图片绘制：目标矩形 + 源 UV + 纹理尺寸 + 颜色（tint×opacity）一次算清。
+     * 无着色且不透明时走精确浮点 UV 快路径；否则走带色管线 blit（整数 texel）。
+     */
+    private void blitImage(Identifier texture, float texW, float texH,
+                           float u, float v, float regionW, float regionH,
+                           ImageNode node, float opacity) {
+        int tint = node.tint() != 0 ? node.tint() : 0xFFFFFFFF;
+        int color = UiColors.withOpacity(tint, opacity);
+        int x = Math.round(node.x());
+        int y = Math.round(node.y());
         int w = Math.round(node.width());
         int h = Math.round(node.height());
-        if (tint != 0) {
-            int[] dims = TextureSizes.resolve(texture);
-            graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
-                    Math.round(node.x()), Math.round(node.y()),
-                    0f, 0f, w, h, dims[0], dims[1], UiColors.withOpacity(tint, 1f));
+        if (color == 0xFFFFFFFF && texW > 0 && texH > 0) {
+            // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)，不是 (u0, v0, u1, v1)
+            graphics.blit(texture, x, y, x + w, y + h,
+                    u / texW, (u + regionW) / texW, v / texH, (v + regionH) / texH);
             return;
         }
-        // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)：整图采样为 0,1,0,1
-        graphics.blit(texture,
-                Math.round(node.x()), Math.round(node.y()),
-                Math.round(node.x() + w), Math.round(node.y() + h),
-                0f, 1f, 0f, 1f);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y,
+                Math.round(u), Math.round(v), w, h, Math.max(1, (int) texW), Math.max(1, (int) texH), color);
     }
 
     // ---------- 文本输入 ----------
@@ -1018,8 +1034,9 @@ public final class UiTreeRenderer {
         if (trackHeight <= 8f) {
             return;
         }
+        int barColor = UiColors.withOpacity(0xFFFFFFFF, opacity);
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_TRACK_SPRITE,
-                Math.round(x), Math.round(y), Math.round(barWidth), Math.round(trackHeight), 0xFFFFFFFF);
+                Math.round(x), Math.round(y), Math.round(barWidth), Math.round(trackHeight), barColor);
 
         float ratio = node.height() / node.contentHeight();
         float thumbHeight = Math.max(8f, trackHeight * ratio);
@@ -1027,7 +1044,7 @@ public final class UiTreeRenderer {
         float t = maxScroll <= 0f ? 0f : node.scrollOffset() / maxScroll;
         float thumbY = y + (trackHeight - thumbHeight) * t;
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_THUMB_SPRITE,
-                Math.round(x), Math.round(thumbY), Math.round(barWidth), Math.round(thumbHeight), 0xFFFFFFFF);
+                Math.round(x), Math.round(thumbY), Math.round(barWidth), Math.round(thumbHeight), barColor);
     }
 
     // ---------- 裁剪栈 ----------

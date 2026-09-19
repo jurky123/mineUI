@@ -20,8 +20,12 @@ public final class MineUiTheme {
 
     private static final int DEFAULT_ACCENT = 0xFF3FA9F5;
 
-    private static volatile int accent = DEFAULT_ACCENT;
-    private static volatile int accentHover = 0xFF6FC0FA;
+    /** 主题值（不可变整体，保证 accent/accentHover 成对原子更新）。 */
+    private record Theme(int accent, int accentHover) {
+    }
+
+    private static volatile Theme current =
+            new Theme(DEFAULT_ACCENT, lighten(DEFAULT_ACCENT));
     private static volatile boolean loaded;
 
     private MineUiTheme() {
@@ -30,35 +34,38 @@ public final class MineUiTheme {
     /** 重新读取主题文件（客户端初始化 / F9 热重载时调用）。 */
     public static synchronized void load() {
         Path file = configPath();
+        Theme next = current;
         if (Files.isRegularFile(file)) {
             try {
                 JsonObject json = com.google.gson.JsonParser.parseString(
                         Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
-                accent = json.has("accent")
+                int accent = json.has("accent")
                         ? parseColor(json.get("accent").getAsString(), DEFAULT_ACCENT) : DEFAULT_ACCENT;
-                accentHover = json.has("accentHover")
+                int accentHover = json.has("accentHover")
                         ? parseColor(json.get("accentHover").getAsString(),
                         com.mineui.ui.paint.UiColors.lerp(accent, 0xFFFFFFFF, 0.2f)) : lighten(accent);
+                next = new Theme(accent, accentHover);
             } catch (Exception e) {
                 MineUiClient.LOGGER.warn("读取 MineUI 主题失败，使用默认: {}", e.getMessage());
+                next = new Theme(DEFAULT_ACCENT, lighten(DEFAULT_ACCENT));
             }
         } else {
-            accent = DEFAULT_ACCENT;
-            accentHover = lighten(DEFAULT_ACCENT);
+            next = new Theme(DEFAULT_ACCENT, lighten(DEFAULT_ACCENT));
         }
+        current = next;
         loaded = true;
     }
 
     /** 页面背景强调色（皮肤 mineui:accent 使用）。 */
     public static int accent() {
         ensureLoaded();
-        return accent;
+        return current.accent();
     }
 
     /** 强调色悬停/高亮变体。 */
     public static int accentHover() {
         ensureLoaded();
-        return accentHover;
+        return current.accentHover();
     }
 
     private static void ensureLoaded() {

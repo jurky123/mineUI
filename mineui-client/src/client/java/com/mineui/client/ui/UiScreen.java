@@ -15,6 +15,7 @@ import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.MeasureContext;
 import com.mineui.ui.tree.SliderNode;
+import com.mineui.ui.tree.TabsNode;
 import com.mineui.ui.tree.TextMeasurer;
 import com.mineui.ui.tree.UiNode;
 import com.mineui.ui.util.ActionThrottle;
@@ -215,14 +216,23 @@ public final class UiScreen extends Screen {
         return super.mouseClicked(event, doubled);
     }
 
-    /** 命中节点在列表条目内时，动作负载携带条目下标：{@code {"index": n}}。 */
+    /**
+     * 动作负载：命中节点在列表条目内时携带条目下标 {@code {"index": n}}；
+     * Tabs 控件值走独立的 {@code "tab"} 字段，不覆盖条目身份。
+     */
     private static JsonObject actionPayload(UiNode node) {
         int index = node.enclosingItemIndex();
-        if (index < 0) {
+        int tab = node instanceof TabsNode tabs ? tabs.tabIndex() : -1;
+        if (index < 0 && tab < 0) {
             return null;
         }
         JsonObject payload = new JsonObject();
-        payload.addProperty("index", index);
+        if (index >= 0) {
+            payload.addProperty("index", index);
+        }
+        if (tab >= 0) {
+            payload.addProperty("tab", tab);
+        }
         return payload;
     }
 
