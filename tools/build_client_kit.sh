@@ -12,11 +12,12 @@ LOADER_VERSION="$(grep -E '^loader_version=' "$ROOT/gradle.properties" | cut -d=
 FABRIC_INSTALLER_VERSION="1.1.2"
 
 CLIENT_JAR="$ROOT/mineui-client/build/libs/mineui-client-$VERSION.jar"
+CLIENT_API_JAR="$ROOT/mineui-client-api/build/libs/mineui-client-api-$VERSION.jar"
 FABRIC_API_JAR="$CACHE/fabric-api-$FABRIC_API_VERSION.jar"
 INSTALLER_JAR="$CACHE/fabric-installer-$FABRIC_INSTALLER_VERSION.jar"
 
-if [ ! -f "$CLIENT_JAR" ]; then
-    echo "缺少客户端 jar，请先运行: ./gradlew :mineui-client:build" >&2
+if [ ! -f "$CLIENT_JAR" ] || [ ! -f "$CLIENT_API_JAR" ]; then
+    echo "缺少客户端 jar，请先运行: ./gradlew :mineui-client:build :mineui-client-api:build" >&2
     exit 1
 fi
 
@@ -38,6 +39,7 @@ fi
 
 mkdir -p "$STAGE/mods"
 cp "$CLIENT_JAR" "$STAGE/mods/"
+cp "$CLIENT_API_JAR" "$STAGE/mods/"
 cp "$FABRIC_API_JAR" "$STAGE/mods/"
 cp "$INSTALLER_JAR" "$STAGE/"
 
@@ -48,6 +50,7 @@ MineUI 客户端安装说明（v$VERSION）
 
 包内容：
 - mods/mineui-client-$VERSION.jar      MineUI 客户端 mod
+- mods/mineui-client-api-$VERSION.jar  MineUI 本地扩展点 API（业务客户端 mod 依赖它）
 - mods/fabric-api-$FABRIC_API_VERSION.jar  Fabric API（必需）
 - fabric-installer-$FABRIC_INSTALLER_VERSION.jar  Fabric 安装器（未装 Fabric 时才需要）
 - 安装说明.txt

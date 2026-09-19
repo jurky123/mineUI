@@ -32,8 +32,12 @@ public record BooleanSpec(boolean literal, String path) {
         String path = text;
         if (path.startsWith("{state.") && path.endsWith("}")) {
             path = path.substring("{state.".length(), path.length() - 1);
+        } else if (path.startsWith("{local.") && path.endsWith("}")) {
+            return new BooleanSpec(false, path.substring(1, path.length() - 1));
         } else if (path.startsWith("state.")) {
             path = path.substring("state.".length());
+        } else if (path.startsWith("local.")) {
+            return new BooleanSpec(false, path);
         }
         return new BooleanSpec(false, path);
     }

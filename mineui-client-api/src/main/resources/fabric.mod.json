@@ -1,0 +1,9 @@
+{
+	"schemaVersion": 1,
+	"id": "mineui-client-api",
+	"version": "${version}",
+	"name": "MineUI Client API",
+	"description": "MineUI 客户端本地状态/动作扩展点（纯接口，无入口点）",
+	"license": "All-Rights-Reserved",
+	"environment": "client"
+}

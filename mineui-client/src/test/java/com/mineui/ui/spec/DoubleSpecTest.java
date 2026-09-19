@@ -38,4 +38,14 @@ class DoubleSpecTest {
         DoubleSpec spec = DoubleSpec.parse(null, 9);
         assertEquals(9, spec.resolve(StateAccess.EMPTY), 0.001);
     }
+
+    @Test
+    void localBindingKeepsPrefixAndResolves() {
+        DoubleSpec spec = DoubleSpec.parse(new JsonPrimitive("{local.mineaudio.position}"), 0);
+        assertEquals("local.mineaudio.position", spec.path());
+        assertEquals(31.5, spec.resolve((path, fallback) -> "31.5"), 0.001);
+
+        DoubleSpec bare = DoubleSpec.parse(new JsonPrimitive("local.mineaudio.volume"), 0);
+        assertEquals("local.mineaudio.volume", bare.path());
+    }
 }

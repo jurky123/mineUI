@@ -164,6 +164,31 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 - 玩家加入（HELLO）后服务端全量重发声明；旧客户端能力位不含 `keybind` 时不发送
 - 演示：`/mineui keybind`（声明槽位 1 → 按下打开歌词页）
 
+## 2.11 客户端本地状态与动作（跨 mod 扩展点）
+
+页面可直接读**本地 mod** 的实时状态、并把动作**本地直连**（不经 Paper 中转），用于播放位置、
+拖动预览等需要逐帧/低延迟的场景。
+
+- 独立 artifact/mod：`mineui-client-api`（纯 Java 接口，无 MC 依赖、无入口点），随客户端包分发；
+  MineUI 客户端与业务客户端都 `compileOnly` 依赖它、运行时不 `include`（避免同 id 冲突）
+- 业务客户端注册命名空间：
+  ```java
+  MineUiClientBridge bridge = MineUiClientBridge.get();
+  bridge.register("mineaudio",
+      key -> switch (key) { case "position" -> player.position(); default -> null; },
+      (action, payload) -> { /* seek / pause / volume */ return true; });
+  ```
+- 绑定：`{local.<ns>.<key>}`（文本、`progress.value`、`slider.value`、`visible` 等均支持）；
+  每帧直接读取本地值，天然平滑，不需要 1Hz 插值
+- 动作：`"action": "local:<ns>.<action>"`（点击/悬浮/滑块提交/输入提交通用）；payload 同现有动作
+- 结构代数：`ClientStateProvider.generation()` 自增时触发一次页面重排（列表项增删等）；
+  纯数值变化不触发
+- 能力位：注册表自动上报 `local_state` / `local_action`；`declareCapability(...)` 可追加业务能力位，
+  服务端据此下发“本地版”或“服务端推送版”页面
+- 安全边界：`local.*` 只在本机解析、协议里不出现；`local:` 动作只派发同命名空间；
+  权威判定（同步/计分/权限）必须走服务端
+- 降级：旧客户端/未装 MineUI/未注册命名空间 → `{local.*}` 渲染为空、`local:` 动作忽略（不报错、不回传）
+
 ---
 
 ## 3. 交互：装饰即按钮

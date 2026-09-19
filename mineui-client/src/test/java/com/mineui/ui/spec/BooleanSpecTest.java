@@ -4,6 +4,7 @@ import com.google.gson.JsonPrimitive;
 import com.mineui.ui.tree.StateAccess;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -38,5 +39,12 @@ class BooleanSpecTest {
         BooleanSpec spec = BooleanSpec.parse(new JsonPrimitive("state.flag"));
         assertTrue(spec.test(state("true")));
         assertFalse(spec.test(state("false")));
+    }
+
+    @Test
+    void localBindingKeepsPrefix() {
+        BooleanSpec spec = BooleanSpec.parse(new JsonPrimitive("{local.mineaudio.playing}"));
+        assertEquals("local.mineaudio.playing", spec.path());
+        assertTrue(spec.test(state("true")));
     }
 }

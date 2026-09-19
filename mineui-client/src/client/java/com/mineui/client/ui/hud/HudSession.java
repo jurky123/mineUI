@@ -26,6 +26,7 @@ final class HudSession {
     private final RenderCache renderCache = new RenderCache();
 
     private int lastGeneration = -1;
+    private long lastLocalGeneration = Long.MIN_VALUE;
 
     HudSession(int id, String app, String view, String source, UiNode root, HudLayout layout) {
         this.id = id;
@@ -67,9 +68,11 @@ final class HudSession {
         float screenWidth = minecraft.getWindow().getGuiScaledWidth();
         float screenHeight = minecraft.getWindow().getGuiScaledHeight();
 
-        if (state.generation() != lastGeneration) {
+        long localGeneration = com.mineui.client.ui.local.MineUiLocalBridge.generation();
+        if (state.generation() != lastGeneration || localGeneration != lastLocalGeneration) {
             relayout(screenWidth, screenHeight, font);
             lastGeneration = state.generation();
+            lastLocalGeneration = localGeneration;
         }
 
         HudLayout layout = MineUiConfig.get().effectiveLayout(app, view, serverLayout);

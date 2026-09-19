@@ -55,6 +55,7 @@ public final class UiScreen extends Screen {
     private final RenderCache renderCache = new RenderCache();
 
     private int lastGeneration = -1;
+    private long lastLocalGeneration = Long.MIN_VALUE;
     private long lastFrameNanos;
     private UiNode tooltipNode;
     private long tooltipSinceNanos;
@@ -94,6 +95,7 @@ public final class UiScreen extends Screen {
         pulseNodes.clear();
         root.collectPulses(pulseNodes);
         lastGeneration = ProtocolClient.state().generation();
+        lastLocalGeneration = com.mineui.client.ui.local.MineUiLocalBridge.generation();
     }
 
     /** 状态变化/窗口尺寸变化后重新度量与布局（可见性、文本长度等会影响尺寸）。 */
@@ -121,8 +123,10 @@ public final class UiScreen extends Screen {
         }
 
         int generation = ProtocolClient.state().generation();
-        if (generation != lastGeneration) {
+        long localGeneration = com.mineui.client.ui.local.MineUiLocalBridge.generation();
+        if (generation != lastGeneration || localGeneration != lastLocalGeneration) {
             lastGeneration = generation;
+            lastLocalGeneration = localGeneration;
             relayout();
             for (UiNode node : pulseNodes) {
                 pulse(node);

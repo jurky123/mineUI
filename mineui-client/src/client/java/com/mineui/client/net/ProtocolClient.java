@@ -5,6 +5,7 @@ import com.mineui.client.MineUiClient;
 import com.mineui.client.ui.MineUiScreens;
 import com.mineui.client.ui.hud.MineUiHuds;
 import com.mineui.client.ui.keybind.MineUiKeybinds;
+import com.mineui.client.ui.local.MineUiLocalBridge;
 import com.mineui.client.ui.remote.RemoteImages;
 import com.mineui.client.ui.toast.MineUiToasts;
 import com.mineui.client.ui.UiStateStore;
@@ -65,11 +66,18 @@ public final class ProtocolClient {
     }
 
     public static void sendHello() {
+        List<String> capabilities = new java.util.ArrayList<>(
+                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image", "toast", "keybind"));
+        for (String capability : MineUiLocalBridge.capabilities()) {
+            if (!capabilities.contains(capability)) {
+                capabilities.add(capability);
+            }
+        }
         Hello hello = new Hello(
                 Envelope.PROTOCOL_VERSION,
                 MineUiClient.version(),
                 MineUiClient.MINECRAFT_VERSION,
-                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image", "toast", "keybind"));
+                capabilities);
         send(new Envelope(MessageType.HELLO, 0, 0, JsonCodec.encode(hello)));
     }
 
@@ -94,8 +102,14 @@ public final class ProtocolClient {
         sendAction(actionId, null);
     }
 
-    /** 发送带负载的动作（如输入框提交 {@code {"text": ...}}）。 */
+    /** 发送带负载的动作（如输入框提交 {@code {"text": ...}}）；{@code local:} 动作本地直连、不回传。 */
     public static void sendAction(String actionId, JsonObject payload) {
+        if (MineUiLocalBridge.isLocalAction(actionId)) {
+            if (!MineUiLocalBridge.dispatch(actionId.substring("local:".length()), payload)) {
+                MineUiClient.LOGGER.debug("本地动作未处理，已忽略: {}", actionId);
+            }
+            return;
+        }
         if (!STATE.active()) {
             MineUiClient.LOGGER.warn("无活动会话，忽略动作 {}", actionId);
             return;

@@ -74,7 +74,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 需要 **Minecraft 26.2**（Java 版）+ **Fabric Loader** + **Fabric API**。
 
 1. 下载最新的 MineUI 客户端安装包（含安装说明）
-2. 按说明安装 Fabric，把 `mineui-client` 与 `fabric-api` 放入 `mods/` 目录
+2. 按说明安装 Fabric，把 `mineui-client`、`mineui-client-api` 与 `fabric-api` 放入 `mods/` 目录
 3. 使用 Fabric 配置启动游戏，进入服务器
 
 进服后聊天栏出现 `[MineUI] 已连接服务端` 即安装成功。没有安装也能正常游玩，业务插件会回退到原版界面。
@@ -114,6 +114,8 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 列表：`list` 节点（items 绑定 + 任意 itemTemplate + 高亮行自动居中 + 滚轮）；`/mineui lyrics` 演示
 - ✅ Toast：服务端短提示（图标/时长）+ 界面内点击回传全局动作；`MineUi.onAction`；`/mineui toast` 演示
 - ✅ 键位：客户端通用键位池（`key.mineui.slot1..8`，改键走原版）+ 服务端 `keybind` 声明 + `{key.<action>}` 页面提示
+- ✅ 本地状态/动作扩展点：`mineui-client-api`（业务 mod 注册 `{local.<ns>.<key>}` 与 `local:<ns>.<action>`，
+  逐帧读取 + 本地直连，能力位 `local_state` / `local_action`）
 - ⏳ 标签页/下拉框等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
 

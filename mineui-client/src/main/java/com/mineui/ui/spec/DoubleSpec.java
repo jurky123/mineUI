@@ -26,8 +26,13 @@ public record DoubleSpec(double literal, String path) {
         String path = text;
         if (path.startsWith("{state.") && path.endsWith("}")) {
             path = path.substring("{state.".length(), path.length() - 1);
+        } else if (path.startsWith("{local.") && path.endsWith("}")) {
+            // 本地绑定保留 "local." 前缀，由 StateAccess 路由
+            return new DoubleSpec(fallback, path.substring(1, path.length() - 1));
         } else if (path.startsWith("state.")) {
             path = path.substring("state.".length());
+        } else if (path.startsWith("local.")) {
+            return new DoubleSpec(fallback, path);
         } else {
             try {
                 return of(Double.parseDouble(text));
