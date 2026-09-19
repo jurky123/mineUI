@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,6 +28,10 @@ public final class ImageMasks {
         FAILED
     }
 
+    /** 遮罩变体状态：LOADING（烘焙中，渲染器画圆角占位且不推进旋转时钟）、READY（可 blit）、FAILED（回退原图）。 */
+    public record Variant(State state, Identifier texture) {
+    }
+
     private record Entry(State state, Identifier texture) {
     }
 
@@ -42,8 +45,8 @@ public final class ImageMasks {
     private ImageMasks() {
     }
 
-    /** 远程图片遮罩变体；未就绪返回 empty（渲染器回退原图）。 */
-    public static Optional<Identifier> remote(String url, float nodeWidth, float nodeHeight, float radius) {
+    /** 远程图片遮罩变体；LOADING/FAILED 时 texture 为 null。 */
+    public static Variant remote(String url, float nodeWidth, float nodeHeight, float radius) {
         return lookup(key("remote", url, nodeWidth, nodeHeight, radius),
                 () -> {
                     byte[] raw = RemoteImages.cachedBytes(url);
@@ -51,8 +54,8 @@ public final class ImageMasks {
                 }, nodeWidth, radius);
     }
 
-    /** 本地资源图片遮罩变体；不支持（精灵/读取失败）返回 empty。 */
-    public static Optional<Identifier> local(Identifier source, float nodeWidth, float nodeHeight, float radius) {
+    /** 本地资源图片遮罩变体；不支持（精灵/读取失败）为 FAILED。 */
+    public static Variant local(Identifier source, float nodeWidth, float nodeHeight, float radius) {
         return lookup(key("local", source.toString(), nodeWidth, nodeHeight, radius),
                 () -> readResource(source), nodeWidth, radius);
     }
@@ -78,14 +81,14 @@ public final class ImageMasks {
         NativeImage load() throws Exception;
     }
 
-    private static Optional<Identifier> lookup(String key, SourceLoader loader, float nodeWidth, float radius) {
+    private static Variant lookup(String key, SourceLoader loader, float nodeWidth, float radius) {
         Entry cached = CACHE.get(key);
         if (cached != null) {
-            return cached.state() == State.READY ? Optional.of(cached.texture()) : Optional.empty();
+            return new Variant(cached.state(), cached.texture());
         }
         CACHE.put(key, new Entry(State.LOADING, null));
         EXECUTOR.execute(() -> bake(key, loader, nodeWidth, radius));
-        return Optional.empty();
+        return new Variant(State.LOADING, null);
     }
 
     private static void bake(String key, SourceLoader loader, float nodeWidth, float radius) {

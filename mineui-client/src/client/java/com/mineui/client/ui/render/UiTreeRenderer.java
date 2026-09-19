@@ -144,8 +144,9 @@ public final class UiTreeRenderer {
 
         float hoverFactor = 1f + (node.style().hoverScale() - 1f) * node.hoverProgress();
         float scale = node.animScale() * hoverFactor;
-        // 持续旋转（本地时钟）叠加动画旋转；任一非零都走变换路径
-        float rotation = node.animRotation() + node.spinAngle(System.currentTimeMillis(), state);
+        // 持续旋转（本地时钟）叠加动画旋转；占位帧（遮罩烘焙中/图片加载中）不推进时钟，成圆后从 0° 起转
+        float spin = node.spinAngle(System.currentTimeMillis(), state, contentReady(node));
+        float rotation = node.animRotation() + spin;
         boolean transformed = node.hasTransform() || Math.abs(scale - 1f) > 0.001f || rotation != 0f;
         var pose = graphics.pose();
         if (transformed) {
@@ -353,6 +354,45 @@ public final class UiTreeRenderer {
         }
     }
 
+    /** 本帧是否绘制真实内容：遮罩烘焙中 / 图片加载中的占位帧返回 false（不推进旋转时钟）。 */
+    private boolean contentReady(UiNode node) {
+        if (!(node instanceof ImageNode image)) {
+            return true;
+        }
+        if (image.width() <= 0 || image.height() <= 0) {
+            return true;
+        }
+        float radius = image.style().radius();
+        String resolvedUrl = cache.resolvedTemplate(generation(), image.texture(),
+                template -> Bindings.resolve(template, state));
+        if (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://")) {
+            RemoteImages.Entry entry = RemoteImages.resolve(resolvedUrl, image.sha256());
+            if (entry.state() != RemoteImages.State.READY || entry.texture() == null) {
+                return false;
+            }
+            if (radius <= 0.5f) {
+                return true;
+            }
+            // READY/FAILED 视为可绘制（FAILED 回退原图），烘焙中为占位
+            return ImageMasks.remote(resolvedUrl, image.width(), image.height(), radius)
+                    .state() != ImageMasks.State.LOADING;
+        }
+        java.util.Optional<RenderCache.TextureRef> reference = resolveTexture(image.texture());
+        if (reference.isEmpty()) {
+            return false;
+        }
+        if (reference.get().sprite() || radius <= 0.5f) {
+            return true;
+        }
+        boolean fullRegion = image.u() == 0f && image.v() == 0f
+                && image.regionWidth() <= 0f && image.regionHeight() <= 0f;
+        if (!fullRegion) {
+            return true;
+        }
+        return ImageMasks.local(reference.get().id(), image.width(), image.height(), radius)
+                .state() != ImageMasks.State.LOADING;
+    }
+
     private void renderImage(ImageNode node, float opacity) {
         if (node.width() <= 0 || node.height() <= 0) {
             return;
@@ -362,16 +402,21 @@ public final class UiTreeRenderer {
         if (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://")) {
             RemoteImages.Entry entry = RemoteImages.resolve(resolvedUrl, node.sha256());
             if (entry.state() == RemoteImages.State.READY && entry.texture() != null) {
-                Identifier texture = entry.texture();
-                if (node.style().radius() > 0.5f) {
-                    texture = ImageMasks.remote(resolvedUrl, node.width(), node.height(),
-                            node.style().radius()).orElse(texture);
+                float radius = node.style().radius();
+                if (radius > 0.5f) {
+                    ImageMasks.Variant mask = ImageMasks.remote(resolvedUrl, node.width(), node.height(), radius);
+                    if (mask.state() == ImageMasks.State.READY) {
+                        blitFull(mask.texture(), node);
+                    } else if (mask.state() == ImageMasks.State.FAILED) {
+                        blitFull(entry.texture(), node);
+                    } else {
+                        // 遮罩烘焙中：与加载中相同的圆角占位，不出方形帧
+                        painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
+                                radius, 0x33FFFFFF, opacity);
+                    }
+                } else {
+                    blitFull(entry.texture(), node);
                 }
-                // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)：整图采样为 0,1,0,1
-                graphics.blit(texture,
-                        Math.round(node.x()), Math.round(node.y()),
-                        Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
-                        0f, 1f, 0f, 1f);
             } else {
                 // 加载中/失败：半透明占位，避免空白闪烁
                 int color = entry.state() == RemoteImages.State.LOADING ? 0x33FFFFFF : 0x66FF4444;
@@ -415,16 +460,36 @@ public final class UiTreeRenderer {
         float v0 = node.v() / texH;
         float u1 = (node.u() + regionW) / texW;
         float v1 = (node.v() + regionH) / texH;
+        boolean fullRegion = u0 == 0f && v0 == 0f && u1 == 1f && v1 == 1f;
+        if (node.style().radius() > 0.5f && fullRegion) {
+            ImageMasks.Variant mask = ImageMasks.local(texture, node.width(), node.height(),
+                    node.style().radius());
+            if (mask.state() == ImageMasks.State.READY) {
+                blitFull(mask.texture(), node);
+                return;
+            }
+            if (mask.state() == ImageMasks.State.LOADING) {
+                // 遮罩烘焙中：圆角占位，不出方形帧
+                painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
+                        node.style().radius(), 0x33FFFFFF, opacity);
+                return;
+            }
+            // FAILED：回退原图
+        }
         // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)，不是 (u0, v0, u1, v1)
-        Identifier masked = node.style().radius() > 0.5f
-                ? ImageMasks.local(texture, node.width(), node.height(), node.style().radius())
-                        .filter(id -> u0 == 0f && v0 == 0f && u1 == 1f && v1 == 1f)
-                        .orElse(texture)
-                : texture;
-        graphics.blit(masked,
+        graphics.blit(texture,
                 Math.round(node.x()), Math.round(node.y()),
                 Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
                 u0, u1, v0, v1);
+    }
+
+    /** 整图采样 blit（遮罩/原图通用）。 */
+    private void blitFull(Identifier texture, ImageNode node) {
+        // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)：整图采样为 0,1,0,1
+        graphics.blit(texture,
+                Math.round(node.x()), Math.round(node.y()),
+                Math.round(node.x() + node.width()), Math.round(node.y() + node.height()),
+                0f, 1f, 0f, 1f);
     }
 
     // ---------- 文本输入 ----------

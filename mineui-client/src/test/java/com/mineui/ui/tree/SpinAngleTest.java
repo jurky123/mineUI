@@ -29,38 +29,48 @@ class SpinAngleTest {
         // 8 参兼容构造：spin 默认 0
         UiNode node = new BoxNode(new NodeStyle(null, SizeSpec.px(50), SizeSpec.px(50), Insets.ZERO,
                 null, CrossAlign.START, MainAlign.START, 0f));
-        assertEquals(0f, node.spinAngle(1000, PLAYING), 0.001);
-        assertEquals(0f, node.spinAngle(5000, PLAYING), 0.001);
+        assertEquals(0f, node.spinAngle(1000, PLAYING, true), 0.001);
+        assertEquals(0f, node.spinAngle(5000, PLAYING, true), 0.001);
     }
 
     @Test
     void angleAccumulatesByLocalClock() {
         // 8 秒/圈 = 45 度/秒
         UiNode node = new BoxNode(spinStyle(8f));
-        assertEquals(0f, node.spinAngle(0, PLAYING), 0.001);
-        assertEquals(45f, node.spinAngle(1000, PLAYING), 0.001);
-        assertEquals(90f, node.spinAngle(2000, PLAYING), 0.001);
+        assertEquals(0f, node.spinAngle(0, PLAYING, true), 0.001);
+        assertEquals(45f, node.spinAngle(1000, PLAYING, true), 0.001);
+        assertEquals(90f, node.spinAngle(2000, PLAYING, true), 0.001);
     }
 
     @Test
     void frozenAngleKeepsTimeAnchor() {
         UiNode node = new BoxNode(spinStyle(8f));
-        node.spinAngle(0, PLAYING);
-        node.spinAngle(1000, PLAYING); // 45°
-        assertEquals(135f, node.spinAngle(3000, PLAYING), 0.001); // 继续播放：1000→3000 +90
+        node.spinAngle(0, PLAYING, true);
+        node.spinAngle(1000, PLAYING, true); // 45°
+        assertEquals(135f, node.spinAngle(3000, PLAYING, true), 0.001); // 继续播放：1000→3000 +90
 
         // 暂停期间时间照走：恢复后从冻结角度继续，不跳变
         UiNode frozen = new BoxNode(spinStyle(8f));
-        frozen.spinAngle(0, PAUSED);
-        frozen.spinAngle(1000, PAUSED); // 冻结，仍 0°（时间锚已更新到 1000）
-        assertEquals(90f, frozen.spinAngle(3000, PLAYING), 0.001); // 1000→3000 = +90
+        frozen.spinAngle(0, PAUSED, true);
+        frozen.spinAngle(1000, PAUSED, true); // 冻结，仍 0°（时间锚已更新到 1000）
+        assertEquals(90f, frozen.spinAngle(3000, PLAYING, true), 0.001); // 1000→3000 = +90
+    }
+
+    @Test
+    void placeholderFramesDoNotConsumeClock() {
+        // 占位帧（遮罩烘焙中/加载中）不计时：首次真正绘制时从 0° 起转
+        UiNode node = new BoxNode(spinStyle(8f));
+        node.spinAngle(100, PLAYING, false);
+        node.spinAngle(3000, PLAYING, false);
+        assertEquals(0f, node.spinAngle(5000, PLAYING, true), 0.001); // 成圆当帧起锚，0°
+        assertEquals(90f, node.spinAngle(7000, PLAYING, true), 0.001); // 5000→7000 +90
     }
 
     @Test
     void angleWrapsAt360() {
         UiNode node = new BoxNode(spinStyle(2f)); // 180 度/秒
-        node.spinAngle(0, PLAYING);
-        assertEquals(180f, node.spinAngle(1000, PLAYING), 0.001);
-        assertEquals(90f, node.spinAngle(2500, PLAYING), 0.001); // 450° 绕圈为 90°
+        node.spinAngle(0, PLAYING, true);
+        assertEquals(180f, node.spinAngle(1000, PLAYING, true), 0.001);
+        assertEquals(90f, node.spinAngle(2500, PLAYING, true), 0.001); // 450° 绕圈为 90°
     }
 }

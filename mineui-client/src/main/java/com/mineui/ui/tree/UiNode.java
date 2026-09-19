@@ -108,10 +108,16 @@ public abstract class UiNode {
      * {@code spinPlaying} 为 false 时冻结角度（时间照走，恢复不跳变）；spin ≤ 0 恒为 0。
      *
      * @param nowMillis 当前毫秒（可注入便于测试）
+     * @param advance   本帧是否绘制真实内容；false（占位帧）不消费时间锚，
+     *                  首次真正绘制时从 0° 起转（先成圆、再开始转）
      */
-    public float spinAngle(long nowMillis, StateAccess state) {
+    public float spinAngle(long nowMillis, StateAccess state, boolean advance) {
         float periodSeconds = style().spin();
         if (periodSeconds <= 0f) {
+            return 0f;
+        }
+        if (!advance) {
+            spinStarted = false;
             return 0f;
         }
         if (!spinStarted) {
