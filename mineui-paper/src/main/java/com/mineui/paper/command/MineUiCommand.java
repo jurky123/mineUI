@@ -365,7 +365,11 @@ public final class MineUiCommand {
             session.state("check_label", now ? "开启" : "关闭");
         });
         session.on("tab_select", event -> {
-            int index = (int) Math.round(event.number("index", 0));
+            // Tabs 控件值走独立 "tab" 字段；极旧客户端只发 "index" 时回退读取
+            com.google.gson.JsonElement payload = event.payload();
+            boolean hasTab = payload != null && payload.isJsonObject()
+                    && payload.getAsJsonObject().has("tab");
+            int index = (int) Math.round(hasTab ? event.number("tab", 0) : event.number("index", 0));
             session.state("tab", index);
             session.state("tab_name", switch (index) {
                 case 1 -> "搜索";

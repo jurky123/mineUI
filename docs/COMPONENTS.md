@@ -180,7 +180,7 @@ F9 热重载生效。强调色建议稀缺使用（一屏一个主操作）。
 - `{ "type": "checkbox", "value": "{state.check}", "action": "toggle" }`——原版 checkbox 精灵（含 hover/选中变体）
 - `{ "type": "switch", "value": "{state.check}", "action": "toggle" }`——程序化圆角开关（选中=强调色）
 - `{ "type": "tabs", "items": ["曲库","搜索","队列"], "selected": "{state.tab}", "action": "tab_select" }`——
-  原版 tab 精灵一排，点击负载 `{"index": n}`
+  原版 tab 精灵一排，点击负载 `{"tab": n}`（与列表条目 `index` 分开的独立字段）
 
 **Toast 样式**：`MineUi.toast(player, text, icon, duration, actionId, kind)`，kind = `info/success/warn/error`（顶边描边着色）。
 

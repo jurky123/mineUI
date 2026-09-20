@@ -30,6 +30,17 @@ class ImageMaskMathTest {
     }
 
     @Test
+    void tintAppliesExactlyOnce() {
+        // 半灰 tint 只乘一次：0xFF808080 × 不透明红 = 0xFF800000
+        int[] pixels = {0xFFFF0000};
+        int[] once = ImageMaskMath.tint(pixels, 0xFF808080);
+        assertEquals(0xFF800000, once[0]);
+        // 半透明 tint：alpha 通道同样只乘一次（255×128/255=128）
+        int[] half = ImageMaskMath.tint(new int[]{0xFFFFFFFF}, 0x80FFFFFF);
+        assertEquals(0x80FFFFFF, half[0]);
+    }
+
+    @Test
     void maskRadiusScalesAndClamps() {
         assertEquals(2, ImageMaskMath.maskRadius(1f, 4f, 8, 8), "节点 4px 半径 1 → 纹理 8px 半径 2");
         assertEquals(4, ImageMaskMath.maskRadius(9f, 8f, 8, 8), "钳制到纹理半边 4");

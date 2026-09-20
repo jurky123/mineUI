@@ -74,4 +74,56 @@ class JsonPointersTest {
         JsonPointers.set(root, "x", JsonParser.parseString("1"));
         assertNull(JsonPointers.get(root, "x.y"));
     }
+
+    @Test
+    void syncOpAddsTopmostCreatedBranch() throws Exception {
+        JsonObject server = new JsonObject();
+        JsonPointers.SetResult set = JsonPointers.set(server, "player.name",
+                JsonParser.parseString("\"Alice\""));
+        com.mineui.protocol.msg.PatchOp op = JsonPointers.syncOp(
+                set, JsonPointers.segments("player.name"), server,
+                JsonParser.parseString("\"Alice\""));
+        assertEquals("add", op.op());
+        assertEquals("/player", op.path());
+
+        // 空客户端状态必须能直接应用
+        JsonObject client = new JsonObject();
+        JsonPatch.apply(client, java.util.List.of(op));
+        assertEquals(server, client);
+    }
+
+    @Test
+    void syncOpReplacesLeafWhenParentsExist() throws Exception {
+        JsonObject server = JsonParser.parseString("{\"player\":{\"name\":\"Alice\"}}").getAsJsonObject();
+        JsonPointers.SetResult set = JsonPointers.set(server, "player.name",
+                JsonParser.parseString("\"Bob\""));
+        com.mineui.protocol.msg.PatchOp op = JsonPointers.syncOp(
+                set, JsonPointers.segments("player.name"), server,
+                JsonParser.parseString("\"Bob\""));
+        assertEquals("replace", op.op());
+        assertEquals("/player/name", op.path());
+
+        JsonObject client = JsonParser.parseString("{\"player\":{\"name\":\"Alice\"}}").getAsJsonObject();
+        JsonPatch.apply(client, java.util.List.of(op));
+        assertEquals(server, client);
+    }
+
+    @Test
+    void syncOpBatchBranchThenLeafAppliesInOrder() throws Exception {
+        JsonObject server = new JsonObject();
+        java.util.List<com.mineui.protocol.msg.PatchOp> ops = new java.util.ArrayList<>();
+        for (String[] write : new String[][]{{"player.name", "\"Alice\""}, {"player.name", "\"Bob\""}}) {
+            JsonPointers.SetResult set = JsonPointers.set(server, write[0], JsonParser.parseString(write[1]));
+            ops.add(JsonPointers.syncOp(set, JsonPointers.segments(write[0]), server,
+                    JsonParser.parseString(write[1])));
+        }
+        // 第一次新建分支 add，第二次叶子 replace
+        assertEquals("add", ops.get(0).op());
+        assertEquals("/player", ops.get(0).path());
+        assertEquals("replace", ops.get(1).op());
+
+        JsonObject client = new JsonObject();
+        JsonPatch.apply(client, ops);
+        assertEquals(server, client);
+    }
 }

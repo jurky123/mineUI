@@ -729,20 +729,23 @@ public final class UiTreeRenderer {
             int tint = node.tint();
             // 同上：远程基底已是 NEAREST
             String filter = "linear".equals(node.filter()) ? "linear" : "";
+            // 变体已把 tint 烘进像素，绘制只剩 opacity；原图才需要乘 tint（各乘一次）
+            int rawColor = UiColors.withOpacity(tint != 0 ? tint : 0xFFFFFFFF, opacity);
+            int bakedColor = UiColors.withOpacity(0xFFFFFFFF, opacity);
             if (radius <= 0.5f && tint == 0 && filter.isEmpty()) {
                 blitImage(entry.texture(), entry.width(), entry.height(), 0, 0,
-                        entry.width(), entry.height(), node, opacity);
+                        entry.width(), entry.height(), node, rawColor);
                 return;
             }
             ImageMasks.Variant variant = ImageMasks.remote(resolvedUrl, node.width(), node.height(),
                     radius, tint, filter);
             switch (variant.state()) {
                 case READY -> blitImage(variant.texture(), entry.width(), entry.height(), 0, 0,
-                        entry.width(), entry.height(), node, opacity);
+                        entry.width(), entry.height(), node, bakedColor);
                 case FAILED ->
                         // 烘焙失败：回退未遮罩/未着色原图
                         blitImage(entry.texture(), entry.width(), entry.height(), 0, 0,
-                                entry.width(), entry.height(), node, opacity);
+                                entry.width(), entry.height(), node, rawColor);
                 default ->
                         // 烘焙中：与加载中相同的圆角占位，不出方形帧
                         painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
@@ -773,6 +776,8 @@ public final class UiTreeRenderer {
         float regionH = node.regionHeight() <= 0f ? texH : node.regionHeight();
         float radius = node.style().radius();
         int tint = node.tint();
+        int rawColor = UiColors.withOpacity(tint != 0 ? tint : 0xFFFFFFFF, opacity);
+        int bakedColor = UiColors.withOpacity(0xFFFFFFFF, opacity);
         boolean fullRegion = u == 0f && v == 0f
                 && regionW >= texW && regionH >= texH;
         if ((radius > 0.5f || tint != 0 || !node.filter().isEmpty()) && fullRegion) {
@@ -780,7 +785,7 @@ public final class UiTreeRenderer {
                     radius, tint, node.filter());
             switch (variant.state()) {
                 case READY -> {
-                    blitImage(variant.texture(), texW, texH, 0, 0, texW, texH, node, opacity);
+                    blitImage(variant.texture(), texW, texH, 0, 0, texW, texH, node, bakedColor);
                     return;
                 }
                 case FAILED -> {
@@ -794,18 +799,23 @@ public final class UiTreeRenderer {
                 }
             }
         }
-        blitImage(texture, texW, texH, u, v, regionW, regionH, node, opacity);
+        blitImage(texture, texW, texH, u, v, regionW, regionH, node, rawColor);
     }
 
     /**
      * 统一的图片绘制：目标矩形 + 源 UV + 纹理尺寸 + 颜色（tint×opacity）一次算清。
      * 无着色且不透明时走精确浮点 UV 快路径；否则走带色管线 blit（整数 texel）。
      */
+    /**
+     * 统一的图片绘制：目标矩形 + 源 UV + 纹理尺寸 + 颜色一次算清。
+     * <p>
+     * 颜色由调用方显式传入（原图传 tint×opacity，烘焙变体传 WHITE×opacity），
+     * 此处不再从节点隐式读取，避免烘焙过的 tint 被重复相乘。
+     * 无着色且不透明时走精确浮点 UV 快路径；否则走带色管线 blit（整数 texel）。
+     */
     private void blitImage(Identifier texture, float texW, float texH,
                            float u, float v, float regionW, float regionH,
-                           ImageNode node, float opacity) {
-        int tint = node.tint() != 0 ? node.tint() : 0xFFFFFFFF;
-        int color = UiColors.withOpacity(tint, opacity);
+                           ImageNode node, int color) {
         int x = Math.round(node.x());
         int y = Math.round(node.y());
         int w = Math.round(node.width());

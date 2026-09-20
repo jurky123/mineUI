@@ -109,17 +109,16 @@ public final class UiSession implements MineUiSession {
             // 相等值去重：本地已拥有该字段时，业务每秒重复 push 不再产生网络包
             return this;
         }
-        PatchOp op = set.existed()
-                ? PatchOp.replace(set.pointer(), next)
-                : PatchOp.add(set.pointer(), next);
+        // 新建了中间分支时，对最高新建分支发一次 add（带整棵子树），
+        // 否则客户端因缺少父路径而无法应用叶子 op
+        PatchOp op = JsonPointers.syncOp(set, JsonPointers.segments(key), state, next);
         if (batching) {
-            PatchOp first = pendingOps.get(set.pointer());
+            PatchOp first = pendingOps.get(op.path());
             if (first != null) {
-                // 同一批内重复写入：保留第一次的操作类型（由批次开始时客户端的真实状态决定），只更新值。
-                // 否则 add 会被后来的 replace 覆盖，客户端因缺少该路径而无法应用 PATCH。
-                pendingOps.put(set.pointer(), new PatchOp(first.op(), first.path(), next));
+                // 同一批内重复写入同一路径：保留第一次的操作类型（由批次开始时客户端的真实状态决定），只更新值
+                pendingOps.put(op.path(), new PatchOp(first.op(), first.path(), op.value()));
             } else {
-                pendingOps.put(set.pointer(), op);
+                pendingOps.put(op.path(), op);
             }
         } else {
             sendPatch(List.of(op));
@@ -232,22 +231,22 @@ public final class UiSession implements MineUiSession {
     }
 
     public String getString(String key, String defaultValue) {
-        JsonElement element = state.get(key);
+        JsonElement element = JsonPointers.get(state, key);
         return element != null && element.isJsonPrimitive() ? element.getAsString() : defaultValue;
     }
 
     public int getInt(String key, int defaultValue) {
-        JsonElement element = state.get(key);
+        JsonElement element = JsonPointers.get(state, key);
         return element != null && element.isJsonPrimitive() ? element.getAsInt() : defaultValue;
     }
 
     public double getDouble(String key, double defaultValue) {
-        JsonElement element = state.get(key);
+        JsonElement element = JsonPointers.get(state, key);
         return element != null && element.isJsonPrimitive() ? element.getAsDouble() : defaultValue;
     }
 
     public boolean getBoolean(String key, boolean defaultValue) {
-        JsonElement element = state.get(key);
+        JsonElement element = JsonPointers.get(state, key);
         return element != null && element.isJsonPrimitive() ? element.getAsBoolean() : defaultValue;
     }
 

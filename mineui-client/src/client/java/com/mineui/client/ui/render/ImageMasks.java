@@ -129,7 +129,12 @@ public final class ImageMasks {
                 return;
             }
             source = loader.load();
-            if (source == null || stale(generation)) {
+            if (stale(generation)) {
+                return;
+            }
+            if (source == null) {
+                // 源不可用（磁盘缓存被清理/资源缺失）：明确失败，可结束、可恢复，不永久 LOADING
+                fail(key, generation);
                 return;
             }
             int maskRadius = radius > 0.5f
