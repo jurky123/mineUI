@@ -674,11 +674,13 @@ public final class UiTreeRenderer {
             if (entry.state() != RemoteImages.State.READY || entry.texture() == null) {
                 return false;
             }
-            if (radius <= 0.5f && tint == 0) {
+            // 远程基底恒为 NEAREST：nearest/缺省无需变体，只有 linear 需要烘焙
+            String filter = "linear".equals(image.filter()) ? "linear" : "";
+            if (radius <= 0.5f && tint == 0 && filter.isEmpty()) {
                 return true;
             }
             // READY/FAILED 视为可绘制（FAILED 回退原图），烘焙中为占位
-            return ImageMasks.remote(resolvedUrl, image.width(), image.height(), radius, tint)
+            return ImageMasks.remote(resolvedUrl, image.width(), image.height(), radius, tint, filter)
                     .state() != ImageMasks.State.LOADING;
         }
         java.util.Optional<RenderCache.TextureRef> reference = resolveTexture(image.texture());
@@ -688,7 +690,8 @@ public final class UiTreeRenderer {
         if (reference.get().sprite()) {
             return true;
         }
-        if (radius <= 0.5f && tint == 0) {
+        String filter = image.filter();
+        if (radius <= 0.5f && tint == 0 && filter.isEmpty()) {
             return true;
         }
         // 遮罩只做整图；子区域沿用原图绘制
@@ -702,7 +705,8 @@ public final class UiTreeRenderer {
         if (!fullRegion) {
             return true;
         }
-        return ImageMasks.local(reference.get().id(), image.width(), image.height(), radius, tint)
+        return ImageMasks.local(reference.get().id(), image.width(), image.height(), radius, tint,
+                        image.filter())
                 .state() != ImageMasks.State.LOADING;
     }
 
@@ -723,13 +727,15 @@ public final class UiTreeRenderer {
             }
             float radius = node.style().radius();
             int tint = node.tint();
-            if (radius <= 0.5f && tint == 0) {
+            // 同上：远程基底已是 NEAREST
+            String filter = "linear".equals(node.filter()) ? "linear" : "";
+            if (radius <= 0.5f && tint == 0 && filter.isEmpty()) {
                 blitImage(entry.texture(), entry.width(), entry.height(), 0, 0,
                         entry.width(), entry.height(), node, opacity);
                 return;
             }
             ImageMasks.Variant variant = ImageMasks.remote(resolvedUrl, node.width(), node.height(),
-                    radius, tint);
+                    radius, tint, filter);
             switch (variant.state()) {
                 case READY -> blitImage(variant.texture(), entry.width(), entry.height(), 0, 0,
                         entry.width(), entry.height(), node, opacity);
@@ -769,9 +775,9 @@ public final class UiTreeRenderer {
         int tint = node.tint();
         boolean fullRegion = u == 0f && v == 0f
                 && regionW >= texW && regionH >= texH;
-        if ((radius > 0.5f || tint != 0) && fullRegion) {
+        if ((radius > 0.5f || tint != 0 || !node.filter().isEmpty()) && fullRegion) {
             ImageMasks.Variant variant = ImageMasks.local(texture, node.width(), node.height(),
-                    radius, tint);
+                    radius, tint, node.filter());
             switch (variant.state()) {
                 case READY -> {
                     blitImage(variant.texture(), texW, texH, 0, 0, texW, texH, node, opacity);
@@ -825,10 +831,15 @@ public final class UiTreeRenderer {
         float innerX = node.x() + padX;
         float innerW = Math.max(0f, node.width() - padX * 2f);
         String content = node.text();
-        boolean empty = content.isEmpty();
-        String display = empty ? node.placeholder() : content;
+        int cursor = Math.min(node.cursor(), content.length());
+        String before = content.substring(0, cursor);
+        String after = content.substring(cursor);
+        // IME 组词中文本：展示在光标处（不计入 text()），合成提交后经 charTyped 写入
+        String preedit = (node.focused() && !node.preedit().isEmpty()) ? node.preedit() : "";
+        boolean empty = content.isEmpty() && preedit.isEmpty();
+        String display = empty ? node.placeholder() : before + preedit + after;
         int color = empty ? node.placeholderColor() : node.textColor();
-        float prefixW = font.width(content.substring(0, node.cursor()));
+        float prefixW = font.width(before + preedit);
         float scroll = node.focused() && prefixW > innerW - 2f ? prefixW - (innerW - 2f) : 0f;
         float drawX = innerX - scroll;
         float drawY = node.y() + (node.height() - font.lineHeight) / 2f;

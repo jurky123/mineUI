@@ -10,6 +10,7 @@ import com.mineui.protocol.Envelope;
 import com.mineui.protocol.JsonCodec;
 import com.mineui.protocol.MessageType;
 import com.mineui.protocol.json.JsonPatch;
+import com.mineui.protocol.json.JsonPointers;
 import com.mineui.protocol.msg.Patch;
 import com.mineui.protocol.msg.PatchOp;
 import com.mineui.protocol.msg.Snapshot;
@@ -91,32 +92,34 @@ public final class UiSession implements MineUiSession {
     }
 
     /**
-     * 设置顶层状态字段；snapshot 之后会立即下发 PATCH。
+     * 设置状态字段；snapshot 之后会立即下发 PATCH。
      * <p>
+     * {@code key} 支持点分嵌套路径（如 {@code "player.name"}），与读取侧
+     * {@code {state.player.name}} 绑定保持一致；中间缺失对象自动创建。
      * 值未变化时不发 PATCH；处于 {@link #batch} 中时只登记待发 op，由批结束时合并成一个 PATCH。
      */
     @Override
     public UiSession state(String key, Object value) {
-        boolean existed = state.has(key);
         JsonElement next = JsonCodec.toJsonTree(value);
-        JsonElement previous = state.get(key);
-        state.add(key, next);
+        JsonPointers.SetResult set = JsonPointers.set(state, key, next);
         if (!snapshotSent || closed) {
             return this;
         }
-        if (next.equals(previous)) {
+        if (next.equals(set.previous())) {
             // 相等值去重：本地已拥有该字段时，业务每秒重复 push 不再产生网络包
             return this;
         }
-        PatchOp op = existed ? PatchOp.replace(pointer(key), next) : PatchOp.add(pointer(key), next);
+        PatchOp op = set.existed()
+                ? PatchOp.replace(set.pointer(), next)
+                : PatchOp.add(set.pointer(), next);
         if (batching) {
-            PatchOp first = pendingOps.get(key);
+            PatchOp first = pendingOps.get(set.pointer());
             if (first != null) {
                 // 同一批内重复写入：保留第一次的操作类型（由批次开始时客户端的真实状态决定），只更新值。
                 // 否则 add 会被后来的 replace 覆盖，客户端因缺少该路径而无法应用 PATCH。
-                pendingOps.put(key, new PatchOp(first.op(), first.path(), next));
+                pendingOps.put(set.pointer(), new PatchOp(first.op(), first.path(), next));
             } else {
-                pendingOps.put(key, op);
+                pendingOps.put(set.pointer(), op);
             }
         } else {
             sendPatch(List.of(op));
@@ -346,10 +349,6 @@ public final class UiSession implements MineUiSession {
 
     private boolean rateLimitAllows() {
         return actionRate.tryAcquire();
-    }
-
-    private static String pointer(String key) {
-        return "/" + key.replace("~", "~0").replace("/", "~1");
     }
 
     private void requireOpen() {

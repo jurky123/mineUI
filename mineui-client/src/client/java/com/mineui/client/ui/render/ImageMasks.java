@@ -51,22 +51,29 @@ public final class ImageMasks {
     private ImageMasks() {
     }
 
-    /** 远程图片变体（遮罩和/或着色）；LOADING/FAILED 时 texture 为 null。 */
-    public static Variant remote(String url, float nodeWidth, float nodeHeight, float radius, int tint) {
-        return lookup(key("remote", url, nodeWidth, nodeHeight, radius, tint),
+    /**
+     * 远程图片变体（遮罩 / 着色 / 过滤）；LOADING/FAILED 时 texture 为 null。
+     *
+     * @param filter {@code ""} 缺省（NEAREST，与原版动态纹理一致）、{@code "nearest"}、
+     *               {@code "linear"}（线性采样变体）
+     */
+    public static Variant remote(String url, float nodeWidth, float nodeHeight, float radius, int tint,
+                                 String filter) {
+        return lookup(key("remote", url, nodeWidth, nodeHeight, radius, tint, filter),
                 () -> {
                     byte[] raw = RemoteImages.cachedBytes(url);
                     if (raw == null || raw.length > MAX_SOURCE_BYTES) {
                         return null;
                     }
                     return RemoteImages.decodeBytes(raw);
-                }, nodeWidth, radius, tint, GENERATION.get());
+                }, nodeWidth, radius, tint, filter, GENERATION.get());
     }
 
     /** 本地资源图片变体；不支持（精灵/读取失败）为 FAILED。 */
-    public static Variant local(Identifier source, float nodeWidth, float nodeHeight, float radius, int tint) {
-        return lookup(key("local", source.toString(), nodeWidth, nodeHeight, radius, tint),
-                () -> readResource(source), nodeWidth, radius, tint, GENERATION.get());
+    public static Variant local(Identifier source, float nodeWidth, float nodeHeight, float radius, int tint,
+                                String filter) {
+        return lookup(key("local", source.toString(), nodeWidth, nodeHeight, radius, tint, filter),
+                () -> readResource(source), nodeWidth, radius, tint, filter, GENERATION.get());
     }
 
     /** 断线/切服：先作废代际，再释放纹理句柄并清空缓存。 */
@@ -103,18 +110,18 @@ public final class ImageMasks {
     }
 
     private static Variant lookup(String key, SourceLoader loader, float nodeWidth, float radius, int tint,
-                                  int generation) {
+                                  String filter, int generation) {
         Entry cached = CACHE.get(key);
         if (cached != null) {
             return new Variant(cached.state(), cached.texture());
         }
         CACHE.put(key, new Entry(State.LOADING, null));
-        EXECUTOR.execute(() -> bake(key, loader, nodeWidth, radius, tint, generation));
+        EXECUTOR.execute(() -> bake(key, loader, nodeWidth, radius, tint, filter, generation));
         return new Variant(State.LOADING, null);
     }
 
     private static void bake(String key, SourceLoader loader, float nodeWidth, float radius, int tint,
-                             int generation) {
+                             String filter, int generation) {
         NativeImage source = null;
         NativeImage image = null;
         try {
@@ -145,7 +152,7 @@ public final class ImageMasks {
             }
             NativeImage done = image;
             image = null;
-            Minecraft.getInstance().execute(() -> register(key, done, generation));
+            Minecraft.getInstance().execute(() -> register(key, done, filter, generation));
         } catch (Throwable t) {
             fail(key, generation);
             MineUiClient.LOGGER.debug("变体烘焙失败（{}）: {}", key, t.toString());
@@ -159,7 +166,7 @@ public final class ImageMasks {
         }
     }
 
-    private static void register(String key, NativeImage image, int generation) {
+    private static void register(String key, NativeImage image, String filter, int generation) {
         if (stale(generation)) {
             image.close();
             return;
@@ -167,7 +174,10 @@ public final class ImageMasks {
         try {
             Identifier id = Identifier.fromNamespaceAndPath("mineui",
                     "image_mask/" + sha1Hex(key));
-            DynamicTexture texture = new DynamicTexture(() -> "MineUI image variant", image);
+            DynamicTexture texture = "linear".equals(filter)
+                    ? new FilteredDynamicTexture("MineUI image variant",
+                            image, com.mojang.blaze3d.textures.FilterMode.LINEAR)
+                    : new DynamicTexture(() -> "MineUI image variant", image);
             Minecraft.getInstance().getTextureManager().register(id, texture);
             if (!stale(generation)) {
                 CACHE.put(key, new Entry(State.READY, id));
@@ -187,14 +197,18 @@ public final class ImageMasks {
             return null;
         }
         try (java.io.InputStream in = resource.open()) {
-            return RemoteImages.decodeBytes(in.readAllBytes());
+            byte[] raw = in.readAllBytes();
+            if (raw.length > MAX_SOURCE_BYTES) {
+                throw new java.io.IOException("资源过大: " + raw.length + "B");
+            }
+            return RemoteImages.decodeBytes(raw);
         }
     }
 
     private static String key(String kind, String source, float nodeWidth, float nodeHeight,
-                              float radius, int tint) {
+                              float radius, int tint, String filter) {
         return kind + "|" + source + "|w" + Math.round(nodeWidth) + "x" + Math.round(nodeHeight)
-                + "|r" + Math.round(radius) + "|t" + String.format("%08x", tint);
+                + "|r" + Math.round(radius) + "|t" + String.format("%08x", tint) + "|f" + filter;
     }
 
     private static String sha1Hex(String value) {

@@ -17,6 +17,8 @@ public final class InputNode extends UiNode {
     private final StringBuilder text = new StringBuilder();
     private boolean focused;
     private int cursor;
+    /** IME 组词中文本（仅展示，不计入 text()；合成提交后由 charTyped 写入并清空）。 */
+    private String preedit = "";
 
     public InputNode(NodeStyle style, String placeholder, int maxLength, String action,
                      int textColor, int placeholderColor) {
@@ -63,6 +65,18 @@ public final class InputNode extends UiNode {
 
     public void blur() {
         focused = false;
+    }
+
+    public String preedit() {
+        return preedit;
+    }
+
+    public void setPreedit(String value) {
+        preedit = value == null ? "" : value;
+    }
+
+    public void clearPreedit() {
+        preedit = "";
     }
 
     /** 清空内容并把光标移到开头（提交后调用，保留聚焦状态方便连续输入）。 */

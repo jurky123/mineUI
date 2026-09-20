@@ -129,6 +129,15 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 - 圆角/圆形遮罩：`image` 节点 `radius > 0` 时会**预烘焙一张遮罩纹理**（一次），渲染仍是单次 blit；
   `radius ≈ min(宽,高)/2` 即圆形（唱片封面）。变体按"源+节点尺寸+radius"缓存，断线释放；
   精灵（`sprite:`）与子区域采样（`u/v/region`）不参与遮罩，回退为未遮罩原图
+- 纹理过滤：`image` 节点 `"filter": "nearest"`（像素风放大不糊）/ `"linear"` / 缺省（跟随引擎默认）；
+  远程图基底恒为最近邻（像素封面已天然清晰），`linear` 走遮罩同款变体烘焙管线；
+  本地材质包贴图缺省跟随其 mcmeta `blur` 标记，`sprite:` 走图集采样器
+
+## 2.7.0 输入框中文（IME，0.15）
+
+- 聚焦自动打开 IME 并把候选窗定位到输入框；失焦/ESC/关界面自动关闭
+- 组词进行中显示在光标处（不计入内容）；此时回车是确认组词，**不会误触发提交**
+- 合成提交的中文经 `charTyped` 正常插入（超长截断等规则不变）
 
 ## 2.7.1 持续旋转（唱片效果）
 
@@ -272,6 +281,8 @@ session.on("decor_click", action -> session.state("clicks", session.getInt("clic
 
 ## 3.1 状态同步：去重与批量
 
+- `state()` 支持点分嵌套路径（如 `session.state("player.name", "a")`，与读取侧 `{state.player.name}`
+  一致，中间缺失对象自动创建）；键名本身不得含 `.`（会被解释为嵌套）
 - `state()` 设置相等值时不发 PATCH（Gson 数值语义）；高频重复推送不会产生网络包
 - `session.batch(() -> { ... })` 把多次 `state()` 合并成一个 PATCH（按字段去重，保留最后一次）；
   批内重复写入新字段时保留第一次的 `add`/`replace` 语义，保证客户端可应用

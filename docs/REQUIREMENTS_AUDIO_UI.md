@@ -36,6 +36,8 @@
   设计见 [`docs/CLIENT_EXTENSIONS.md`](CLIENT_EXTENSIONS.md)
 - ✅ **P4d 封面旋转 + 图片遮罩**（0.13.0，FR-13）：`spin`（秒/圈，本地时钟）+ `spinPlaying`（false 冻结角度）；
   并修复 `image.radius` 无遮罩的旧账——radius>0 时预烘焙遮罩纹理（一次），圆形封面旋转不露角
+- ✅ **P4e 输入框 IME + 图片过滤**（0.15.0，FR-14/FR-15）：中文组词（候选窗定位/组词显示/回车确认不误提交）；
+  `image.filter`（`nearest` 像素风 / `linear`，缺省跟随引擎默认）；`state()` 支持点分嵌套路径
 
 ---
 

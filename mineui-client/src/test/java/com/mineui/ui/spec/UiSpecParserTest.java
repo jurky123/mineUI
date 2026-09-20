@@ -172,6 +172,23 @@ class UiSpecParserTest {
         com.mineui.ui.tree.ImageNode image = (com.mineui.ui.tree.ImageNode) root;
         assertEquals("https://i.imgur.com/a.png", image.texture());
         assertEquals("abc123", image.sha256());
+        assertEquals("", image.filter());
+    }
+
+    @Test
+    void parsesImageFilterOnlyNearestOrLinear() throws Exception {
+        com.mineui.ui.tree.ImageNode nearest = (com.mineui.ui.tree.ImageNode) UiSpecParser.parse(json("""
+                { "type": "image", "texture": "mineui:textures/gui/logo.png", "filter": "nearest" }
+                """));
+        assertEquals("nearest", nearest.filter());
+        com.mineui.ui.tree.ImageNode linear = (com.mineui.ui.tree.ImageNode) UiSpecParser.parse(json("""
+                { "type": "image", "texture": "mineui:textures/gui/logo.png", "filter": "LINEAR" }
+                """));
+        assertEquals("linear", linear.filter());
+        com.mineui.ui.tree.ImageNode bogus = (com.mineui.ui.tree.ImageNode) UiSpecParser.parse(json("""
+                { "type": "image", "texture": "mineui:textures/gui/logo.png", "filter": "cubic" }
+                """));
+        assertEquals("", bogus.filter());
     }
 
     @Test

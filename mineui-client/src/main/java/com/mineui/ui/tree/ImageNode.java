@@ -13,15 +13,27 @@ public final class ImageNode extends UiNode {
     private final String sha256;
     /** 着色（ARGB 乘色；0 表示无 tint，用原色渲染）。 */
     private final int tint;
+    /**
+     * 纹理过滤：{@code ""} 缺省（远程/烘焙变体为最近邻，资源包贴图跟随 mcmeta），
+     * {@code "nearest"} 强制最近邻（像素风放大不糊），{@code "linear"} 强制线性。
+     */
+    private final String filter;
 
     public ImageNode(NodeStyle style, String texture, float u, float v,
                      float regionWidth, float regionHeight, float textureWidth, float textureHeight) {
-        this(style, texture, u, v, regionWidth, regionHeight, textureWidth, textureHeight, null, 0);
+        this(style, texture, u, v, regionWidth, regionHeight, textureWidth, textureHeight, null, 0, "");
     }
 
     public ImageNode(NodeStyle style, String texture, float u, float v,
                      float regionWidth, float regionHeight, float textureWidth, float textureHeight,
                      String sha256, int tint) {
+        this(style, texture, u, v, regionWidth, regionHeight, textureWidth, textureHeight,
+                sha256, tint, "");
+    }
+
+    public ImageNode(NodeStyle style, String texture, float u, float v,
+                     float regionWidth, float regionHeight, float textureWidth, float textureHeight,
+                     String sha256, int tint, String filter) {
         super(style);
         this.texture = texture == null ? "" : texture;
         this.u = u;
@@ -33,11 +45,29 @@ public final class ImageNode extends UiNode {
         this.textureHeight = Math.max(0f, textureHeight);
         this.sha256 = sha256 == null || sha256.isBlank() ? null : sha256;
         this.tint = tint;
+        this.filter = normalizeFilter(filter);
     }
 
     /** 着色 ARGB（0 表示无 tint）。 */
     public int tint() {
         return tint;
+    }
+
+    /** 纹理过滤："" 缺省 / "nearest" / "linear"。 */
+    public String filter() {
+        return filter;
+    }
+
+    /** 归一化 filter 值：只接受 nearest/linear，其余视为缺省。 */
+    public static String normalizeFilter(String filter) {
+        if (filter == null) {
+            return "";
+        }
+        String value = filter.trim().toLowerCase(java.util.Locale.ROOT);
+        return switch (value) {
+            case "nearest", "linear" -> value;
+            default -> "";
+        };
     }
 
     public String texture() {

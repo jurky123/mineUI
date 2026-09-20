@@ -70,6 +70,20 @@ class InputNodeTest {
     }
 
     @Test
+    void preeditIsDisplayOnly() {
+        InputNode node = input(10);
+        assertEquals("", node.preedit());
+        node.setPreedit("nihao");
+        assertEquals("nihao", node.preedit());
+        // 组词文本不计入 text()，合成提交后由 charTyped 写入
+        assertEquals("", node.text());
+        node.clearPreedit();
+        assertEquals("", node.preedit());
+        node.setPreedit(null);
+        assertEquals("", node.preedit());
+    }
+
+    @Test
     void backspaceAndDeleteForward() {
         InputNode node = input(32);
         node.insert("abc");

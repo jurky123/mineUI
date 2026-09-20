@@ -16,8 +16,11 @@ public interface MineUiSession {
     Player player();
 
     /**
-     * 设置顶层状态字段；snapshot 之后会立即下发 PATCH。
+     * 设置状态字段；snapshot 之后会立即下发 PATCH。
      * <p>
+     * {@code key} 支持点分嵌套路径（如 {@code "player.name"}），与读取侧
+     * {@code {state.player.name}} 绑定一致；中间缺失的对象自动创建，
+     * 中间段已是标量/数组时抛 {@link IllegalArgumentException}。
      * 值未变化时不发送；相同字段重复设置只保留最后一次。
      */
     MineUiSession state(String key, Object value);

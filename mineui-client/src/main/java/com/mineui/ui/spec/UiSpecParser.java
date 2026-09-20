@@ -343,7 +343,8 @@ public final class UiSpecParser {
                 textureWidth, textureHeight,
                 optString(json, "sha256", null),
                 json.has("tint") && !json.get("tint").isJsonNull()
-                        ? parseColor(json.get("tint"), 0xFFFFFFFF) : 0);
+                        ? parseColor(json.get("tint"), 0xFFFFFFFF) : 0,
+                ImageNode.normalizeFilter(optString(json, "filter", "")));
     }
 
     public static int parseColor(JsonElement element, int fallback) throws UiSpecException {

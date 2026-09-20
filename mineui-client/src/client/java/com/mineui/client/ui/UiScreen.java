@@ -19,11 +19,13 @@ import com.mineui.ui.tree.TabsNode;
 import com.mineui.ui.tree.TextMeasurer;
 import com.mineui.ui.tree.UiNode;
 import com.mineui.ui.util.ActionThrottle;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import org.lwjgl.glfw.GLFW;
@@ -63,6 +65,8 @@ public final class UiScreen extends Screen {
     private InputNode focusedInput;
     /** 按下中的按钮（按下态视觉；松开清除）。 */
     private ButtonNode pressedButton;
+    /** IME 组词进行中：此时回车是确认组词，不能触发提交。 */
+    private boolean imeComposing;
     private SliderNode draggingSlider;
 
     public UiScreen(UiDefinition definition) {
@@ -188,17 +192,10 @@ public final class UiScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         UiNode hit = root.mouseClicked(event.x(), event.y(), event.button());
         if (hit instanceof InputNode input) {
-            if (focusedInput != null && focusedInput != input) {
-                focusedInput.blur();
-            }
-            input.focus();
-            focusedInput = input;
+            focusInput(input);
             return true;
         }
-        if (focusedInput != null) {
-            focusedInput.blur();
-            focusedInput = null;
-        }
+        blurInput();
         if (hit instanceof SliderNode slider) {
             draggingSlider = slider;
             slider.beginDrag(event.x(), event.y());
@@ -311,11 +308,14 @@ public final class UiScreen extends Screen {
         if (input != null && input.focused()) {
             switch (event.key()) {
                 case GLFW.GLFW_KEY_ESCAPE -> {
-                    input.blur();
-                    focusedInput = null;
+                    blurInput();
                     return true;
                 }
                 case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
+                    if (imeComposing) {
+                        // 组词进行中的回车是确认组词，不能触发提交（合成文本随后经 charTyped 写入）
+                        return true;
+                    }
                     submitInput(input);
                     return true;
                 }
@@ -361,6 +361,56 @@ public final class UiScreen extends Screen {
         return super.charTyped(event);
     }
 
+    /** 输入框聚焦：打开 IME 并把候选窗定位到输入框（GUI 坐标，引擎内部换算窗口坐标）。 */
+    private void focusInput(InputNode input) {
+        if (focusedInput != null && focusedInput != input) {
+            focusedInput.blur();
+            focusedInput.clearPreedit();
+        }
+        input.focus();
+        input.clearPreedit();
+        focusedInput = input;
+        imeComposing = false;
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.onTextInputFocusChange(this, true);
+        int x0 = Math.round(input.x()) + 2;
+        int y0 = Math.round(input.y());
+        int x1 = Math.round(input.x() + input.width()) - 2;
+        int y1 = Math.round(input.y() + input.height());
+        minecraft.textInputManager().setTextInputArea(x0, y0, Math.max(x1, x0 + 1), Math.max(y1, y0 + 1));
+    }
+
+    /** 输入框失焦：关闭 IME 并清理组词状态。 */
+    private void blurInput() {
+        if (focusedInput != null) {
+            focusedInput.blur();
+            focusedInput.clearPreedit();
+            focusedInput = null;
+        }
+        imeComposing = false;
+        Minecraft.getInstance().onTextInputFocusChange(this, false);
+    }
+
+    /**
+     * IME 组词更新（原版 EditBox 同款机制）：合成中的文本只展示不写入，
+     * 提交的字符走 {@link #charTyped} 正常插入；空事件表示组词结束。
+     */
+    @Override
+    public boolean preeditUpdated(PreeditEvent event) {
+        InputNode input = focusedInput;
+        if (input == null || !input.focused()) {
+            return false;
+        }
+        if (event == null || event.blocks().isEmpty()) {
+            input.clearPreedit();
+            imeComposing = false;
+        } else {
+            input.setPreedit(event.fullText());
+            imeComposing = true;
+        }
+        return true;
+    }
+
     private void submitInput(InputNode input) {
         if (input.action().isEmpty()) {
             return;
@@ -382,6 +432,7 @@ public final class UiScreen extends Screen {
 
     @Override
     public void onClose() {
+        blurInput();
         ProtocolClient.sendClose();
         MineUiScreens.clientClosed(this);
         super.onClose();
