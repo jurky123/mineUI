@@ -76,6 +76,26 @@ class JsonPointersTest {
     }
 
     @Test
+    void encodeDecodePatchCarriesDeepCopiedValues() throws Exception {
+        // 序列化往返：op value 必须是自包含快照，编码后解码再应用仍与服务端一致
+        JsonObject server = new JsonObject();
+        PatchBatch batch = new PatchBatch();
+        com.google.gson.JsonElement next = JsonParser.parseString("\"Alice\"");
+        JsonPointers.SetResult set = JsonPointers.set(server, "player.name", next);
+        batch.add(JsonPointers.syncOp(set, JsonPointers.segments("player.name"), server, next));
+        JsonPointers.set(server, "player.name", JsonParser.parseString("\"Bob\""));
+
+        byte[] encoded = com.mineui.protocol.JsonCodec.encode(
+                new com.mineui.protocol.msg.Patch(batch.drain()));
+        com.mineui.protocol.msg.Patch decoded =
+                com.mineui.protocol.JsonCodec.decode(encoded, com.mineui.protocol.msg.Patch.class);
+        JsonObject client = new JsonObject();
+        JsonPatch.apply(client, decoded.ops());
+        // 客户端应用该 PATCH 后得到第一次写入时的分支快照，再应用后续增量即与服务端一致
+        assertEquals(JsonParser.parseString("{\"player\":{\"name\":\"Alice\"}}"), client);
+    }
+
+    @Test
     void syncOpAddsTopmostCreatedBranch() throws Exception {
         JsonObject server = new JsonObject();
         JsonPointers.SetResult set = JsonPointers.set(server, "player.name",
@@ -111,12 +131,13 @@ class JsonPointersTest {
     @Test
     void syncOpBatchBranchThenLeafAppliesInOrder() throws Exception {
         JsonObject server = new JsonObject();
-        java.util.List<com.mineui.protocol.msg.PatchOp> ops = new java.util.ArrayList<>();
+        PatchBatch batch = new PatchBatch();
         for (String[] write : new String[][]{{"player.name", "\"Alice\""}, {"player.name", "\"Bob\""}}) {
             JsonPointers.SetResult set = JsonPointers.set(server, write[0], JsonParser.parseString(write[1]));
-            ops.add(JsonPointers.syncOp(set, JsonPointers.segments(write[0]), server,
+            batch.add(JsonPointers.syncOp(set, JsonPointers.segments(write[0]), server,
                     JsonParser.parseString(write[1])));
         }
+        java.util.List<com.mineui.protocol.msg.PatchOp> ops = batch.drain();
         // 第一次新建分支 add，第二次叶子 replace
         assertEquals("add", ops.get(0).op());
         assertEquals("/player", ops.get(0).path());
@@ -125,5 +146,19 @@ class JsonPointersTest {
         JsonObject client = new JsonObject();
         JsonPatch.apply(client, ops);
         assertEquals(server, client);
+    }
+
+    @Test
+    void syncOpSnapshotIsNotPollutedByLaterWrites() {
+        // 快照隔离：syncOp 返回的分支 value 是深拷贝，后续写入同一子树不影响已生成的 op
+        JsonObject server = new JsonObject();
+        JsonPointers.SetResult set = JsonPointers.set(server, "player.name",
+                JsonParser.parseString("\"Alice\""));
+        com.mineui.protocol.msg.PatchOp op = JsonPointers.syncOp(
+                set, JsonPointers.segments("player.name"), server,
+                JsonParser.parseString("\"Alice\""));
+        JsonPointers.set(server, "player.name", JsonParser.parseString("\"Bob\""));
+        assertEquals("Alice", op.value().getAsJsonObject().get("name").getAsString());
+        assertEquals("Bob", server.getAsJsonObject("player").get("name").getAsString());
     }
 }

@@ -11,6 +11,7 @@ import com.mineui.protocol.JsonCodec;
 import com.mineui.protocol.MessageType;
 import com.mineui.protocol.json.JsonPatch;
 import com.mineui.protocol.json.JsonPointers;
+import com.mineui.protocol.json.PatchBatch;
 import com.mineui.protocol.msg.Patch;
 import com.mineui.protocol.msg.PatchOp;
 import com.mineui.protocol.msg.Snapshot;
@@ -61,8 +62,12 @@ public final class UiSession implements MineUiSession {
     private int patchSeq;
     /** 批量更新中：state() 只记录待发 op，由 batch() 结束时合并成一个 PATCH。 */
     private boolean batching;
-    /** 待发 op（按 pointer 去重，保留最后一次写入）。 */
-    private final Map<String, PatchOp> pendingOps = new java.util.LinkedHashMap<>();
+    /**
+     * 待发 op（按写入顺序追加，不跨路径去重）。
+     * 父子路径混合写入时去重会留下已失效的子路径操作，导致客户端无法应用；
+     * 按序保留则客户端按序应用后必然与服务端最终状态一致。
+     */
+    private final PatchBatch pendingOps = new PatchBatch();
 
     UiSession(MineUiPlugin plugin, Plugin owner, Player player, int id, String app, String view,
               JsonObject definition, String mode, com.mineui.protocol.msg.HudLayout layout) {
@@ -96,7 +101,8 @@ public final class UiSession implements MineUiSession {
      * <p>
      * {@code key} 支持点分嵌套路径（如 {@code "player.name"}），与读取侧
      * {@code {state.player.name}} 绑定保持一致；中间缺失对象自动创建。
-     * 值未变化时不发 PATCH；处于 {@link #batch} 中时只登记待发 op，由批结束时合并成一个 PATCH。
+     * 值未变化时不发 PATCH；处于 {@link #batch} 中时只登记待发 op，由批结束时合并成一个 PATCH
+     * （按写入顺序保留，不跨路径去重，客户端按序应用后与服务端一致）。
      */
     @Override
     public UiSession state(String key, Object value) {
@@ -113,13 +119,7 @@ public final class UiSession implements MineUiSession {
         // 否则客户端因缺少父路径而无法应用叶子 op
         PatchOp op = JsonPointers.syncOp(set, JsonPointers.segments(key), state, next);
         if (batching) {
-            PatchOp first = pendingOps.get(op.path());
-            if (first != null) {
-                // 同一批内重复写入同一路径：保留第一次的操作类型（由批次开始时客户端的真实状态决定），只更新值
-                pendingOps.put(op.path(), new PatchOp(first.op(), first.path(), op.value()));
-            } else {
-                pendingOps.put(op.path(), op);
-            }
+            pendingOps.add(op);
         } else {
             sendPatch(List.of(op));
         }
@@ -127,7 +127,7 @@ public final class UiSession implements MineUiSession {
     }
 
     /**
-     * 批量更新：期间多次 {@link #state} 只在结束时合并成一个 PATCH（按字段去重，保留最后一次）。
+     * 批量更新：期间多次 {@link #state} 只在结束时合并成一个 PATCH（按写入顺序保留）。
      * <pre>{@code
      * session.batch(() -> {
      *     session.state("title", t);
@@ -151,8 +151,7 @@ public final class UiSession implements MineUiSession {
         } finally {
             batching = false;
             if (!pendingOps.isEmpty() && !closed) {
-                List<PatchOp> ops = new java.util.ArrayList<>(pendingOps.values());
-                pendingOps.clear();
+                List<PatchOp> ops = pendingOps.drain();
                 sendPatch(ops);
             } else {
                 pendingOps.clear();

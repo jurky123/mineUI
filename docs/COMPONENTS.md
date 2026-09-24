@@ -63,8 +63,11 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 { "type": "item", "item": "minecraft:diamond", "scale": 1.4, "itemTooltip": true }
 { "type": "item", "item": "minecraft:dragon_head", "scale": 1.4 }
 
-// 原版九宫格精灵（slot_frame / button / text_field / scroller …）
-{ "type": "image", "texture": "sprite:minecraft:widget/slot_frame", "width": 20, "height": 20 }
+// 原版图集精灵（按图集采样；sprite: 前缀 = 图集 id）
+{ "type": "image", "texture": "sprite:minecraft:widget/button", "width": 120, "height": 20 }
+
+// 原版九宫格：sprite9 走直连纹理，必须写 textures/...png 完整路径（图集 id 会被当成不存在的贴图）
+{ "type": "image", "texture": "sprite9:minecraft:textures/gui/sprites/widget/slot_frame.png#3", "width": 20, "height": 20 }
 
 // 自绘像素素材（随 mod 发布在 assets/mineui/textures/gui/）
 { "type": "image", "texture": "mineui:textures/gui/icon_star.png", "width": 32, "height": 32 }
@@ -165,7 +168,9 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
 | `mineui:accent` | 玩家自定义强调色底（`config/mineui/theme.json` 的 `accent`，主操作按钮用） |
 
 **任意纹理 9-slice**：`"skin": "sprite9:<贴图id>#<边距>"`（边距单个数字或 `l,t,r,b`）——
-可套用任何 CC0 像素 GUI 素材包（角 1:1、边拉伸、中心拉伸；hover 用 `spriteHover` 同语法）。
+`<贴图id>` 是**直连纹理路径**（如 `minecraft:textures/gui/sprites/widget/slot_frame.png`），
+不是 `sprite:` 的图集 id；可套用任何 CC0 像素 GUI 素材包（角 1:1、边拉伸、中心拉伸；hover 用 `spriteHover` 同语法）。
+内置 `vanilla:slot` 即 `sprite9:minecraft:textures/gui/sprites/widget/slot_frame.png#3`（3px 边框九宫格，拉伸不变糊）。
 
 **主题 token**：`config/mineui/theme.json`：`{ "accent": "#FF3FA9F5", "accentHover": "..." }`；
 F9 热重载生效。强调色建议稀缺使用（一屏一个主操作）。
@@ -284,8 +289,9 @@ session.on("decor_click", action -> session.state("clicks", session.getInt("clic
 - `state()` 支持点分嵌套路径（如 `session.state("player.name", "a")`，与读取侧 `{state.player.name}`
   一致，中间缺失对象自动创建）；键名本身不得含 `.`（会被解释为嵌套）
 - `state()` 设置相等值时不发 PATCH（Gson 数值语义）；高频重复推送不会产生网络包
-- `session.batch(() -> { ... })` 把多次 `state()` 合并成一个 PATCH（按字段去重，保留最后一次）；
-  批内重复写入新字段时保留第一次的 `add`/`replace` 语义，保证客户端可应用
+- `session.batch(() -> { ... })` 把多次 `state()` 合并成一个 PATCH（按写入顺序保留，
+  不跨路径去重：父子路径混合写入时客户端按序应用后与服务端一致）；
+  相等值写入仍在 `state()` 层直接跳过，不进入批
 - 动作处理器内的状态修改默认按批合并；处理器未改状态时发空 PATCH 同步修订号
 
 ---

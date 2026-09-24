@@ -66,6 +66,9 @@ public final class JsonPointers {
      * 本次写入客户端实际需要的同步操作：若新建了中间分支，对最高新建分支发一次
      * {@code add}（带整棵子树），否则对叶子发 {@code add}/{@code replace}。
      * 客户端按序应用后与服务端状态一致（空状态也能应用）。
+     * <p>
+     * 返回的 value 均为深拷贝快照：调用方后续继续写入同一子树时，不会污染已生成的 op
+     * （batch 把多个 op 合并成一个 PATCH 时依赖此隔离）。
      */
     public static PatchOp syncOp(SetResult set, List<String> segments, JsonObject root, JsonElement value) {
         if (set.createdFrom() >= 0) {
@@ -74,9 +77,13 @@ public final class JsonPointers {
             for (String segment : branch) {
                 subtree = ((JsonObject) subtree).get(segment);
             }
-            return PatchOp.add(pointer(branch), subtree);
+            return PatchOp.add(pointer(branch), copy(subtree));
         }
-        return set.existed() ? PatchOp.replace(set.pointer(), value) : PatchOp.add(set.pointer(), value);
+        return set.existed() ? PatchOp.replace(set.pointer(), copy(value)) : PatchOp.add(set.pointer(), copy(value));
+    }
+
+    private static JsonElement copy(JsonElement value) {
+        return value == null || value.isJsonNull() ? value : value.deepCopy();
     }
 
     /** 按点分路径读取叶子（无则返回 null），与写入语义一致。 */

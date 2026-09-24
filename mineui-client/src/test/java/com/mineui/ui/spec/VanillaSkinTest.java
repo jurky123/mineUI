@@ -86,6 +86,17 @@ class VanillaSkinTest {
     }
 
     @Test
+    void slotSkinUsesNineSliceSprite() throws Exception {
+        // slot_frame 边框仅 3px：直接拉伸到 20px 会低于 1px 看起来像空白方框，必须九宫格
+        // 注意用纹理路径（textures/gui/sprites/...png）而非图集精灵 id：
+        // sprite9 走直连纹理采样，图集 id（minecraft:widget/slot_frame）会被当成不存在的贴图 → 紫黑
+        UiNode root = UiSpecParser.parse(json("""
+                { "type": "box", "skin": "vanilla:slot" }
+                """));
+        assertEquals("sprite9:minecraft:textures/gui/sprites/widget/slot_frame.png#3", root.style().sprite());
+    }
+
+    @Test
     void unknownSkinIsIgnored() throws Exception {
         UiNode root = UiSpecParser.parse(json("""
                 { "type": "button", "skin": "vanilla:unknown", "text": "x" }

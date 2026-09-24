@@ -716,6 +716,10 @@ public final class UiTreeRenderer {
         }
         String resolvedUrl = cache.resolvedTemplate(generation(), node.texture(),
                 template -> Bindings.resolve(template, state));
+        // 九宫格精灵（sprite9:<id>#<边距>）：与皮肤同语法，角 1:1、边/中心拉伸
+        if (resolvedUrl.startsWith("sprite9:") && drawSprite9(node, resolvedUrl, 0, opacity)) {
+            return;
+        }
         if (resolvedUrl.startsWith("http://") || resolvedUrl.startsWith("https://")) {
             RemoteImages.Entry entry = RemoteImages.resolve(resolvedUrl, node.sha256());
             if (entry.state() != RemoteImages.State.READY || entry.texture() == null) {
@@ -803,15 +807,12 @@ public final class UiTreeRenderer {
     }
 
     /**
-     * 统一的图片绘制：目标矩形 + 源 UV + 纹理尺寸 + 颜色（tint×opacity）一次算清。
-     * 无着色且不透明时走精确浮点 UV 快路径；否则走带色管线 blit（整数 texel）。
-     */
-    /**
      * 统一的图片绘制：目标矩形 + 源 UV + 纹理尺寸 + 颜色一次算清。
      * <p>
      * 颜色由调用方显式传入（原图传 tint×opacity，烘焙变体传 WHITE×opacity），
      * 此处不再从节点隐式读取，避免烘焙过的 tint 被重复相乘。
-     * 无着色且不透明时走精确浮点 UV 快路径；否则走带色管线 blit（整数 texel）。
+     * 着色/半透明的子图裁切语义保持与原来一致（整图拉伸绘制），待实机验证后再收敛；
+     * 不透明整图走精确浮点 UV 路径。
      */
     private void blitImage(Identifier texture, float texW, float texH,
                            float u, float v, float regionW, float regionH,
@@ -820,10 +821,21 @@ public final class UiTreeRenderer {
         int y = Math.round(node.y());
         int w = Math.round(node.width());
         int h = Math.round(node.height());
-        if (color == 0xFFFFFFFF && texW > 0 && texH > 0) {
+        if (texW > 0 && texH > 0) {
             // 26.2 的 blit 浮点参数顺序是 (u0, u1, v0, v1)，不是 (u0, v0, u1, v1)
-            graphics.blit(texture, x, y, x + w, y + h,
-                    u / texW, (u + regionW) / texW, v / texH, (v + regionH) / texH);
+            float u0 = u / texW;
+            float u1 = (u + regionW) / texW;
+            float v0 = v / texH;
+            float v1 = (v + regionH) / texH;
+            if (color == 0xFFFFFFFF) {
+                graphics.blit(texture, x, y, x + w, y + h, u0, u1, v0, v1);
+                return;
+            }
+            // 带色管线只有整数 texel 重载，且语义是"整图拉伸到目标"：
+            // 着色/半透明的子图改走遮罩变体管线（tint/裁切一次烘焙进像素），
+            // 此处保持与原来一致的整图绘制，避免修改采样语义。
+            graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y,
+                    Math.round(u), Math.round(v), w, h, Math.max(1, (int) texW), Math.max(1, (int) texH), color);
             return;
         }
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y,

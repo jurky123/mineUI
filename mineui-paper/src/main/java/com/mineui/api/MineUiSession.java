@@ -27,6 +27,7 @@ public interface MineUiSession {
 
     /**
      * 批量更新：期间多次 {@link #state} 合并成一个 PATCH 发送，减少高频刷新时的包数。
+     * 批内操作按写入顺序保留（不跨路径去重），客户端按序应用后与服务端一致。
      * <pre>{@code
      * session.batch(() -> {
      *     session.state("title", t);

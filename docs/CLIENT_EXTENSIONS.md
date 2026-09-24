@@ -127,6 +127,6 @@ compileOnly "com.mineui:mineui-client-api:0.12.0"
 ## 8. 与服务端 PATCH 的配合（节流）
 
 - `UiSession.state()` 对**相等值直接跳过**（Gson 数值语义），业务每秒重复 push 相同字段不再产生网络包
-- `session.batch(() -> { ... })` 把多次 `state()` 合并成一个 PATCH（按字段去重，保留最后一次）；
+- `session.batch(() -> { ... })` 把多次 `state()` 合并成一个 PATCH（按写入顺序保留，不跨路径去重）；
   动作处理器内的状态修改默认已按批合并
 - 业务侧仍应避免推送客户端本地已拥有的字段（position/time/volume 等），详见 R9 建议

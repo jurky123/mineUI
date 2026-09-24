@@ -36,7 +36,7 @@ public final class VanillaSkins {
                 { "height": 20, "color": "#FFFFFF" }
                 """);
         put("vanilla:slot", """
-                { "sprite": "minecraft:widget/slot_frame" }
+                { "sprite": "sprite9:minecraft:textures/gui/sprites/widget/slot_frame.png#3" }
                 """);
         // HUD/浮层用：无边框半透明圆角（程序化绘制，无需素材）
         put("mineui:glass", """
