@@ -63,6 +63,9 @@ public final class MineUiLocalBridge {
             if (com.mineui.client.api.MineUiClientRegistry.hasActionHandlers()) {
                 caps.add(com.mineui.client.api.MineUiClientRegistry.CAPABILITY_LOCAL_ACTION);
             }
+            if (com.mineui.client.api.MineUiClientRegistry.hasImageProviders()) {
+                caps.add(com.mineui.client.api.MineUiClientRegistry.CAPABILITY_LOCAL_IMAGE);
+            }
             caps.addAll(com.mineui.client.api.MineUiClientRegistry.declaredCapabilities());
         } catch (Throwable t) {
             // mineui-client-api 未安装：无本地能力
@@ -98,6 +101,30 @@ public final class MineUiLocalBridge {
             return com.mineui.client.api.MineUiClientRegistry.generation();
         } catch (Throwable t) {
             return 0L;
+        }
+    }
+
+    /** 某个命名空间的结构代数（FR-19 本地图片缓存失效用）。 */
+    public static long namespaceGeneration(String namespace) {
+        try {
+            return com.mineui.client.api.MineUiClientRegistry.generation(namespace);
+        } catch (Throwable t) {
+            return 0L;
+        }
+    }
+
+    /** 读取本地图字节（传入 {@code "local."} 之后的部分，如 {@code "mineaudio.lib0_cover"}）。 */
+    public static byte[] image(String path) {
+        int dot = path == null ? -1 : path.indexOf('.');
+        if (dot <= 0 || dot >= path.length() - 1) {
+            return null;
+        }
+        String namespace = path.substring(0, dot);
+        String key = path.substring(dot + 1);
+        try {
+            return com.mineui.client.api.MineUiClientRegistry.getImage(namespace, key);
+        } catch (Throwable t) {
+            return null;
         }
     }
 

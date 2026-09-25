@@ -16,6 +16,9 @@ public final class Bindings {
             Pattern.compile("\\{((?:state|item|itemIndex|itemHighlight|key|local)(?:\\.[a-zA-Z0-9_:\\-]+)*)}");
     /** list 的 items / highlightIndex 只接受整体 state 绑定。 */
     private static final Pattern STATE_PATH = Pattern.compile("\\{state\\.([a-zA-Z0-9_.\\-]+)}");
+    /** 整串为单个 local 绑定（如图片来源 {@code "{local.<ns>.<key>}"}）：group 为 {@code <ns>.<key>}。 */
+    private static final Pattern LOCAL_PATH =
+            Pattern.compile("\\{local\\.([a-zA-Z0-9_:\\-]+(?:\\.[a-zA-Z0-9_:\\-]+)+)}");
 
     private Bindings() {
     }
@@ -47,6 +50,18 @@ public final class Bindings {
             return null;
         }
         Matcher matcher = STATE_PATH.matcher(template.trim());
+        return matcher.matches() ? matcher.group(1) : null;
+    }
+
+    /**
+     * 若整串就是单个 local 绑定（如 {@code "{local.mineaudio.lib0_cover}"}），
+     * 返回 {@code "<ns>.<key>"}；否则 null。用于本地图片来源（FR-19）。
+     */
+    public static String localPath(String template) {
+        if (template == null) {
+            return null;
+        }
+        Matcher matcher = LOCAL_PATH.matcher(template.trim());
         return matcher.matches() ? matcher.group(1) : null;
     }
 }

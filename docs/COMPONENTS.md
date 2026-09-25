@@ -136,6 +136,19 @@ HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无�
   远程图基底恒为最近邻（像素封面已天然清晰），`linear` 走遮罩同款变体烘焙管线；
   本地材质包贴图缺省跟随其 mcmeta `blur` 标记，`sprite:` 走图集采样器
 
+## 2.7.3 本地图片（客户端本地来源，0.16）
+
+```json
+{ "type": "image", "texture": "{local.mineaudio.lib0_cover}", "width": 20, "height": 20 }
+```
+
+- 仅当来源是**整串单个** `{local.<ns>.<key>}` 时走本地图片；由同命名空间 provider 的
+  `ClientStateProvider.image(key)` 提供字节（PNG/JPEG/GIF/BMP），**不走网络/白名单/私网校验**
+- MineUI 异步解码并按 `(ns, key, providerGeneration)` 缓存；`generation()` 变化失效该命名空间缓存，
+  同一代数内不重复取字节；单图上限 2 MiB；断线/切服释放纹理
+- 未注册/无图/解码失败：该图不显示（debug 一次），必要时回退到 `get(key)` 当 URL 的旧逻辑
+- 能力位 `local_image`；设计见 [`CLIENT_EXTENSIONS.md §9`](CLIENT_EXTENSIONS.md)
+
 ## 2.7.0 输入框中文（IME，0.15）
 
 - 聚焦自动打开 IME 并把候选窗定位到输入框；失焦/ESC/关界面自动关闭

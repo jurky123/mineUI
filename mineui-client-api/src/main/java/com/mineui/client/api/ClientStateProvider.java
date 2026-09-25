@@ -21,4 +21,18 @@ public interface ClientStateProvider {
     default long generation() {
         return 0L;
     }
+
+    /**
+     * 本地图片字节（FR-19）：当页面写 {@code "texture": "{local.<namespace>.<key>}"} 时，
+     * MineUI 调用该命名空间 provider 的此方法取图。
+     * <p>
+     * 返回该短键对应的图片原始字节（ImageIO 可解码：PNG/JPEG/GIF/BMP），
+     * {@code null} 表示无本地图片，按 URL 逻辑回退。实现必须**无阻塞、无网络、无重解码**
+     * （返回业务侧已缓存的字节），调用线程为渲染/逻辑线程。
+     * <p>
+     * 默认返回 {@code null}：不实现即与旧行为一致（向后兼容）。
+     */
+    default byte[] image(String key) {
+        return null;
+    }
 }

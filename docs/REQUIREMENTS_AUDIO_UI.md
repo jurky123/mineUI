@@ -38,6 +38,10 @@
   并修复 `image.radius` 无遮罩的旧账——radius>0 时预烘焙遮罩纹理（一次），圆形封面旋转不露角
 - ✅ **P4e 输入框 IME + 图片过滤**（0.15.0，FR-14/FR-15）：中文组词（候选窗定位/组词显示/回车确认不误提交）；
   `image.filter`（`nearest` 像素风 / `linear`，缺省跟随引擎默认）；`state()` 支持点分嵌套路径
+- ✅ **P4f 本地图片来源**（0.16.0，FR-19）：`image` 节点来源支持 `{local.<ns>.<key>}`，
+  由同命名空间 `ClientStateProvider.image(key)` 提供字节（`mineui-client-api` 向后兼容默认方法），
+  MineUI 异步解码并按 `(ns,key,generation)` 缓存、2 MiB 上限、断线释放，能力位 `local_image`；
+  见 [`CLIENT_EXTENSIONS.md §9`](CLIENT_EXTENSIONS.md)
 
 ---
 
@@ -122,6 +126,17 @@ MineUI 已能承载屏幕页面（会话 / 状态 / 动作 / 组件 / 动态贴�
 - 能力位 `local_state` / `local_action`；未注册/旧客户端安全降级
 - 命名空间隔离派发；权威判定仍走服务端
 - 详细设计见 [`docs/CLIENT_EXTENSIONS.md`](CLIENT_EXTENSIONS.md)
+
+### FR-19 本地图片来源（本地曲库封面）
+- 背景：`image` 只支持 http(s)（受白名单/私网拦截约束），客户端本地封面无法显示
+- 需求（通用能力）：`image` 来源写 `{local.<ns>.<key>}`；同命名空间 `ClientStateProvider.image(key)`
+  返回图片字节（ImageIO 可解码），非空即本地图，不走网络/远程策略/域名白名单
+- 缓存：按 `(namespace, key, providerGeneration)` 缓存已解码纹理；`generation()` 变化失效该命名空间缓存；
+  同一代数内不重复调用 `image()`；解码在后台线程、注册在主线程
+- 限制：单图 ≤2 MiB；PNG/JPEG/GIF/BMP；命名空间隔离；失败 debug 一次不刷屏；null → 回退 URL 逻辑
+- 生命周期：纹理创建/释放由 MineUI 负责（页面替换、断线/切服释放）；字节缓存由业务持有
+- 能力位 `local_image`；未注册/旧客户端渲染为空，行为与现状一致
+- MineAudio 侧：`localState` 保留 `libN_cover` 占位，另实现 `image("libN_cover")` 返回该槽位封面缓存字节
 
 ## 4. 与现有 API 的关系
 

@@ -45,4 +45,16 @@ class BindingsTest {
         assertNull(Bindings.statePath("{local.mineaudio.lyrics}"));
         assertNull(Bindings.statePath("plain"));
     }
+
+    @Test
+    void localPathOnlyAcceptsWholeLocalBinding() {
+        assertEquals("mineaudio.lib0_cover", Bindings.localPath("{local.mineaudio.lib0_cover}"));
+        assertEquals("mineaudio.lib0_cover", Bindings.localPath("  {local.mineaudio.lib0_cover}  "));
+        // 混排/非整串/单段都不算本地图来源
+        assertNull(Bindings.localPath("封面 {local.mineaudio.lib0_cover}"));
+        assertNull(Bindings.localPath("{local.mineaudio}"));
+        assertNull(Bindings.localPath("{state.cover}"));
+        assertNull(Bindings.localPath("sprite:minecraft:widget/button"));
+        assertNull(Bindings.localPath(null));
+    }
 }

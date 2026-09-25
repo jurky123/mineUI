@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -96,6 +97,75 @@ class MineUiClientRegistryTest {
         }, null);
         // 注册表版本（+2）加上两个 provider 的 generation（3+4）
         assertEquals(before + 2 + 7, MineUiClientRegistry.generation());
+    }
+
+    @Test
+    void imageLookupOnlyForOverridingProviders() {
+        MineUiClientBridge.get().register("plain", key -> null, null);
+        assertFalse(MineUiClientRegistry.hasImageProviders());
+        assertNull(MineUiClientRegistry.getImage("plain", "k"));
+
+        MineUiClientBridge.get().register("img", new ClientStateProvider() {
+            @Override
+            public Object get(String key) {
+                return null;
+            }
+
+            @Override
+            public byte[] image(String key) {
+                return "cover".equals(key) ? new byte[]{1, 2, 3} : null;
+            }
+        }, null);
+        assertTrue(MineUiClientRegistry.hasImageProviders());
+        assertArrayEquals(new byte[]{1, 2, 3}, MineUiClientRegistry.getImage("img", "cover"));
+        assertNull(MineUiClientRegistry.getImage("img", "missing"));
+        assertNull(MineUiClientRegistry.getImage("other", "cover"));
+    }
+
+    @Test
+    void imageProviderExceptionIsIsolated() {
+        MineUiClientBridge.get().register("bad", new ClientStateProvider() {
+            @Override
+            public Object get(String key) {
+                return null;
+            }
+
+            @Override
+            public byte[] image(String key) {
+                throw new IllegalStateException("boom");
+            }
+        }, null);
+        assertNull(MineUiClientRegistry.getImage("bad", "k"));
+    }
+
+    @Test
+    void namespaceGenerationTracksItsProviderOnly() {
+        MineUiClientBridge.get().register("a", new ClientStateProvider() {
+            @Override
+            public Object get(String key) {
+                return null;
+            }
+
+            @Override
+            public long generation() {
+                return 5L;
+            }
+        }, null);
+        MineUiClientBridge.get().register("b", new ClientStateProvider() {
+            @Override
+            public Object get(String key) {
+                return null;
+            }
+
+            @Override
+            public long generation() {
+                return 7L;
+            }
+        }, null);
+        long version = MineUiClientRegistry.generation() - 12;
+        assertEquals(version + 5, MineUiClientRegistry.generation("a"));
+        assertEquals(version + 7, MineUiClientRegistry.generation("b"));
+        assertEquals(version, MineUiClientRegistry.generation("unknown"));
     }
 
     @Test

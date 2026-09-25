@@ -17,6 +17,8 @@ public final class MineUiClientRegistry {
     public static final String CAPABILITY_LOCAL_STATE = "local_state";
     /** 能力位：存在本地动作处理器。 */
     public static final String CAPABILITY_LOCAL_ACTION = "local_action";
+    /** 能力位：存在本地图片提供者（{@link ClientStateProvider#image(String)} 被实现）。 */
+    public static final String CAPABILITY_LOCAL_IMAGE = "local_image";
 
     private record Entry(ClientStateProvider state, ClientActionHandler actions) {
     }
@@ -71,6 +73,19 @@ public final class MineUiClientRegistry {
         }
     }
 
+    /** 读取本地图字节（FR-19）：未注册/未实现/无图/异常返回 null。 */
+    public static byte[] getImage(String namespace, String key) {
+        Entry entry = ENTRIES.get(namespace);
+        if (entry == null || entry.state() == null) {
+            return null;
+        }
+        try {
+            return entry.state().image(key);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     /** 派发同命名空间动作；未注册/未处理/异常返回 false。 */
     public static boolean dispatchAction(String namespace, String action, Map<String, Object> payload) {
         Entry entry = ENTRIES.get(namespace);
@@ -109,6 +124,43 @@ public final class MineUiClientRegistry {
 
     public static boolean hasActionHandlers() {
         return ENTRIES.values().stream().anyMatch(entry -> entry.actions() != null);
+    }
+
+    /**
+     * 请求命名空间的本地图片结构代数（注册表版本 + 该 provider 的 {@link ClientStateProvider#generation()}）。
+     * FR-19：代数变化时 MineUI 失效该命名空间的本地图片缓存，重新取字节。
+     */
+    public static long generation(String namespace) {
+        long base = VERSION.get();
+        Entry entry = ENTRIES.get(namespace);
+        if (entry == null || entry.state() == null) {
+            return base;
+        }
+        try {
+            return base + entry.state().generation();
+        } catch (RuntimeException e) {
+            return base;
+        }
+    }
+
+    /** 是否存在实现了 {@link ClientStateProvider#image(String)} 的提供者。 */
+    public static boolean hasImageProviders() {
+        for (Entry entry : ENTRIES.values()) {
+            if (entry.state() != null && overridesImage(entry.state())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 反射判断 provider 是否覆盖了 image（default 方法未覆盖时不算提供者）。 */
+    private static boolean overridesImage(ClientStateProvider provider) {
+        try {
+            return provider.getClass().getMethod("image", String.class)
+                    .getDeclaringClass() != ClientStateProvider.class;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
     }
 
     public static Set<String> declaredCapabilities() {

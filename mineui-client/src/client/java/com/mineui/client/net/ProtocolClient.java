@@ -206,6 +206,7 @@ public final class ProtocolClient {
         MineUiHuds.reset();
         RemoteImages.reset();
         com.mineui.client.ui.render.ImageMasks.reset();
+        com.mineui.client.ui.local.LocalImages.reset();
         MineUiToasts.reset();
         MineUiKeybinds.reset();
         serverProtocol = -1;

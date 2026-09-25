@@ -111,6 +111,8 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 进度条：`progress` 组件（方向/渐变/时间文本）与低频更新客户端插值；滑块步进/禁用态
 - ✅ 远程图片：`image.url` 支持状态绑定；HTTPS 直连 + 服务端域名白名单 + 私网拦截 + 内存/磁盘缓存 + 占位降级；
   网易云封面（JPEG）实测通过，失败有原因提示与超时保护
+- ✅ 本地图片：`image.texture` 支持 `{local.<ns>.<key>}`（客户端本地来源，不走网络/白名单）；
+  业务 mod 经 `mineui-client-api` 提供字节，能力位 `local_image`
 - ✅ 列表：`list` 节点（items 绑定 + 任意 itemTemplate + 高亮行自动居中 + 滚轮）；`/mineui lyrics` 演示
 - ✅ Toast：服务端短提示（图标/时长）+ 界面内点击回传全局动作；`MineUi.onAction`；`/mineui toast` 演示
 - ✅ 键位：客户端通用键位池（`key.mineui.slot1..8`，改键走原版）+ 服务端 `keybind` 声明 + `{key.<action>}` 页面提示

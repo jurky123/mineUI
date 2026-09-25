@@ -130,3 +130,47 @@ compileOnly "com.mineui:mineui-client-api:0.12.0"
 - `session.batch(() -> { ... })` 把多次 `state()` 合并成一个 PATCH（按写入顺序保留，不跨路径去重）；
   动作处理器内的状态修改默认已按批合并
 - 业务侧仍应避免推送客户端本地已拥有的字段（position/time/volume 等），详见 R9 建议
+
+## 9. 本地图片（FR-19）
+
+> 需求来源：MineAudio 本地曲库封面（2026-09-25）。做成通用能力：`image` 节点的来源支持客户端本地图片提供者。
+
+### 9.1 接口（`mineui-client-api`，向后兼容）
+
+```java
+public interface ClientStateProvider {
+    Object get(String key);
+    /** 返回该短键对应的图片原始字节（ImageIO 可解码：PNG/JPEG/GIF/BMP）；null 表示无本地图片，按 URL 回退。 */
+    default byte[] image(String key) { return null; }
+    default long generation() { return 0L; }
+}
+```
+
+- 只实现 `get`（如 lambda）时 `image` 保持默认：**旧业务零改动**，`hasImageProviders()` 反射判断是否被覆盖
+- 能力位：存在覆盖 `image` 的 provider 时，`HELLO` 自动上报 `local_image`
+
+### 9.2 页面语法
+
+```json
+{ "type": "image", "texture": "{local.mineaudio.lib0_cover}", "width": 20, "height": 20 }
+```
+
+- 仅当来源是**整串单个** `{local.<ns>.<key>}` 时走本地图片；混排文本（如 `"封面 {local...}"`）不算
+- `image(key)` 返回非空 → 视为本地图片，**不走网络 / 远程策略 / 域名白名单**
+- 返回 `null` / 未注册 / 解码失败 → 该图不显示（debug 一次），必要时回退到既有「把 `get(key)` 当 URL」逻辑
+
+### 9.3 缓存与失效
+
+- MineUI 按 `(namespace, key, providerGeneration)` 缓存已解码纹理；同一代数内**不重复调用 `image()`**
+- provider 的 `generation()` 变化 = 该命名空间本地图片缓存全部失效，丢弃旧纹理并在下次使用时重新取字节
+  （结构变化沿用既有 `generation()` 约定；纯数值变化不要自增）
+- 解码在后台线程、注册在主线程；断线/切服、页面替换时释放纹理句柄（`LocalImages.reset()`）
+- 单图硬上限 **2 MiB**；超限/不可解码只记一次 debug，不弹窗、不刷屏
+
+### 9.4 边界
+
+- 只允许**同命名空间** provider 提供该命名空间的本地图片（`{local.a.b}` 只会问 `a` 的 provider）
+- provider 异常被隔离，不影响页面其他部分
+- 本地字节与纹理的所有权：字节缓存由业务持有，纹理的创建/释放由 MineUI 负责
+- 本地图片当前按整图绘制：`radius`/`filter` 暂不参与遮罩/过滤（`spin` 等变换正常）；需要时后续接入遮罩烘焙管线
+

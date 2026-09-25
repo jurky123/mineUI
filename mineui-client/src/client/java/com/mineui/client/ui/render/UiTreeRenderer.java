@@ -13,6 +13,7 @@ import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.ListViewNode;
 import com.mineui.client.MineUiTheme;
+import com.mineui.client.ui.local.LocalImages;
 import com.mineui.client.ui.remote.RemoteImages;
 import com.mineui.ui.tree.NodeStyle;
 import com.mineui.ui.tree.PlayerViewNode;
@@ -665,6 +666,11 @@ public final class UiTreeRenderer {
         if (image.width() <= 0 || image.height() <= 0) {
             return true;
         }
+        // 本地图片来源（FR-19）：READY 才算内容就绪（LOADING 为占位帧）
+        String localSource = Bindings.localPath(image.texture());
+        if (localSource != null) {
+            return LocalImages.resolve(localSource).state() == LocalImages.State.READY;
+        }
         float radius = image.style().radius();
         int tint = image.tint();
         String resolvedUrl = cache.resolvedTemplate(generation(), image.texture(),
@@ -713,6 +719,23 @@ public final class UiTreeRenderer {
     private void renderImage(ImageNode node, float opacity) {
         if (node.width() <= 0 || node.height() <= 0) {
             return;
+        }
+        // 本地图片来源（FR-19）：{local.<ns>.<key>} → provider 字节；
+        // NONE/FAILED（无图/不可解码）回退到既有 URL/贴图逻辑
+        String localSource = Bindings.localPath(node.texture());
+        if (localSource != null) {
+            LocalImages.Entry local = LocalImages.resolve(localSource);
+            if (local.state() == LocalImages.State.READY && local.texture() != null) {
+                int color = UiColors.withOpacity(node.tint() != 0 ? node.tint() : 0xFFFFFFFF, opacity);
+                blitImage(local.texture(), local.width(), local.height(), 0, 0,
+                        local.width(), local.height(), node, color);
+                return;
+            }
+            if (local.state() == LocalImages.State.LOADING) {
+                painter.fillRounded(node.x(), node.y(), node.width(), node.height(),
+                        Math.max(0f, node.style().radius()), 0x33FFFFFF, opacity);
+                return;
+            }
         }
         String resolvedUrl = cache.resolvedTemplate(generation(), node.texture(),
                 template -> Bindings.resolve(template, state));
