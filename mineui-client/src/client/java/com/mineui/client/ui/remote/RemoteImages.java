@@ -3,6 +3,7 @@ package com.mineui.client.ui.remote;
 import com.mineui.client.MineUiClient;
 import com.mineui.protocol.msg.RemoteImagePolicy;
 import com.mineui.ui.util.RemoteUrlGuard;
+import com.mineui.ui.util.TextureBudget;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -25,6 +26,7 @@ import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -69,9 +71,24 @@ public final class RemoteImages {
     private static final int MAX_IMAGE_DIMENSION = 4096;
     private static final long MAX_IMAGE_PIXELS = 4096L * 4096L;
     private static final long MAX_CACHE_BYTES = 128L * 1024 * 1024;
+    /**
+     * 已解码纹理内存预算（按像素字节 w×h×4）：磁盘缓存上限不限制 GPU/解码纹理占用，
+     * 长会话浏览大量封面会持续占用内存，故对在册 READY 纹理按 LRU 淘汰非活跃项。
+     */
+    private static final long MAX_TEXTURE_BYTES = 128L * 1024 * 1024;
+    /** 活跃保护窗口：最近使用过的图像不淘汰（在屏/在 HUD 的图像不被反复释放又重载）。 */
+    private static final long TEXTURE_ACTIVE_GRACE_MILLIS = 2_000L;
+    /** 失败项保留上限：超出按失败时间清理，避免长会话累积（失败项不占纹理，只占表项）。 */
+    private static final int MAX_FAILED_ENTRIES = 256;
+    /** 预算复核间隔：除新纹理注册外，渲染中每该间隔也复核一次，避免停止加载后内存不再回落。 */
+    private static final long BUDGET_CHECK_INTERVAL_MILLIS = 5_000L;
 
     private static final Map<String, Entry> ENTRIES = new ConcurrentHashMap<>();
     private static final Map<String, Long> STARTED = new ConcurrentHashMap<>();
+    /** READY 纹理的最近使用时间（纹理内存预算的 LRU 依据）。 */
+    private static final Map<String, Long> LAST_USED = new ConcurrentHashMap<>();
+    /** 上次预算复核时间（避免每帧全量扫描）。 */
+    private static volatile long lastBudgetCheckMillis;
     /** 失败时间：冷却结束后允许静默重试。 */
     private static final Map<String, Long> FAILED_AT = new ConcurrentHashMap<>();
     /** 已提示过失败的 URL，避免重复刷屏。 */
@@ -134,13 +151,24 @@ public final class RemoteImages {
     public static Entry resolve(String url, String sha256) {
         long now = System.currentTimeMillis();
         Entry cached = ENTRIES.get(url);
+        if (cached != null && cached.state() == State.READY) LAST_USED.put(url, now);
+        // 即便当前只有失败图片，也定期收回失败表项。
+        if (now - lastBudgetCheckMillis > BUDGET_CHECK_INTERVAL_MILLIS) {
+            evictToBudget();
+        }
         if (cached != null && cached.state() != State.FAILED) {
             if (cached.state() == State.LOADING && loadExpired(url)) {
                 Entry failed = new Entry(State.FAILED, null, 0, 0);
                 ENTRIES.put(url, failed);
                 FAILED_AT.put(url, now);
+                STARTED.remove(url);
                 reportFailure(url, "下载超时（超过 " + (LOAD_TIMEOUT_MILLIS / 1000) + " 秒）");
                 return failed;
+            }
+            if (cached.state() == State.READY) {
+                // 每帧访问即刷新 LRU，保证在屏/在 HUD 的图像不被淘汰
+                LAST_USED.put(url, now);
+
             }
             return cached;
         }
@@ -151,6 +179,7 @@ public final class RemoteImages {
                 return cached;
             }
             ENTRIES.remove(url, cached);
+            STARTED.remove(url);
         }
         RemoteUrlGuard.Result check = RemoteUrlGuard.check(url, policy);
         if (check != RemoteUrlGuard.Result.OK) {
@@ -189,6 +218,8 @@ public final class RemoteImages {
         GENERATION.incrementAndGet();
         ENTRIES.clear();
         STARTED.clear();
+        LAST_USED.clear();
+        lastBudgetCheckMillis = 0L;
         FAILED_AT.clear();
         REPORTED.clear();
     }
@@ -215,6 +246,7 @@ public final class RemoteImages {
             if (generation == GENERATION.get()) {
                 ENTRIES.put(url, new Entry(State.FAILED, null, 0, 0));
                 FAILED_AT.put(url, System.currentTimeMillis());
+                STARTED.remove(url);
                 reportFailure(url, e.getMessage());
             }
         }
@@ -247,12 +279,82 @@ public final class RemoteImages {
             DynamicTexture texture = new DynamicTexture(() -> "MineUI remote image", image);
             Minecraft.getInstance().getTextureManager().register(id, texture);
             ENTRIES.put(url, new Entry(State.READY, id, image.getWidth(), image.getHeight()));
+            LAST_USED.put(url, System.currentTimeMillis());
             FAILED_AT.remove(url);
+            STARTED.remove(url);
+            REPORTED.remove(url);
             MineUiClient.LOGGER.info("远程图片已加载: {} ({}x{})", url, image.getWidth(), image.getHeight());
+            // 新纹理会增加内存占用：超预算时淘汰最久未用的非活跃纹理（渲染线程）
+            evictToBudget();
         } catch (Exception e) {
             image.close();
             ENTRIES.put(url, new Entry(State.FAILED, null, 0, 0));
             reportFailure(url, "注册失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 纹理内存预算：在册 READY 纹理像素字节超限时，按 LRU 淘汰最久未用的非活跃项并释放纹理。
+     * <p>
+     * 仅在渲染线程（注册/解析路径）调用；最近使用过的活跃图像由 {@link TextureBudget}
+     * 的活跃窗口保护，不会被释放。被淘汰的图片若再次需要，会走磁盘缓存快速重载（不重新下载）。
+     */
+    private static void evictToBudget() {
+        long now = System.currentTimeMillis();
+        lastBudgetCheckMillis = now;
+        List<TextureBudget.Usage> usages = new ArrayList<>();
+        for (Map.Entry<String, Entry> entry : ENTRIES.entrySet()) {
+            Entry value = entry.getValue();
+            if (value.state() == State.READY && value.width() > 0 && value.height() > 0) {
+                long bytes = (long) value.width() * value.height() * 4L;
+                usages.add(new TextureBudget.Usage(entry.getKey(), bytes,
+                        LAST_USED.getOrDefault(entry.getKey(), 0L)));
+            }
+        }
+        for (String victim : TextureBudget.selectEvictions(
+                usages, MAX_TEXTURE_BYTES, now, TEXTURE_ACTIVE_GRACE_MILLIS)) {
+            releaseEntry(victim);
+        }
+        pruneFailedEntries();
+    }
+
+    /** 释放并移除单个表项（渲染线程）：READY 释放纹理句柄，其余仅清表。 */
+    private static void releaseEntry(String url) {
+        Entry entry = ENTRIES.remove(url);
+        LAST_USED.remove(url);
+        STARTED.remove(url);
+        FAILED_AT.remove(url);
+        REPORTED.remove(url);
+        if (entry == null || entry.state() != State.READY || entry.texture() == null) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft == null) {
+            return;
+        }
+        try {
+            minecraft.getTextureManager().release(entry.texture());
+        } catch (Exception e) {
+            MineUiClient.LOGGER.debug("释放远程图片纹理失败: {}", e.getMessage());
+        }
+    }
+
+    /** 失败项只占表项不占纹理：超过上限时按失败时间清理最旧的。 */
+    private static void pruneFailedEntries() {
+        List<String> failed = new ArrayList<>();
+        for (Map.Entry<String, Entry> entry : ENTRIES.entrySet()) {
+            if (entry.getValue().state() == State.FAILED) {
+                failed.add(entry.getKey());
+            }
+        }
+        if (failed.size() <= MAX_FAILED_ENTRIES) {
+            return;
+        }
+        failed.sort(java.util.Comparator.comparingLong(
+                url -> FAILED_AT.getOrDefault(url, 0L)));
+        int excess = failed.size() - MAX_FAILED_ENTRIES;
+        for (int i = 0; i < excess; i++) {
+            releaseEntry(failed.get(i));
         }
     }
 
