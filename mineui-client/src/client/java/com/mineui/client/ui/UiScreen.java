@@ -15,6 +15,7 @@ import com.mineui.ui.tree.InputNode;
 import com.mineui.ui.tree.ItemViewNode;
 import com.mineui.ui.tree.MeasureContext;
 import com.mineui.ui.tree.SliderNode;
+import com.mineui.ui.tree.StateAccess;
 import com.mineui.ui.tree.TabsNode;
 import com.mineui.ui.tree.TextMeasurer;
 import com.mineui.ui.tree.UiNode;
@@ -110,6 +111,10 @@ public final class UiScreen extends Screen {
         MeasureContext context = new MeasureContext(width, height, width, height, measurer, ProtocolClient.state());
         root.measure(context);
         root.layout(0, 0);
+        // 状态可能把输入框切到禁用态：主动失焦，避免 ESC 变成关界面、IME 一直挂着
+        if (focusedInput != null && !focusedInput.enabledNow(stateFor(focusedInput))) {
+            blurInput();
+        }
     }
 
     @Override
@@ -192,13 +197,43 @@ public final class UiScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
         UiNode hit = root.mouseClicked(event.x(), event.y(), event.button());
         if (hit instanceof InputNode input) {
-            focusInput(input);
+            if (input.enabledNow(stateFor(input))) {
+                focusInput(input);
+            } else {
+                blurInput();
+            }
             return true;
+        }
+        // 发送按钮：取当前输入框内容一起提交（不因点击按钮而失焦）
+        if (hit instanceof ButtonNode button && button.submitInput()) {
+            InputNode target = resolveSubmitTarget(button);
+            if (target != null) {
+                playClickPop(button);
+                button.setPressed(true);
+                pressedButton = button;
+                String text = target.text();
+                target.clear();
+                if (!text.isBlank() && !button.action().isEmpty()) {
+                    JsonObject payload = new JsonObject();
+                    payload.addProperty("text", text);
+                    ProtocolClient.sendAction(button.action(), payload);
+                }
+                return true;
+            }
         }
         blurInput();
         if (hit instanceof SliderNode slider) {
             draggingSlider = slider;
             slider.beginDrag(event.x(), event.y());
+            return true;
+        }
+        // 客户端内置滚动动作：不经过服务端，用于“回到底部”等纯表现操作
+        if (hit != null && handleScrollAction(hit)) {
+            playClickPop(hit);
+            if (hit instanceof ButtonNode button) {
+                button.setPressed(true);
+                pressedButton = button;
+            }
             return true;
         }
         if (hit != null && hit.clickable()) {
@@ -211,6 +246,58 @@ public final class UiScreen extends Screen {
             return true;
         }
         return super.mouseClicked(event, doubled);
+    }
+
+    private static final String SCROLL_BOTTOM = "mineui:scroll_bottom";
+    private static final String SCROLL_TOP = "mineui:scroll_top";
+
+    /**
+     * 内置滚动动作（客户端本地执行，不回传服务端）：
+     * {@code mineui:scroll_bottom} / {@code mineui:scroll_top} 作用于最近的列表/滚动祖先；
+     * 加 {@code :<节点id>} 后缀可指定任意列表/滚动节点（如浮在列表外的“回到底部”按钮）。
+     */
+    private boolean handleScrollAction(UiNode hit) {
+        String action = hit.action();
+        boolean bottom;
+        String targetId = "";
+        if (action.equals(SCROLL_BOTTOM) || action.startsWith(SCROLL_BOTTOM + ":")) {
+            bottom = true;
+            targetId = action.length() > SCROLL_BOTTOM.length() ? action.substring(SCROLL_BOTTOM.length() + 1) : "";
+        } else if (action.equals(SCROLL_TOP) || action.startsWith(SCROLL_TOP + ":")) {
+            bottom = false;
+            targetId = action.length() > SCROLL_TOP.length() ? action.substring(SCROLL_TOP.length() + 1) : "";
+        } else {
+            return false;
+        }
+        if (!targetId.isEmpty()) {
+            scrollTarget(root.findById(targetId), bottom);
+            // 明确是本地滚动动作：即使目标暂时不存在也不回落到服务端
+            return true;
+        }
+        UiNode cursor = hit.parent();
+        while (cursor != null) {
+            if (scrollTarget(cursor, bottom)) {
+                return true;
+            }
+            cursor = cursor.parent();
+        }
+        return true;
+    }
+
+    private static boolean scrollTarget(UiNode target, boolean bottom) {
+        if (target instanceof com.mineui.ui.tree.ListViewNode list) {
+            if (bottom) {
+                list.scrollToBottom();
+            } else {
+                list.scrollTo(0f);
+            }
+            return true;
+        }
+        if (target instanceof com.mineui.ui.tree.ScrollViewNode scroll) {
+            scroll.scrollTo(bottom ? scroll.contentHeight() : 0f);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -294,6 +381,54 @@ public final class UiScreen extends Screen {
         return super.mouseReleased(event);
     }
 
+    /** 节点所处的状态上下文（列表条目内为条目上下文，否则是全局状态）。 */
+    private static StateAccess stateFor(UiNode node) {
+        StateAccess context = node.stateContext();
+        return context != null ? context : ProtocolClient.state();
+    }
+
+    /**
+     * 发送按钮的提交目标：显式 {@code submit:"<input id>"} > 当前聚焦输入框 >
+     * 从按钮最近祖先里找到的第一个可用输入框（多输入页面不会误取全树第一个）。
+     */
+    private InputNode resolveSubmitTarget(ButtonNode button) {
+        String targetId = button.submitTarget();
+        if (targetId != null) {
+            UiNode node = root.findById(targetId);
+            return node instanceof InputNode input && input.enabledNow(stateFor(input)) ? input : null;
+        }
+        InputNode focused = focusedInput;
+        if (focused != null && focused.enabledNow(stateFor(focused))) {
+            return focused;
+        }
+        UiNode cursor = button.parent();
+        while (cursor != null) {
+            InputNode found = findInput(cursor);
+            if (found != null) {
+                return found;
+            }
+            cursor = cursor.parent();
+        }
+        return null;
+    }
+
+    /** 子树中第一个可见且可用的输入框。 */
+    private InputNode findInput(UiNode node) {
+        if (!node.visibleNow()) {
+            return null;
+        }
+        if (node instanceof InputNode input) {
+            return input.enabledNow(stateFor(input)) ? input : null;
+        }
+        for (UiNode child : node.children()) {
+            InputNode found = findInput(child);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (event.key() == GLFW.GLFW_KEY_F9) {
@@ -306,11 +441,15 @@ public final class UiScreen extends Screen {
         }
         InputNode input = focusedInput;
         if (input != null && input.focused()) {
+            // ESC 始终先失焦（即使输入框刚被状态切到禁用态），不应关闭整个界面
+            if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+                blurInput();
+                return true;
+            }
+            if (!input.enabledNow(stateFor(input))) {
+                return super.keyPressed(event);
+            }
             switch (event.key()) {
-                case GLFW.GLFW_KEY_ESCAPE -> {
-                    blurInput();
-                    return true;
-                }
                 case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
                     if (imeComposing) {
                         // 组词进行中的回车是确认组词，不能触发提交（合成文本随后经 charTyped 写入）
@@ -353,7 +492,8 @@ public final class UiScreen extends Screen {
     @Override
     public boolean charTyped(CharacterEvent event) {
         InputNode input = focusedInput;
-        if (input != null && input.focused() && event.isAllowedChatCharacter()) {
+        if (input != null && input.focused() && input.enabledNow(stateFor(input))
+                && event.isAllowedChatCharacter()) {
             if (input.insert(event.codepointAsString())) {
                 return true;
             }

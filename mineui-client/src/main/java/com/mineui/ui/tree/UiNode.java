@@ -108,6 +108,11 @@ public abstract class UiNode {
         this.stateContext = context;
     }
 
+    /** 父节点（根节点为 null）。 */
+    public UiNode parent() {
+        return parent;
+    }
+
     /** 所属列表条目下标（由 ListViewNode 重建时写入）。 */
     public int getItemIndex() {
         return itemIndex;

@@ -36,7 +36,7 @@ class DemoPagesTest {
 
     @Test
     void allBundledPagesParse() throws Exception {
-        for (String view : List.of("test", "vanilla", "gallery")) {
+        for (String view : List.of("test", "vanilla", "gallery", "chat")) {
             UiDefinition definition = UiDefinitionLoader.load("mineui", view, tempDir);
             assertNotNull(definition.root(), view);
             assertFalse(flatten(definition.root()).isEmpty(), view);

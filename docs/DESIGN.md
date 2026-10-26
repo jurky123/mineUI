@@ -114,7 +114,7 @@ Paper Server                          Fabric Client
 { "protocol": 1, "serverVersion": "0.1.0", "minimumClient": "0.1.0" }
 ```
 
-能力按功能位协商（`UI_SCHEMA_V1` / `ANIMATION_V1` / `PLAYER_3D` / `CUSTOM_FONT` / `REMOTE_IMAGE` / `server_ui`），保证新老客户端长期兼容。
+能力按功能位协商（`UI_SCHEMA_V1` / `ANIMATION_V1` / `PLAYER_3D` / `CUSTOM_FONT` / `REMOTE_IMAGE` / `server_ui` / `chat_ui_v1`），保证新老客户端长期兼容。
 `server_ui` 表示客户端支持在 `OPEN` 中接收服务端下发的界面定义；业务插件应先检查该能力（`MineUi.supportsServerUi(player)`），不支持时回退原版界面。
 
 ### 4.3 会话（Session）与修订（Revision）
@@ -245,6 +245,19 @@ Pre → Measure → Layout → Background → Content → Children → Overlay �
 - 数据绑定：`"text": "{state.currentPlayer.name}"`、`"visible": "{state.isMyTurn}"`。
 - Action 绑定：`"action": {"type":"server","id":"draw_card"}` → UI Runtime → ActionDispatcher → 协议 → Paper → 业务校验。
 - V1 不做脚本引擎（JS/Lua/Kotlin），保持声明式 JSON。
+
+### 7.1 聊天式界面能力（0.17）
+
+会话/消息流场景由通用字段组合实现，不引入聊天专用控件：
+
+- `text.wrap` + `maxLines` + `lineHeight`：按节点宽自动换行、超行省略，高度随行数增长；
+  显式 `\n` 保留，拉丁按空格断行、CJK 按字符断行（度量与渲染共用同一规则）
+- `row` / `column` 子节点的 `grow`：按占比分配剩余主轴空间（左栏固定/百分比 + 右栏填满，
+  header/list(grow)/composer 让 composer 始终贴底）
+- `list.stickToBottom`：底部时跟随新内容，用户上滚暂停、滚回恢复；列表按条目内容增量复用节点，
+  流式更新只重建变化的条目，旧页面默认行为不变
+- `button.submit`：点击取输入框内容一起提交（`{"text": ...}`）；`input.enabled` 支持状态绑定禁用态
+- 能力位 `chat_ui_v1`（`MineUi.supportsChatUi`）；页面示例 `/mineui chat`，字段说明见 `COMPONENTS.md §2.12`
 
 ---
 

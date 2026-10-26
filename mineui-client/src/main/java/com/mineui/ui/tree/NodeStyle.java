@@ -29,6 +29,7 @@ import com.mineui.ui.spec.BooleanSpec;
  * @param cycle         本地时间轮换（背景色/物品；null 表示不轮换）
  * @param spin          持续旋转周期（秒/圈，本地时间驱动；0/缺省不旋转）
  * @param spinPlaying   旋转开关（false 冻结角度；默认 true）
+ * @param grow          弹性占比：row 中分配剩余宽度、column 中分配剩余高度（0 表示不伸缩）
  */
 public record NodeStyle(
         String id,
@@ -60,14 +61,15 @@ public record NodeStyle(
         float hoverScale,
         com.mineui.ui.spec.CycleSpec cycle,
         float spin,
-        BooleanSpec spinPlaying) {
+        BooleanSpec spinPlaying,
+        float grow) {
 
     /** Phase 2 兼容构造器（无视觉扩展）。 */
     public NodeStyle(String id, SizeSpec width, SizeSpec height, Insets padding, Integer background,
                      CrossAlign align, MainAlign justify, float gap) {
         this(id, width, height, padding, background, align, justify, gap,
                 0f, null, 0f, null, 0f, 0f, null, 0, false, false, BooleanSpec.TRUE, null, false, null, null,
-                null, null, null, 1f, null, 0f, BooleanSpec.TRUE);
+                null, null, null, 1f, null, 0f, BooleanSpec.TRUE, 0f);
     }
 
     public static NodeStyle defaults() {

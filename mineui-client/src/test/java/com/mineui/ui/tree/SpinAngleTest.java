@@ -21,7 +21,7 @@ class SpinAngleTest {
         return new NodeStyle(null, SizeSpec.px(50), SizeSpec.px(50), Insets.ZERO, null,
                 CrossAlign.START, MainAlign.START, 0f, 0f, null, 0f, null, 0f, 0f,
                 null, 0, false, false, BooleanSpec.TRUE, null, false, null, null,
-                null, null, null, 1f, null, spinSeconds, PLAYING_PATH);
+                null, null, null, 1f, null, spinSeconds, PLAYING_PATH, 0f);
     }
 
     @Test

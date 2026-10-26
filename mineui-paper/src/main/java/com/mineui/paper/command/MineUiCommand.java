@@ -1,5 +1,7 @@
 package com.mineui.paper.command;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.mineui.paper.MineUiPlugin;
 import com.mineui.paper.SessionManager;
 import com.mineui.paper.ui.UiSession;
@@ -13,14 +15,15 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.List;
 
 /**
- * /mineui &lt;status|test|close&gt;
+ * /mineui &lt;status|test|style|image|hud|lyrics|chat|toast|keybind|gallery|close&gt;
  * <p>
  * 通过 Paper Brigadier Commands API 注册：子命令 tab 补全由命令树自动生成，
- * 无权限的子命令（test）对发送者不可见。
+ * 无权限的管理子命令对发送者不可见。
  */
 public final class MineUiCommand {
 
@@ -76,6 +79,12 @@ public final class MineUiCommand {
                         .requires(source -> source.getSender().hasPermission("mineui.admin"))
                         .executes(context -> {
                             lyrics(context.getSource().getSender());
+                            return Command.SINGLE_SUCCESS;
+                        }))
+                .then(Commands.literal("chat")
+                        .requires(source -> source.getSender().hasPermission("mineui.admin"))
+                        .executes(context -> {
+                            chat(context.getSource().getSender());
                             return Command.SINGLE_SUCCESS;
                         }))
                 .then(Commands.literal("toast")
@@ -279,6 +288,181 @@ public final class MineUiCommand {
         session.onClose(task::cancel);
         player.sendMessage(Component.text("已打开列表演示（歌词高亮自动居中，/mineui close 关闭）", NamedTextColor.GREEN));
     }
+
+    /**
+     * /mineui chat：两栏聊天界面演示（grow 布局 / 换行文本 / stickToBottom 列表 / submit 发送 /
+     * 伪造流式回复 / 审批卡按钮），页面见 {@code assets/mineui/ui/mineui/chat.json}。
+     */
+    private void chat(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(Component.text("该命令只能由玩家执行", NamedTextColor.RED));
+            return;
+        }
+        if (!plugin.sessions().isModClient(player.getUniqueId())) {
+            sender.sendMessage(Component.text("你需要安装 MineUI 客户端 mod 才能查看聊天界面", NamedTextColor.RED));
+            return;
+        }
+
+        UiSession session = plugin.uiSessions().open(player, "mineui", "chat");
+        JsonArray messages = new JsonArray();
+        messages.add(chatMessage("system", "系统", "全服对话已开启 · 所有玩家可见，请遵守服务器规则"));
+        messages.add(chatMessage("assistant", "MineAgent", "你好，我是 MineAgent。可以提问、闲聊，也可以让我调用工具或提交审批。"));
+        JsonObject tool = chatMessage("tool", "工具调用", "已读取主世界在线人数：12 人。");
+        tool.addProperty("tool", "server_status");
+        tool.addProperty("toolStatus", "完成");
+        tool.addProperty("duration", "0.6s");
+        messages.add(tool);
+        JsonObject approval = chatMessage("approval", "审批", "请求执行 /time set day（会改变全服时间）");
+        approval.addProperty("tool", "command_runner");
+        approval.addProperty("time", "30s");
+        messages.add(approval);
+
+        session.state("title", "全服对话");
+        session.state("status", "在线");
+        session.state("running", false);
+        session.state("messages", messages);
+        session.state("nav", "chat");
+
+        // 当前流式任务（每次发送/停止都可能替换，关闭会话时统一取消）
+        BukkitTask[] stream = {null};
+        session.on("send", event -> {
+            String text = event.string("text", "").trim();
+            if (text.isEmpty()) {
+                return;
+            }
+            cancelTask(stream);
+            messages.add(chatMessage("user", "你", text));
+            while (messages.size() > MAX_CHAT_MESSAGES) {
+                messages.remove(0);
+            }
+            session.state("messages", messages);
+            streamChatReply(session, messages, stream);
+        });
+        session.on("stop", event -> {
+            cancelTask(stream);
+            session.batch(() -> {
+                session.state("running", false);
+                session.state("status", "已停止");
+            });
+        });
+        session.on("approve", event -> resolveApproval(session, messages, event.number("index", -1), true));
+        session.on("reject", event -> resolveApproval(session, messages, event.number("index", -1), false));
+        session.on("nav_chat", event -> nav(session, "chat"));
+        session.on("nav_ai", event -> nav(session, "ai"));
+        session.on("nav_approval", event -> nav(session, "approval"));
+        session.on("nav_help", event -> nav(session, "help"));
+        session.on("close", event -> session.close());
+        session.onClose(() -> cancelTask(stream));
+        session.snapshot();
+        player.sendMessage(Component.text("已打开聊天界面（发送消息查看流式回复，/mineui close 关闭）", NamedTextColor.GREEN));
+    }
+
+    /** 追加一条助手占位消息，并按 250ms 一段把示例文本写到该消息上。 */
+    private void streamChatReply(UiSession session, JsonArray messages, BukkitTask[] stream) {
+        JsonObject reply = chatMessage("assistant", "MineAgent", "…");
+        messages.add(reply);
+        int[] cursor = {0};
+        session.state("messages", messages);
+        session.state("running", true);
+        session.state("status", "正在回复…");
+        stream[0] = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (session.closed()) {
+                cancelTask(stream);
+                return;
+            }
+            if (cursor[0] >= CHAT_REPLY_DEMO.length()) {
+                finishChatReply(session, messages, stream);
+                return;
+            }
+            int end = Math.min(CHAT_REPLY_DEMO.length(), cursor[0] + CHAT_STREAM_CHARS);
+            reply.addProperty("text", CHAT_REPLY_DEMO.substring(0, end));
+            cursor[0] = end;
+            session.state("messages", messages);
+            if (cursor[0] >= CHAT_REPLY_DEMO.length()) {
+                finishChatReply(session, messages, stream);
+            }
+        }, 250L, 250L);
+    }
+
+    /** 流式结束：取消任务并恢复在线状态。 */
+    private static void finishChatReply(UiSession session, JsonArray messages, BukkitTask[] stream) {
+        cancelTask(stream);
+        if (session.closed()) {
+            return;
+        }
+        session.batch(() -> {
+            session.state("messages", messages);
+            session.state("running", false);
+            session.state("status", "在线");
+        });
+    }
+
+    /** 审批/拒绝：按条目下标把审批卡替换成系统提示（列表条目按钮自动携带 index）。 */
+    private static void resolveApproval(UiSession session, JsonArray messages, double rawIndex, boolean approved) {
+        int index = (int) Math.round(rawIndex);
+        if (index < 0 || index >= messages.size()) {
+            return;
+        }
+        if (!(messages.get(index) instanceof JsonObject message)
+                || !message.has("isApproval") || !message.get("isApproval").getAsBoolean()) {
+            return;
+        }
+        messages.set(index, chatMessage("system", "系统", approved ? "✓ 已批准工具调用" : "✗ 已拒绝工具调用"));
+        session.state("messages", messages);
+    }
+
+    /** 左侧导航演示：切换标题与状态文案。 */
+    private static void nav(UiSession session, String nav) {
+        session.state("nav", nav);
+        switch (nav) {
+            case "ai" -> {
+                session.state("title", "AI 玩家");
+                session.state("status", "演示 · AI 玩家列表");
+            }
+            case "approval" -> {
+                session.state("title", "审批中心");
+                session.state("status", "演示 · 1 项待审批");
+            }
+            case "help" -> {
+                session.state("title", "帮助");
+                session.state("status", "演示 · 命令与快捷键");
+            }
+            default -> {
+                session.state("title", "全服对话");
+                session.state("status", "在线");
+            }
+        }
+    }
+
+    /** 构造一条聊天消息；角色布尔字段与 chat.json 的 itemTemplate 对应。 */
+    private static JsonObject chatMessage(String role, String author, String text) {
+        JsonObject message = new JsonObject();
+        message.addProperty("isUser", "user".equals(role));
+        message.addProperty("isAssistant", "assistant".equals(role));
+        message.addProperty("isTool", "tool".equals(role));
+        message.addProperty("isApproval", "approval".equals(role));
+        message.addProperty("isSystem", "system".equals(role));
+        message.addProperty("author", author);
+        message.addProperty("text", text);
+        message.addProperty("time", "刚刚");
+        return message;
+    }
+
+    private static void cancelTask(BukkitTask[] task) {
+        if (task[0] != null) {
+            task[0].cancel();
+            task[0] = null;
+        }
+    }
+
+    /** 聊天页保留的最近消息条数。 */
+    private static final int MAX_CHAT_MESSAGES = 20;
+    /** 流式回复每段追加的字符数（约 250ms 一段）。 */
+    private static final int CHAT_STREAM_CHARS = 3;
+    private static final String CHAT_REPLY_DEMO =
+            "收到！我先看一下主世界的天气和在线玩家，再把结果整理给你。"
+                    + "左侧导航、右侧消息卡片和底部输入框都由声明式 JSON 描述，"
+                    + "新消息会自动跟随到底部；你可以继续发送消息，或点击「停止」中断这次回复。";
 
     /** /mineui keybind：声明通用键位（槽位 1，默认 F7）→ 按下打开歌词页。 */
     private void keybind(CommandSender sender) {

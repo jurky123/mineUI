@@ -1,7 +1,9 @@
 package com.mineui.ui.tree;
 
+import com.google.gson.JsonParser;
 import com.mineui.ui.spec.Insets;
 import com.mineui.ui.spec.SizeSpec;
+import com.mineui.ui.spec.UiSpecParser;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -105,5 +107,38 @@ class ScrollViewTest {
 
         scroll.scrollTo(100);
         assertTrue(scroll.scroll(50, 25, 1), "中间位置应正常消费");
+    }
+
+    @Test
+    void growViewportKeepsOffsetAcrossRelayout() throws Exception {
+        ColumnNode root = (ColumnNode) UiSpecParser.parse(JsonParser.parseString("""
+                {"type":"column","width":200,"height":200,"gap":0,"children":[
+                  {"type":"box","height":20},
+                  {"type":"scroll","width":200,"grow":1,"children":[
+                    {"type":"box","height":20},{"type":"box","height":20},{"type":"box","height":20},
+                    {"type":"box","height":20},{"type":"box","height":20},{"type":"box","height":20},
+                    {"type":"box","height":20},{"type":"box","height":20},{"type":"box","height":20},
+                    {"type":"box","height":20},{"type":"box","height":20},{"type":"box","height":20},
+                    {"type":"box","height":20},{"type":"box","height":20},{"type":"box","height":20},
+                    {"type":"box","height":20},{"type":"box","height":20},{"type":"box","height":20},
+                    {"type":"box","height":20},{"type":"box","height":20}
+                  ]},
+                  {"type":"box","height":20}
+                ]}
+                """).getAsJsonObject());
+
+        root.measure(ctx(200, 200));
+        root.layout(0, 0);
+        ScrollViewNode scroll = (ScrollViewNode) root.children().get(1);
+        assertEquals(160, scroll.height(), 0.01);
+
+        scroll.scrollTo(48);
+        assertEquals(48, scroll.scrollOffset(), 0.01);
+
+        // 列表状态更新会重新 measure/layout：grow 覆盖视口高度后不能把滚动位置清零
+        root.measure(ctx(200, 200));
+        root.layout(0, 0);
+        assertEquals(160, scroll.height(), 0.01);
+        assertEquals(48, scroll.scrollOffset(), 0.01);
     }
 }

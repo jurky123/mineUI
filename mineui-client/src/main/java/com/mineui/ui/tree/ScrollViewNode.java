@@ -68,12 +68,13 @@ public final class ScrollViewNode extends ContainerNode {
 
         width = resolvedW >= 0 ? resolvedW : pad.horizontal() + maxCross;
         height = resolvedH >= 0 ? resolvedH : contentHeight;
-        scrollOffset = clamp(scrollOffset);
+        // 视口高度可能被父容器（grow）在 measure 之后覆盖，滚动位置统一在 layout 里钳制
     }
 
     @Override
     public void layout(float x, float y) {
         super.layout(x, y);
+        scrollOffset = clamp(scrollOffset);
         Insets pad = style().padding();
         float cursor = y + pad.top() - scrollOffset;
         for (UiNode child : children()) {

@@ -39,17 +39,17 @@
 | `column` / `row` / `stack` | 布局容器（纵/横/叠加） | `gap`、`padding`、`align`、`justify` |
 | `grid` | 网格 | `columns`、`gap`、`rowGap` |
 | `scroll` | 滚动视口 | `height`、子节点自然高度 |
-| `text` | 文本（支持绑定/缩放/轮换色） | `text`、`color`、`scale`、`cycle` |
-| `button` | 按钮 | `text`、`action`、`hoverScale` |
+| `text` | 文本（支持绑定/缩放/轮换色/多行） | `text`、`color`、`scale`、`cycle`、`wrap`、`maxLines`、`lineHeight` |
+| `button` | 按钮 | `text`、`action`、`hoverScale`、`submit` |
 | `box` | 色块/圆角/渐变/轮换背景 | `background`、`radius`、`cycle` |
 | `image` | 图片或原版精灵 | `texture`（`sprite:` 前缀 = 九宫格精灵） |
 | `item` | 物品/头颅装饰，可作按钮 | `item`、`count`、`model`、`scale`、`hoverItem`、`cycle.items` |
 | `entity` | 生物 3D 预览 | `entity`、`scale`、`followMouse` |
 | `player` | 玩家 3D 预览（皮肤/缩放） | `player`、`skin`、`zoomable`、`zoomMin/zoomMax` |
-| `input` | 文本输入 | `placeholder`、`maxLength`、`action` |
+| `input` | 文本输入 | `placeholder`、`maxLength`、`action`、`enabled` |
 | `slider` | 滑块 | `min`、`max`、`value`、`text`、`action` |
 
-通用字段（所有节点）：`width/height`（px / `%` / `vw` / `vh` / auto）、`padding`、`background`、`radius`、`border`、`shadow`、`gradient`、`sprite/spriteHover/spriteFocus`、`z`、`clip`、`visible`（状态绑定）、`tooltip`、`modal`、`action`（任意节点可点击）、`hoverAction`（悬浮动作）、`hoverScale`、`cycle`。
+通用字段（所有节点）：`width/height`（px / `%` / `vw` / `vh` / auto）、`grow`（弹性占比，row 分宽 / column 分高）、`padding`、`background`、`radius`、`border`、`shadow`、`gradient`、`sprite/spriteHover/spriteFocus`、`z`、`clip`、`visible`（状态绑定，条目内支持 `{item.x}`）、`tooltip`、`modal`、`action`（任意节点可点击）、`hoverAction`（悬浮动作）、`hoverScale`、`cycle`。
 
 样式皮肤：`"skin": "vanilla:button | input | slider | panel | dialog | slot"`（写 `"skin": "vanilla"` 按节点类型自动选择）；
 HUD/浮层可用 `"skin": "mineui:glass | glass_dense"`（半透明圆角、无边框，无需素材），无前缀简写 `"skin": "glass"`。
@@ -196,6 +196,7 @@ F9 热重载生效。强调色建议稀缺使用（一屏一个主操作）。
 **文本增强**：
 - `"ellipsis": true`：超出节点宽度自动截断加省略号（配 `"width": "100%"` 等显式宽度）
 - `"outline": "#000000"`：1px 文字描边（亮/杂背景上关键文字的可读性）
+- `"wrap": true` + `"maxLines": 8` + `"lineHeight": 10`：多行自动换行（0.17，见 §2.12）
 
 **新控件**（选中态走绑定 `{state.x}`，点击发 action）：
 - `{ "type": "checkbox", "value": "{state.check}", "action": "toggle" }`——原版 checkbox 精灵（含 hover/选中变体）
@@ -229,11 +230,19 @@ F9 热重载生效。强调色建议稀缺使用（一屏一个主操作）。
 }
 ```
 
-- `items` 绑定状态数组（字符串或对象）；`itemTemplate` 为任意节点子树，按条目实例化
+- `items` 绑定状态数组（字符串或对象）；`itemTemplate` 为任意节点子树，按条目实例化；
+  条目高度按模板自然高度计算（每条可不同，多行文本/卡片会撑高条目）
 - 条目内绑定：`{item}` / `{item.xxx}`（当前条目）、`{itemIndex}`、`{itemHighlight}`；`{state.xxx}` 仍读全局状态
 - `highlightIndex` 指定当前行；`highlightColor` 覆盖高亮条目内文本颜色；`autoScroll` 在高亮变化时自动滚动居中
-- 滚轮滚动 + 自动裁剪；条目可正常点击（`action`）；单列表最多 512 条，模板内不支持嵌套 `list`
-- 演示：`/mineui lyrics`（1Hz 推进高亮）
+- 滚轮滚动 + 自动裁剪 + 滚动条；条目可正常点击（`action`）；单列表最多 512 条，模板内不支持嵌套 `list`
+- **增量复用**（0.17）：状态更新时按条目内容比较，未变化的条目复用原节点；流式回复只重建最后一条，
+  前面卡片的滚动位置/悬浮状态不受影响
+- **跟随底部**（0.17）：`"stickToBottom": true`（别名 `followLatest`）时，列表在底部会跟随新消息与
+  高度增长；用户主动上滚后暂停，滚回底部自动恢复。`highlightIndex` 自动居中仍可同时使用
+- **回到底部/顶部**（0.17，本地动作）：任意可点节点写 `"action": "mineui:scroll_bottom"`
+  （作用于最近的 `list`/`scroll` 祖先）或 `"mineui:scroll_bottom:<节点id>"`（指定任意 `list`/`scroll`）；
+  `mineui:scroll_top` 同理。客户端本地执行，不回传服务端
+- 演示：`/mineui lyrics`（1Hz 推进高亮）、`/mineui chat`（消息流跟随底部 + 流式更新）
 
 ## 2.9 Toast 短提示 + 全局动作
 
@@ -279,6 +288,69 @@ F9 热重载生效。强调色建议稀缺使用（一屏一个主操作）。
 - 安全边界：`local.*` 只在本机解析、协议里不出现；`local:` 动作只派发同命名空间；
   权威判定（同步/计分/权限）必须走服务端
 - 降级：旧客户端/未装 MineUI/未注册命名空间 → `{local.*}` 渲染为空、`local:` 动作忽略（不报错、不回传）
+
+---
+
+## 2.12 聊天式界面（0.17，能力位 `chat_ui_v1`）
+
+面向会话/消息流（MineAgent 游戏内 Chat 等）的通用能力组合，不新增聊天专用控件：
+
+```json
+{
+  "type": "row", "width": "100%", "height": "100%", "gap": 8, "padding": 8,
+  "children": [
+    { "type": "column", "width": "24%", "height": "100%", "children": [
+        { "type": "text", "text": "MineAgent" },
+        { "type": "spacer", "grow": 1 },
+        { "type": "button", "text": "关闭界面", "action": "close" }
+    ] },
+    { "type": "column", "grow": 1, "height": "100%", "gap": 6, "children": [
+        { "type": "row", "height": 28, "children": [ { "type": "text", "text": "{state.title}" } ] },
+        { "type": "list", "grow": 1, "items": "{state.messages}", "stickToBottom": true,
+          "itemTemplate": { "type": "column", "width": "100%", "background": "#1A2129",
+            "padding": 8, "radius": 8, "children": [
+              { "type": "text", "text": "{item.author}", "color": "#7FB8FF", "scale": 0.9 },
+              { "type": "text", "text": "{item.text}", "wrap": true, "maxLines": 8, "lineHeight": 10 }
+          ] } },
+        { "type": "row", "height": 30, "gap": 6, "children": [
+            { "type": "input", "grow": 1, "height": "100%", "action": "send", "placeholder": "发送消息…" },
+            { "type": "button", "text": "发送", "submit": true, "action": "send", "width": 56, "height": "100%" }
+        ] }
+    ] }
+  ]
+}
+```
+
+- **两栏**：`grow` 按占比分配剩余空间（row 分宽、column 分高；0 表示不伸缩）。左栏固定/百分比宽，
+  右栏 `grow:1` 填满；右栏 header/footer 固定高、消息 `list` 用 `grow:1` 吃掉中间空间，
+  composer 始终贴底且不随消息流滚动。旧页面不写 `grow` 时布局与之前一致
+- **多行消息**：`text.wrap` 按节点宽换行（无显式 width 时用父容器可用宽），高度随行数增长；
+  `maxLines` 超出截断并以 `…` 收尾；`lineHeight` 为行距像素（缺省字体行高）；
+  显式 `\n` 保留，拉丁按空格断行、CJK 按字符断行。"展开全文"用两条同位置卡片 + `visible`
+  切换（折叠 `maxLines:8` / 展开不限），或跳详情页
+- **流式更新**：列表按条目内容增量复用节点，只重建变化的最后一条；服务端 100–200ms 合并 PATCH 即可。
+  `stickToBottom` 在底部时跟随新内容，用户上滚暂停、滚回底部恢复。`highlightIndex` 可同时配置，
+  但**跟随时底部优先**（不自动居中）；用户上滚后才按高亮变化居中。聊天页建议不绑 `highlightIndex`
+- **角色卡片**：一个 `itemTemplate` 里放多个卡片变体，用条目布尔字段切换：
+  `"visible": "{item.isUser}"` / `{item.isAssistant}` / `{item.isTool}` / `{item.isApproval}` 等
+  （条目上下文支持 `{item.x}` / `{itemIndex}` / `{itemHighlight}`）。工具卡/审批卡/错误卡就是
+  普通 `column` + 文本/按钮；条目内按钮负载自动带 `{"index": n}`，审批可用它定位消息
+- **composer**：`button.submit: true` 点击时取当前输入框内容作为 `{"text": ...}` 提交并清空，
+  不因点击按钮而失焦（等同于回车提交）；多输入页面用 `"submit": "<input 的 id>"` 明确目标，
+  取不到目标输入框时不提交。`input.enabled` 支持 `{state.running}` 绑定，运行中禁用输入
+  （禁用后会自动失焦）；`"disabled": true` 也可用，且支持 `{state.x}` 取反
+- **回到底部**：浮在消息流外的按钮写 `"action": "mineui:scroll_bottom:<list 的 id>"`（本地动作），
+  或按钮放在 list 内部不写 id（作用于最近祖先）；目标不存在时动作也被本地消费，不会误发到服务端。
+  目前只在点击时生效（不支持 hoverAction/键位）
+- **紧凑模式**：左栏或按钮写 `visible` 状态绑定即可按业务状态隐藏（框架没有视口尺寸绑定，
+  不会自动响应窗口大小；需要响应时由业务侧根据客户端上报/配置下发 state）；键位沿用 §2.10
+- **消息体积**：流式更新通常整数组重发 `messages`，建议保留最近 ~20 条、单条 ≤400 字；
+  PATCH 超过 32 KiB 会话会拒绝（服务端抛 `IllegalStateException`），业务需限制历史长度
+- **溢出**：框架不做 flex-shrink。固定宽/auto 子节点总宽超过父容器时会溢出；长标题/长文本用
+  `grow:1` + `"width":"100%"` + `"ellipsis":true`，或给父容器加 `"clip":true`。`%` 宽高相对父容器
+  可用空间；在 row/column 中第 2 个及之后的兄弟拿到的是**扣除前面兄弟后的剩余空间**，等分请用 `grow`
+- 演示：`/mineui chat`（两栏、角色卡片、工具/审批卡、伪造流式回复与停止按钮）
+- 业务门禁：`MineUi.supportsChatUi(player)` / 能力位 `chat_ui_v1`；旧客户端回退原版界面
 
 ---
 

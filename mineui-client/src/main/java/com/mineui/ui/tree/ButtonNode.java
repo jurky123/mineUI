@@ -8,17 +8,34 @@ public final class ButtonNode extends UiNode {
     private final int background;
     private final int hoverBackground;
     private final int textColor;
+    /** 点击时是否取输入框当前内容一起提交（发送按钮用）。 */
+    private final boolean submitInput;
+    /** 指定提交目标输入框 id（null 表示聚焦中的输入框/最近祖先里的第一个）。 */
+    private final String submitTarget;
     /** 按下态（鼠标按住期间）：渲染时反转 bevel/加深并下沉 1px。 */
     private boolean pressed;
 
     public ButtonNode(NodeStyle style, String template, String action,
                       int background, int hoverBackground, int textColor) {
+        this(style, template, action, background, hoverBackground, textColor, false, null);
+    }
+
+    public ButtonNode(NodeStyle style, String template, String action,
+                      int background, int hoverBackground, int textColor, boolean submitInput) {
+        this(style, template, action, background, hoverBackground, textColor, submitInput, null);
+    }
+
+    public ButtonNode(NodeStyle style, String template, String action,
+                      int background, int hoverBackground, int textColor,
+                      boolean submitInput, String submitTarget) {
         super(style);
         this.template = template == null ? "" : template;
         this.action = action == null ? "" : action;
         this.background = background;
         this.hoverBackground = hoverBackground;
         this.textColor = textColor;
+        this.submitInput = submitInput;
+        this.submitTarget = submitTarget == null || submitTarget.isBlank() ? null : submitTarget;
     }
 
     public String template() {
@@ -48,6 +65,16 @@ public final class ButtonNode extends UiNode {
 
     public int textColor() {
         return textColor;
+    }
+
+    /** 点击时取输入框当前内容作为负载一起提交（{@code submit: true}）。 */
+    public boolean submitInput() {
+        return submitInput;
+    }
+
+    /** 提交目标输入框 id（{@code submit: "<input id>"}）；null 表示自动选择。 */
+    public String submitTarget() {
+        return submitTarget;
     }
 
     @Override

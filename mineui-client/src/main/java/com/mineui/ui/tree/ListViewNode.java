@@ -10,11 +10,15 @@ import java.util.function.IntPredicate;
 import java.util.function.Supplier;
 
 /**
- * 列表容器（歌词 / 播放队列等）：{@code items} 绑定状态里的数组，按 {@code itemTemplate} 逐条实例化。
+ * 列表容器（歌词 / 播放队列 / 聊天消息等）：{@code items} 绑定状态里的数组，按
+ * {@code itemTemplate} 逐条实例化。
  * <p>
  * 条目模板里 {@code {item}} / {@code {item.xxx}} 读取当前条目，{@code {state.xxx}} 仍读全局状态；
  * {@code {itemIndex}} / {@code {itemHighlight}} 提供序号与高亮标记。
  * 支持滚轮滚动 + 裁剪、高亮行文字着色、自动滚动居中。
+ * <p>
+ * 状态更新时按条目内容增量复用节点（流式回复只重建变化的那一条）；{@code stickToBottom}
+ * 让列表在底部时持续跟随新内容，用户向上滚动后暂停跟随。
  */
 public final class ListViewNode extends ContainerNode {
 
@@ -29,17 +33,26 @@ public final class ListViewNode extends ContainerNode {
     private final Integer highlightColor;
     private final boolean autoScroll;
     private final float itemGap;
+    private final boolean stickToBottom;
 
     private final List<UiNode> items = new ArrayList<>();
     private final List<JsonElement> itemData = new ArrayList<>();
-    private String itemsSignature = "";
+    private final List<String> itemSignatures = new ArrayList<>();
     private int highlightIndex = -1;
     private int centeredIndex = Integer.MIN_VALUE;
     private float scrollOffset;
     private float contentHeight;
+    /** 是否跟随底部（用户上滚后暂停，滚回底部恢复）。 */
+    private boolean following;
 
     public ListViewNode(NodeStyle style, String itemsPath, Supplier<UiNode> itemFactory,
                         String highlightPath, Integer highlightColor, boolean autoScroll, float itemGap) {
+        this(style, itemsPath, itemFactory, highlightPath, highlightColor, autoScroll, itemGap, false);
+    }
+
+    public ListViewNode(NodeStyle style, String itemsPath, Supplier<UiNode> itemFactory,
+                        String highlightPath, Integer highlightColor, boolean autoScroll, float itemGap,
+                        boolean stickToBottom) {
         super(style);
         this.itemsPath = itemsPath;
         this.itemFactory = itemFactory;
@@ -47,6 +60,8 @@ public final class ListViewNode extends ContainerNode {
         this.highlightColor = highlightColor;
         this.autoScroll = autoScroll;
         this.itemGap = Math.max(0f, itemGap);
+        this.stickToBottom = stickToBottom;
+        this.following = stickToBottom;
     }
 
     public Integer highlightColor() {
@@ -55,6 +70,15 @@ public final class ListViewNode extends ContainerNode {
 
     public int highlightIndex() {
         return highlightIndex;
+    }
+
+    public boolean stickToBottom() {
+        return stickToBottom;
+    }
+
+    /** 当前是否跟随底部（用户主动上滚后为 false）。 */
+    public boolean following() {
+        return following;
     }
 
     public UiNode highlightedItem() {
@@ -76,6 +100,16 @@ public final class ListViewNode extends ContainerNode {
     /** 程序化滚动（会被钳制到合法范围）。 */
     public void scrollTo(float offset) {
         scrollOffset = clamp(offset);
+        if (stickToBottom) {
+            following = scrollOffset >= maxScroll() - 0.5f;
+        }
+        layout(x, y);
+    }
+
+    /** 回到底部并恢复跟随。 */
+    public void scrollToBottom() {
+        following = stickToBottom;
+        scrollOffset = maxScroll();
         layout(x, y);
     }
 
@@ -88,11 +122,7 @@ public final class ListViewNode extends ContainerNode {
             return;
         }
         List<JsonElement> list = resolveItems(context.state());
-        String signature = list.toString();
-        if (!signature.equals(itemsSignature)) {
-            rebuild(list);
-            itemsSignature = signature;
-        }
+        syncItems(list);
         highlightIndex = resolveHighlight(context.state());
 
         Insets pad = style().padding();
@@ -123,19 +153,25 @@ public final class ListViewNode extends ContainerNode {
         contentHeight = pad.vertical() + used;
         width = resolvedW >= 0 ? resolvedW : pad.horizontal() + maxCross;
         height = resolvedH >= 0 ? resolvedH : contentHeight;
-        scrollOffset = clamp(scrollOffset);
+        scrollOffset = following && stickToBottom ? maxScroll() : clamp(scrollOffset);
     }
 
     @Override
     public void layout(float x, float y) {
         super.layout(x, y);
         Insets pad = style().padding();
+        // 最终视口高度可能在度量后被父容器（grow）覆盖：在这里统一校正跟随/钳制
+        scrollOffset = stickToBottom && following ? maxScroll() : clamp(scrollOffset);
         // 高亮变化时自动居中（只在变化时生效，避免覆盖用户手动滚动）
-        if (autoScroll && highlightIndex >= 0 && highlightIndex != centeredIndex) {
+        if (autoScroll && highlightIndex >= 0 && highlightIndex != centeredIndex
+                && !(stickToBottom && following)) {
             float center = highlightCenter(pad);
             if (center >= 0) {
                 scrollOffset = clamp(center - height / 2f);
                 centeredIndex = highlightIndex;
+                if (stickToBottom) {
+                    following = scrollOffset >= maxScroll() - 0.5f;
+                }
             }
         }
         float cursor = y + pad.top() - scrollOffset;
@@ -171,34 +207,70 @@ public final class ListViewNode extends ContainerNode {
         if (scrollOffset == before) {
             return false;
         }
+        if (stickToBottom) {
+            following = scrollOffset >= maxScroll() - 0.5f;
+        }
         layout(x, y);
         return true;
     }
 
     // ---------- 内部 ----------
 
-    private void rebuild(List<JsonElement> list) {
-        clearChildren();
-        items.clear();
-        itemData.clear();
-        centeredIndex = Integer.MIN_VALUE;
+    /**
+     * 按条目内容增量同步：内容相同的条目复用原节点（流式更新最后一条时只重建该条），
+     * 内容变化或数量变化时只替换受影响的位置。
+     */
+    private void syncItems(List<JsonElement> list) {
         int count = Math.min(list.size(), MAX_ITEMS);
+        boolean changed = count != items.size();
+        if (!changed) {
+            for (int i = 0; i < count; i++) {
+                if (!itemSignatures.get(i).equals(list.get(i).toString())) {
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        if (!changed) {
+            return;
+        }
+        List<UiNode> nextItems = new ArrayList<>(count);
+        List<JsonElement> nextData = new ArrayList<>(count);
+        List<String> nextSignatures = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
+            JsonElement data = list.get(i);
+            String signature = data.toString();
             UiNode node;
-            try {
-                node = itemFactory.get();
-            } catch (RuntimeException e) {
-                node = null;
+            if (i < items.size() && signature.equals(itemSignatures.get(i))) {
+                node = items.get(i);
+            } else {
+                try {
+                    node = itemFactory.get();
+                } catch (RuntimeException e) {
+                    node = null;
+                }
             }
             if (node == null) {
                 continue;
             }
-            itemData.add(list.get(i));
-            items.add(node);
             node.setItemIndex(i);
+            nextItems.add(node);
+            nextData.add(data);
+            nextSignatures.add(signature);
+        }
+        items.clear();
+        items.addAll(nextItems);
+        itemData.clear();
+        itemData.addAll(nextData);
+        itemSignatures.clear();
+        itemSignatures.addAll(nextSignatures);
+        clearChildren();
+        for (UiNode node : items) {
             addChild(node);
         }
-        scrollOffset = 0f;
+        if (centeredIndex >= items.size()) {
+            centeredIndex = Integer.MIN_VALUE;
+        }
     }
 
     private List<JsonElement> resolveItems(StateAccess state) {
@@ -252,9 +324,12 @@ public final class ListViewNode extends ContainerNode {
         return -1;
     }
 
+    private float maxScroll() {
+        return Math.max(0f, contentHeight - height);
+    }
+
     private float clamp(float value) {
-        float max = Math.max(0f, contentHeight - height);
-        return Math.max(0f, Math.min(value, max));
+        return Math.max(0f, Math.min(value, maxScroll()));
     }
 
     /** 条目上下文：{@code item} / {@code item.a.b} / {@code itemIndex} / {@code itemHighlight}，其余委托父状态。 */

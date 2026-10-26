@@ -1,5 +1,7 @@
 package com.mineui.ui.tree;
 
+import com.mineui.ui.spec.BooleanSpec;
+
 /**
  * 文本输入控件（客户端本地编辑）。
  * <p>
@@ -13,6 +15,8 @@ public final class InputNode extends UiNode {
     private final String action;
     private final int textColor;
     private final int placeholderColor;
+    /** 可用态（{@code enabled: false} 时不可聚焦/输入；支持状态绑定）。 */
+    private final BooleanSpec enabled;
 
     private final StringBuilder text = new StringBuilder();
     private boolean focused;
@@ -22,12 +26,23 @@ public final class InputNode extends UiNode {
 
     public InputNode(NodeStyle style, String placeholder, int maxLength, String action,
                      int textColor, int placeholderColor) {
+        this(style, placeholder, maxLength, action, textColor, placeholderColor, BooleanSpec.TRUE);
+    }
+
+    public InputNode(NodeStyle style, String placeholder, int maxLength, String action,
+                     int textColor, int placeholderColor, BooleanSpec enabled) {
         super(style);
         this.placeholder = placeholder == null ? "" : placeholder;
         this.maxLength = Math.max(1, maxLength);
         this.action = action == null ? "" : action;
         this.textColor = textColor;
         this.placeholderColor = placeholderColor;
+        this.enabled = enabled == null ? BooleanSpec.TRUE : enabled;
+    }
+
+    /** 当前是否可用（{@code enabled} 支持状态绑定）。 */
+    public boolean enabledNow(StateAccess state) {
+        return enabled.test(state);
     }
 
     public String placeholder() {

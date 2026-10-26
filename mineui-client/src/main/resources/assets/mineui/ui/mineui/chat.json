@@ -1,0 +1,503 @@
+{
+  "type": "row",
+  "id": "root",
+  "width": "100%",
+  "height": "100%",
+  "padding": 8,
+  "gap": 8,
+  "background": "#0B0D12",
+  "children": [
+    {
+      "type": "column",
+      "id": "sidebar",
+      "width": "24%",
+      "height": "100%",
+      "padding": 10,
+      "gap": 6,
+      "radius": 10,
+      "background": "#151A22",
+      "border": {
+        "color": "#252C38",
+        "width": 1
+      },
+      "children": [
+        {
+          "type": "text",
+          "text": "MineAgent",
+          "color": "#F2F6FC",
+          "scale": 1.3
+        },
+        {
+          "type": "text",
+          "text": "● 在线 · 全服公开",
+          "color": "#6FCF97",
+          "scale": 0.85
+        },
+        {
+          "type": "box",
+          "width": "100%",
+          "height": 1,
+          "background": "#252C38"
+        },
+        {
+          "type": "button",
+          "text": "全服对话",
+          "action": "nav_chat",
+          "width": "100%",
+          "height": 18,
+          "radius": 6,
+          "background": "#243247",
+          "hoverBackground": "#2E4059",
+          "color": "#BFD8F5"
+        },
+        {
+          "type": "button",
+          "text": "AI 玩家",
+          "action": "nav_ai",
+          "width": "100%",
+          "height": 18,
+          "radius": 6,
+          "background": "#1B212B",
+          "hoverBackground": "#252E3B",
+          "color": "#AEB9C9"
+        },
+        {
+          "type": "button",
+          "text": "审批",
+          "action": "nav_approval",
+          "width": "100%",
+          "height": 18,
+          "radius": 6,
+          "background": "#1B212B",
+          "hoverBackground": "#252E3B",
+          "color": "#AEB9C9"
+        },
+        {
+          "type": "button",
+          "text": "帮助",
+          "action": "nav_help",
+          "width": "100%",
+          "height": 18,
+          "radius": 6,
+          "background": "#1B212B",
+          "hoverBackground": "#252E3B",
+          "color": "#AEB9C9"
+        },
+        {
+          "type": "spacer",
+          "grow": 1
+        },
+        {
+          "type": "text",
+          "text": "chat_ui_v1",
+          "color": "#5A6474",
+          "scale": 0.75
+        },
+        {
+          "type": "button",
+          "text": "关闭界面",
+          "action": "close",
+          "width": "100%",
+          "height": 18,
+          "radius": 6,
+          "background": "#2A1F22",
+          "hoverBackground": "#3B2A2E",
+          "color": "#E0A0A0"
+        }
+      ]
+    },
+    {
+      "type": "column",
+      "id": "main",
+      "grow": 1,
+      "height": "100%",
+      "padding": 10,
+      "gap": 8,
+      "radius": 10,
+      "background": "#11151C",
+      "border": {
+        "color": "#242B36",
+        "width": 1
+      },
+      "children": [
+        {
+          "type": "row",
+          "id": "header",
+          "width": "100%",
+          "align": "center",
+          "gap": 8,
+          "children": [
+            {
+              "type": "column",
+              "gap": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "text": "{state.title}",
+                  "color": "#F2F6FC",
+                  "scale": 1.2,
+                  "width": "100%",
+                  "ellipsis": true
+                },
+                {
+                  "type": "text",
+                  "text": "{state.status}",
+                  "color": "#8794A8",
+                  "scale": 0.85,
+                  "width": "100%",
+                  "ellipsis": true
+                }
+              ],
+              "grow": 1
+            },
+            {
+              "type": "button",
+              "text": "停止",
+              "action": "stop",
+              "visible": "{state.running}",
+              "width": 52,
+              "height": 20,
+              "radius": 6,
+              "background": "#5A2E33",
+              "hoverBackground": "#793D44",
+              "color": "#F3C7CB"
+            }
+          ],
+          "clip": true
+        },
+        {
+          "type": "list",
+          "id": "messages",
+          "grow": 1,
+          "width": "100%",
+          "items": "{state.messages}",
+          "stickToBottom": true,
+          "gap": 6,
+          "itemTemplate": {
+            "type": "column",
+            "width": "100%",
+            "align": "end",
+            "children": [
+              {
+                "type": "column",
+                "visible": "{item.isUser}",
+                "width": "88%",
+                "padding": 8,
+                "gap": 4,
+                "radius": 8,
+                "background": "#1D2B3E",
+                "border": {
+                  "color": "#31527A",
+                  "width": 1
+                },
+                "children": [
+                  {
+                    "type": "row",
+                    "width": "100%",
+                    "gap": 6,
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "{item.author}",
+                        "color": "#8CCBFF",
+                        "scale": 0.85
+                      },
+                      {
+                        "type": "spacer",
+                        "grow": 1
+                      },
+                      {
+                        "type": "text",
+                        "text": "{item.time}",
+                        "color": "#66758A",
+                        "scale": 0.75
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": "{item.text}",
+                    "color": "#EAF2FB",
+                    "wrap": true,
+                    "maxLines": 8,
+                    "lineHeight": 10,
+                    "width": "100%"
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "visible": "{item.isAssistant}",
+                "width": "100%",
+                "padding": 8,
+                "gap": 4,
+                "radius": 8,
+                "background": "#161C24",
+                "border": {
+                  "color": "#2A3441",
+                  "width": 1
+                },
+                "children": [
+                  {
+                    "type": "row",
+                    "width": "100%",
+                    "gap": 6,
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "{item.author}",
+                        "color": "#7EE2B8",
+                        "scale": 0.85
+                      },
+                      {
+                        "type": "spacer",
+                        "grow": 1
+                      },
+                      {
+                        "type": "text",
+                        "text": "{item.time}",
+                        "color": "#66758A",
+                        "scale": 0.75
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": "{item.text}",
+                    "color": "#E4ECF5",
+                    "wrap": true,
+                    "maxLines": 8,
+                    "lineHeight": 10,
+                    "width": "100%"
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "visible": "{item.isTool}",
+                "width": "100%",
+                "padding": 8,
+                "gap": 4,
+                "radius": 8,
+                "background": "#1E1A12",
+                "border": {
+                  "color": "#4A3A1E",
+                  "width": 1
+                },
+                "children": [
+                  {
+                    "type": "row",
+                    "width": "100%",
+                    "gap": 6,
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "{item.author}",
+                        "color": "#E8C078",
+                        "scale": 0.85
+                      },
+                      {
+                        "type": "spacer",
+                        "grow": 1
+                      },
+                      {
+                        "type": "text",
+                        "text": "{item.time}",
+                        "color": "#66758A",
+                        "scale": 0.75
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": "{item.tool} · {item.toolStatus} · {item.duration}",
+                    "color": "#D6AC62",
+                    "scale": 0.8
+                  },
+                  {
+                    "type": "text",
+                    "text": "{item.text}",
+                    "color": "#E8DCC4",
+                    "wrap": true,
+                    "maxLines": 8,
+                    "lineHeight": 10,
+                    "width": "100%"
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "visible": "{item.isApproval}",
+                "width": "100%",
+                "padding": 8,
+                "gap": 4,
+                "radius": 8,
+                "background": "#241A2E",
+                "border": {
+                  "color": "#553D6E",
+                  "width": 1
+                },
+                "children": [
+                  {
+                    "type": "row",
+                    "width": "100%",
+                    "gap": 6,
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "{item.author}",
+                        "color": "#D5B3FF",
+                        "scale": 0.85
+                      },
+                      {
+                        "type": "text",
+                        "text": "· {item.tool}",
+                        "color": "#A98FD0",
+                        "scale": 0.75
+                      },
+                      {
+                        "type": "spacer",
+                        "grow": 1
+                      },
+                      {
+                        "type": "text",
+                        "text": "剩余 {item.time}",
+                        "color": "#FFC46B",
+                        "scale": 0.75
+                      }
+                    ]
+                  },
+                  {
+                    "type": "text",
+                    "text": "{item.text}",
+                    "color": "#E9DDF5",
+                    "wrap": true,
+                    "maxLines": 8,
+                    "lineHeight": 10,
+                    "width": "100%"
+                  },
+                  {
+                    "type": "row",
+                    "width": "100%",
+                    "gap": 6,
+                    "justify": "end",
+                    "children": [
+                      {
+                        "type": "button",
+                        "text": "批准",
+                        "action": "approve",
+                        "width": 52,
+                        "height": 18,
+                        "radius": 5,
+                        "background": "#2F6B4F",
+                        "hoverBackground": "#3E8A66",
+                        "color": "#DDF5E8"
+                      },
+                      {
+                        "type": "button",
+                        "text": "拒绝",
+                        "action": "reject",
+                        "width": 52,
+                        "height": 18,
+                        "radius": 5,
+                        "background": "#6B3038",
+                        "hoverBackground": "#8A3E48",
+                        "color": "#F5DDE0"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "visible": "{item.isSystem}",
+                "width": "100%",
+                "padding": 6,
+                "gap": 2,
+                "radius": 6,
+                "background": "#0E1218",
+                "align": "center",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "{item.author}",
+                    "color": "#68717F",
+                    "scale": 0.75,
+                    "align": "center"
+                  },
+                  {
+                    "type": "text",
+                    "text": "{item.text}",
+                    "color": "#8C97A8",
+                    "wrap": true,
+                    "maxLines": 8,
+                    "lineHeight": 10,
+                    "width": "100%",
+                    "align": "center"
+                  }
+                ]
+              }
+            ]
+          },
+          "padding": {
+            "top": 0,
+            "right": 8,
+            "bottom": 0,
+            "left": 0
+          }
+        },
+        {
+          "type": "row",
+          "id": "composer",
+          "width": "100%",
+          "height": 24,
+          "gap": 6,
+          "align": "center",
+          "children": [
+            {
+              "type": "input",
+              "id": "chat_input",
+              "grow": 1,
+              "height": 22,
+              "radius": 6,
+              "background": "#0C1015",
+              "border": {
+                "color": "#313C4C",
+                "width": 1
+              },
+              "placeholder": "发送消息到全服聊天…",
+              "maxLength": 120,
+              "action": "send",
+              "color": "#E6EDF7",
+              "placeholderColor": "#637084"
+            },
+            {
+              "type": "button",
+              "text": "发送",
+              "action": "send",
+              "submit": true,
+              "width": 48,
+              "height": 22,
+              "radius": 6,
+              "background": "#2E5C8A",
+              "hoverBackground": "#3F79B0",
+              "color": "#EAF3FB"
+            },
+            {
+              "type": "button",
+              "text": "停止",
+              "action": "stop",
+              "visible": "{state.running}",
+              "width": 48,
+              "height": 22,
+              "radius": 6,
+              "background": "#5A2E33",
+              "hoverBackground": "#793D44",
+              "color": "#F3C7CB"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

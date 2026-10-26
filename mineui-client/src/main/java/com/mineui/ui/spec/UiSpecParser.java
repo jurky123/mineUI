@@ -65,13 +65,11 @@ public final class UiSpecParser {
                     parseColor(json.get("color"), 0xFFFFFFFF),
                     optFloat(json, "scale", 1f),
                     optBool(json, "ellipsis", false),
-                    json.has("outline") ? parseColor(json.get("outline"), 0) : 0);
-            case "button" -> new ButtonNode(style,
-                    optString(json, "text", ""),
-                    optString(json, "action", ""),
-                    parseColor(json.get("background"), 0xFF3B3B3B),
-                    parseColor(json.get("hoverBackground"), 0xFF4F4F4F),
-                    parseColor(json.get("color"), 0xFFFFFFFF));
+                    json.has("outline") ? parseColor(json.get("outline"), 0) : 0,
+                    optBool(json, "wrap", false),
+                    optInt(json, "maxLines", 0),
+                    optFloat(json, "lineHeight", 0f));
+            case "button" -> parseButton(json, style);
             case "box", "spacer" -> new BoxNode(style);
             case "image" -> parseImage(json, style);
             case "scroll" -> new ScrollViewNode(style);
@@ -101,7 +99,10 @@ public final class UiSpecParser {
                     optInt(json, "maxLength", 32),
                     optString(json, "action", ""),
                     parseColor(json.get("color"), 0xFFFFFFFF),
-                    parseColor(json.get("placeholderColor"), 0xFF808080));
+                    parseColor(json.get("placeholderColor"), 0xFF808080),
+                    json.has("disabled")
+                            ? BooleanSpec.parse(json.get("disabled")).negated()
+                            : BooleanSpec.parse(json.get("enabled")));
             case "slider" -> new SliderNode(style,
                     DoubleSpec.parse(json.get("value"), 0),
                     optDouble(json, "min", 0),
@@ -205,7 +206,39 @@ public final class UiSpecParser {
                 optFloat(json, "hoverScale", 1f),
                 CycleSpec.parse(json.get("cycle")),
                 optFloat(json, "spin", 0f),
-                BooleanSpec.parse(json.get("spinPlaying")));
+                BooleanSpec.parse(json.get("spinPlaying")),
+                optFloat(json, "grow", optFloat(json, "flexGrow", 0f)));
+    }
+
+    /**
+     * 按钮：{@code submit: true} 点击时取输入框内容一起提交；{@code submit: "<input id>"}
+     * 指定目标输入框；{@code submitInput: true} 为布尔写法别名。
+     */
+    private static ButtonNode parseButton(JsonObject json, NodeStyle style) throws UiSpecException {
+        boolean submit = false;
+        String submitTarget = null;
+        JsonElement submitElement = json.get("submit");
+        if (submitElement != null && !submitElement.isJsonNull()) {
+            if (submitElement.isJsonPrimitive() && submitElement.getAsJsonPrimitive().isString()) {
+                String value = submitElement.getAsString().trim();
+                if (!value.isEmpty()) {
+                    submit = true;
+                    submitTarget = value;
+                }
+            } else {
+                submit = submitElement.getAsBoolean();
+            }
+        }
+        if (!submit && json.has("submitInput")) {
+            submit = optBool(json, "submitInput", false);
+        }
+        return new ButtonNode(style,
+                optString(json, "text", ""),
+                optString(json, "action", ""),
+                parseColor(json.get("background"), 0xFF3B3B3B),
+                parseColor(json.get("hoverBackground"), 0xFF4F4F4F),
+                parseColor(json.get("color"), 0xFFFFFFFF),
+                submit, submitTarget);
     }
 
     /**
@@ -271,7 +304,8 @@ public final class UiSpecParser {
                 ? parseColor(json.get("highlightColor"), 0xFFFFFFFF)
                 : null;
         return new ListViewNode(style, itemsPath, factory, highlightPath, highlightColor,
-                optBool(json, "autoScroll", true), optFloat(json, "itemGap", optFloat(json, "gap", 0f)));
+                optBool(json, "autoScroll", true), optFloat(json, "itemGap", optFloat(json, "gap", 0f)),
+                optBool(json, "stickToBottom", optBool(json, "followLatest", false)));
     }
 
     /** 禁止模板里嵌套 list：避免条目数量与嵌套层数相乘导致节点爆炸。 */

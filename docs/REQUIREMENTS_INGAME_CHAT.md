@@ -6,6 +6,41 @@
 
 ---
 
+## 0. MineUI 实现状态（0.17.0，2026-10-26）
+
+**结论：P0 全部实现；P1 实现主要项。** 均为通用能力，不引入聊天专用控件。
+
+| 需求 | 状态 | 实现 |
+|---|---|---|
+| 2.1 两栏布局 | ✅ | `row`/`column` 子节点 `grow` 按占比分配剩余主轴；左栏固定/百分比宽、右栏 `grow:1` 填满；旧页面不写 `grow` 行为不变 |
+| 2.2 消息卡片 | ✅ | `itemTemplate` 任意子树、条目自然高度（原有）；新增条目增量复用、列表滚动条、内容变化不强制回顶部 |
+| 2.3 多行文本 | ✅ 方案 A | `text.wrap` + `maxLines` + `lineHeight`；按节点宽换行、高度随行数增长、超行省略；默认 `wrap:false` 兼容旧页面 |
+| 2.4 流式更新 | ✅ | 现有 `state()`/`batch()` 足够；列表按条目 JSON 增量复用，流式更新只重建最后一条；`stickToBottom` 保持底部 |
+| 2.5 底部 composer | ✅ | header 固定 + `list` 用 `grow:1` + composer 固定高；`button.submit:true` 取输入框内容提交；停止按钮为独立 action；窗口缩放重新布局 |
+| 2.6 角色/状态样式 | ✅ | `itemTemplate` 内多个卡片变体，用 `visible:"{item.isUser}"` 等条目布尔字段切换背景/描边/文字色；工具/审批/错误卡为普通卡片组合 |
+| P1 stickToBottom | ✅ | `list.stickToBottom`（别名 `followLatest`）；上滚暂停、滚回底部恢复 |
+| P1 回到底部动作 | ✅ | 客户端内置本地动作 `mineui:scroll_bottom` / `mineui:scroll_top`（可带 `:<节点id>` 指定列表），不经过服务端 |
+| P1 input onSubmit/禁用 | ✅ | `button.submit` + `input.enabled`（支持 `{state.running}` 绑定） |
+| P1 border/shadow/gradient 状态绑定 | ❌ | 未实现颜色状态绑定；当前用角色变体卡片区分样式 |
+| P1 紧凑模式 | ⚠️ | 任意节点 `visible` 状态绑定即可隐藏左栏/切换顶部入口（纯页面配置）；框架无视口尺寸绑定，不会自动响应窗口大小，需要业务侧下发状态 |
+| P1 键位 | ✅ | 既有 `keybind` / `{key.<action>}` 能力 |
+
+补充说明：
+
+- 能力位 **`chat_ui_v1`**（`MineUi.supportsChatUi(player)`）；MineAgent 应在 `supportsServerUi` 之外再检查它，
+  不支持时回退现有单列/原版 Dialog。
+- 多行文本的 `maxLines` 是静态字段。“展开全文”建议用两条同位置卡片 + `visible` 切换
+  （折叠 `maxLines:8` / 展开不限），或详情页；无需改协议。
+- 列表条目内的按钮/输入框负载自动带 `{"index": n}`，审批/展开可用它定位消息。
+- 页面大小仍建议 ≤24 KiB；列表最多 512 条，业务侧限制最近消息数即可。注意每次 delta 重发整个
+  `messages` 数组时，PATCH 超过 32 KiB 会抛 `IllegalStateException`；建议最近 20 条、单条 ≤400 字
+  （参考 `/mineui chat` 演示的实现）并捕获异常结束本轮流式。
+- 演示页：`/mineui chat`（两栏、角色卡片、工具/审批卡、伪造流式回复与停止）；
+  字段文档见 [`COMPONENTS.md §2.12`](COMPONENTS.md)。
+- 验收建议按 §4 执行；客户端 mod 需 ≥0.17.0。
+
+---
+
 ## 1. 背景
 
 MineAgent 的 `/agent` 目前使用 MinUI 的单列 `column + list + input`，看起来像“功能面板”，不像 DSH：

@@ -176,9 +176,15 @@ public final class UiTreeRenderer {
                 children.sort(Comparator.comparingInt(child -> child.style().z()));
                 UiNode highlighted = container instanceof ListViewNode list ? list.highlightedItem() : null;
                 Integer highlightColor = container instanceof ListViewNode list ? list.highlightColor() : null;
+                boolean cull = container instanceof ListViewNode || container instanceof ScrollViewNode;
                 for (UiNode child : children) {
                     if (child.style().modal()) {
                         deferredOverlays.add(child);
+                        continue;
+                    }
+                    // 列表/滚动视口外的条目整棵跳过（只靠 scissor 裁剪仍会做无谓的文本重排与绘制）
+                    if (cull && (child.y() + child.height() <= container.y()
+                            || child.y() >= container.y() + container.height())) {
                         continue;
                     }
                     boolean highlightThis = highlighted != null && child == highlighted && highlightColor != null;
@@ -192,6 +198,8 @@ public final class UiTreeRenderer {
                 }
                 if (container instanceof ScrollViewNode scrollView) {
                     drawScrollbar(scrollView, opacity);
+                } else if (container instanceof ListViewNode listView) {
+                    drawScrollbar(listView, opacity);
                 }
             }
             case TextNode text -> renderText(text, opacity);
@@ -572,7 +580,8 @@ public final class UiTreeRenderer {
         }
         float scale = node instanceof TextNode textNode ? textNode.scale() : 1f;
         // 省略：显式宽度 + ellipsis 时超出自动截断
-        if (node instanceof TextNode textNode && textNode.ellipsis() && node.width() > 0 && scale > 0) {
+        if (node instanceof TextNode textNode && !textNode.wrap() && textNode.ellipsis()
+                && node.width() > 0 && scale > 0) {
             float maxWidth = node.width() / scale;
             text = com.mineui.ui.util.TextFit.ellipsize(text, maxWidth, font::width);
         }
@@ -584,6 +593,10 @@ public final class UiTreeRenderer {
         }
         if (node.style().cycle() != null && !node.style().cycle().colors().isEmpty()) {
             color = node.style().cycle().colorAt(System.currentTimeMillis(), color);
+        }
+        if (node instanceof TextNode textNode && textNode.wrap()) {
+            renderWrappedText(textNode, text, color, opacity);
+            return;
         }
         if (node instanceof TextNode textNode && textNode.outlineColor() != 0) {
             renderOutlined(node, text, textNode.outlineColor(), color, opacity, scale);
@@ -623,8 +636,68 @@ public final class UiTreeRenderer {
     }
 
     /**
-     * 带 1px 描边的文本：四方向偏移描边色 + 本体。用于亮/杂背景上的关键文字。
+     * 多行文本（{@code text.wrap}）：按节点宽度换行、逐行绘制；{@code maxLines} 截断由
+     * {@link TextWrap} 统一处理（度量阶段用的是同一套规则，高度与渲染一致）。
      */
+    private void renderWrappedText(TextNode node, String text, int color, float opacity) {
+        if (node.width() <= 0f) {
+            return;
+        }
+        float scale = node.scale();
+        float maxWidth = node.width() / scale;
+        java.util.List<String> lines = node.lines(text, maxWidth, font::width);
+        float lineHeight = node.effectiveLineHeight(font.lineHeight) * scale;
+        int argb = UiColors.withOpacity(color, opacity);
+        if (((argb >>> 24) & 0xFF) == 0) {
+            return;
+        }
+        int outlineArgb = node.outlineColor() == 0 ? 0 : UiColors.withOpacity(node.outlineColor(), opacity);
+        float glyphOffset = (lineHeight - font.lineHeight * scale) / 2f;
+        // 显式 height 小于文本内容时只画放得下的行，避免压到下一张卡片
+        int visibleLines = lines.size();
+        if (node.height() > 0f && lineHeight > 0f) {
+            visibleLines = Math.min(visibleLines,
+                    Math.max(1, (int) Math.floor((node.height() + 0.5f) / lineHeight)));
+        }
+        for (int i = 0; i < visibleLines; i++) {
+            String line = lines.get(i);
+            if (line.isEmpty()) {
+                continue;
+            }
+            float textWidth = font.width(line) * scale;
+            float drawX = switch (node.style().align()) {
+                case CENTER -> node.x() + (node.width() - textWidth) / 2f;
+                case END -> node.x() + node.width() - textWidth;
+                default -> node.x();
+            };
+            float drawY = node.y() + i * lineHeight + glyphOffset;
+            drawTextRun(line, drawX, drawY, argb, outlineArgb, scale);
+        }
+    }
+
+    /** 单行文本绘制（可选缩放/描边），供多行文本复用。 */
+    private void drawTextRun(String text, float drawX, float drawY, int argb, int outlineArgb, float scale) {
+        var pose = graphics.pose();
+        boolean scaled = scale != 1f;
+        if (scaled) {
+            pose.pushMatrix();
+            pose.translate(drawX, drawY);
+            pose.scale(scale, scale);
+        }
+        int x = scaled ? 0 : Math.round(drawX);
+        int y = scaled ? 0 : Math.round(drawY);
+        if (outlineArgb != 0) {
+            for (int[] offset : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                graphics.text(font, text, x + offset[0], y + offset[1], outlineArgb, true);
+            }
+        }
+        graphics.text(font, text, x, y, argb, true);
+        if (scaled) {
+            pose.popMatrix();
+        }
+    }
+
+    /** 带 1px 描边的文本：四方向偏移描边色 + 本体。用于亮/杂背景上的关键文字。 */
     private void renderOutlined(UiNode node, String text, int outlineColor, int color,
                                 float opacity, float scale) {
         int outlineArgb = UiColors.withOpacity(outlineColor, opacity);
@@ -882,8 +955,12 @@ public final class UiTreeRenderer {
         // IME 组词中文本：展示在光标处（不计入 text()），合成提交后经 charTyped 写入
         String preedit = (node.focused() && !node.preedit().isEmpty()) ? node.preedit() : "";
         boolean empty = content.isEmpty() && preedit.isEmpty();
+        boolean enabled = node.enabledNow(state);
         String display = empty ? node.placeholder() : before + preedit + after;
         int color = empty ? node.placeholderColor() : node.textColor();
+        if (!enabled) {
+            color = empty ? 0xFF5A5A5A : 0xFF808080;
+        }
         float prefixW = font.width(before + preedit);
         float scroll = node.focused() && prefixW > innerW - 2f ? prefixW - (innerW - 2f) : 0f;
         float drawX = innerX - scroll;
@@ -892,7 +969,7 @@ public final class UiTreeRenderer {
         pushClipRect(innerX, node.y(), node.x() + node.width(), node.y() + node.height());
         graphics.text(font, display, Math.round(drawX), Math.round(drawY),
                 UiColors.withOpacity(color, opacity), true);
-        if (node.focused() && (System.currentTimeMillis() / 500) % 2 == 0) {
+        if (node.focused() && enabled && (System.currentTimeMillis() / 500) % 2 == 0) {
             float caretX = drawX + prefixW;
             graphics.fill(Math.round(caretX), Math.round(drawY), Math.round(caretX) + 1,
                     Math.round(drawY + font.lineHeight), UiColors.withOpacity(node.textColor(), opacity));
@@ -1080,7 +1157,15 @@ public final class UiTreeRenderer {
     private static final Identifier SCROLLER_THUMB_SPRITE = Identifier.withDefaultNamespace("widget/scroller");
 
     private void drawScrollbar(ScrollViewNode node, float opacity) {
-        if (!node.scrollable()) {
+        drawScrollbar(node, node.scrollOffset(), node.contentHeight(), opacity);
+    }
+
+    private void drawScrollbar(ListViewNode node, float opacity) {
+        drawScrollbar(node, node.scrollOffset(), node.contentHeight(), opacity);
+    }
+
+    private void drawScrollbar(UiNode node, float scrollOffset, float contentHeight, float opacity) {
+        if (contentHeight <= node.height() + 0.5f) {
             return;
         }
         float barWidth = 6f;
@@ -1094,10 +1179,10 @@ public final class UiTreeRenderer {
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_TRACK_SPRITE,
                 Math.round(x), Math.round(y), Math.round(barWidth), Math.round(trackHeight), barColor);
 
-        float ratio = node.height() / node.contentHeight();
+        float ratio = node.height() / contentHeight;
         float thumbHeight = Math.max(8f, trackHeight * ratio);
-        float maxScroll = node.contentHeight() - node.height();
-        float t = maxScroll <= 0f ? 0f : node.scrollOffset() / maxScroll;
+        float maxScroll = contentHeight - node.height();
+        float t = maxScroll <= 0f ? 0f : scrollOffset / maxScroll;
         float thumbY = y + (trackHeight - thumbHeight) * t;
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SCROLLER_THUMB_SPRITE,
                 Math.round(x), Math.round(thumbY), Math.round(barWidth), Math.round(thumbHeight), barColor);

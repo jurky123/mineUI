@@ -14,7 +14,8 @@ MineUI 让服务器拥有不受原版限制的自定义界面：菜单、UNO 卡
 
 ### 控件与布局
 - **布局**：Row / Column / Stack / Grid / Scroll，尺寸支持 px / % / vw / vh / auto，对齐与间距
-- **基础控件**：文本（缩放/绑定）、按钮、色块、图片、滚动列表、网格、输入框
+- **基础控件**：文本（缩放/绑定/自动换行）、按钮（可提交输入框内容）、色块、图片、滚动列表、网格、输入框
+- **弹性与消息流**：`grow` 弹性占比（两栏布局/固定底部 composer）、列表增量复用与跟随底部、多行消息
 - **3D 预览**：物品（含 CustomModelData 卡面）、生物实体、玩家（在线皮肤 / 任意皮肤 value+signature）
 - **窗口**：模态弹窗、Tooltip、z 序与裁剪、任意节点可点击 / 可悬浮
 
@@ -44,7 +45,8 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 }
 ```
 
-- 客户端支持情况用 `hasClient` / `capabilities` / `supportsServerUi` 判断，不支持时回退原版界面
+- 客户端支持情况用 `hasClient` / `capabilities` / `supportsServerUi` 判断，不支持时回退原版界面；
+  聊天式页面再检查 `supportsChatUi`（能力位 `chat_ui_v1`）
 - 页面 JSON 建议 ≤24 KiB；节点与字段规范见 [`docs/DESIGN.md`](docs/DESIGN.md)
 
 ---
@@ -91,6 +93,7 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 | `/mineui gallery` | 打开组件画廊（物品/头颅装饰、悬浮动效、时间轮换、像素素材） |
 | `/mineui hud` | 打开 HUD 演示（服务端声明布局；F6 本地开关） |
 | `/mineui lyrics` | 打开列表演示（歌词高亮 + 自动居中 + 滚轮） |
+| `/mineui chat` | 打开聊天式界面演示（两栏 + 多行消息 + 工具/审批卡 + 流式回复） |
 | `/mineui toast` | 发送 Toast 短提示（打开界面后点击可触发全局动作） |
 | `/mineui keybind` | 声明通用键位（槽位 1，默认 F7）→ 按下打开歌词页 |
 | `/mineui close` | 关闭当前 MineUI 界面 |
@@ -119,6 +122,9 @@ if (mineUi != null && mineUi.supportsServerUi(player)) {          // 旧客户�
 - ✅ 键位：客户端通用键位池（`key.mineui.slot1..8`，改键走原版）+ 服务端 `keybind` 声明 + `{key.<action>}` 页面提示
 - ✅ 本地状态/动作扩展点：`mineui-client-api`（业务 mod 注册 `{local.<ns>.<key>}` 与 `local:<ns>.<action>`，
   逐帧读取 + 本地直连，能力位 `local_state` / `local_action`）
+- ✅ 聊天式界面能力（0.17）：`text.wrap/maxLines/lineHeight` 多行文本、`row/column` 的 `grow` 弹性布局、
+  `list.stickToBottom` 增量复用/跟随底部、`button.submit` 提交输入框、`input.enabled` 禁用态；
+  能力位 `chat_ui_v1`；`/mineui chat` 演示
 - ⏳ 标签页/下拉框等扩展控件
 - ⏳ UNO 等业务界面（由业务插件实现）
 

@@ -67,7 +67,7 @@ public final class ProtocolClient {
 
     public static void sendHello() {
         List<String> capabilities = new java.util.ArrayList<>(
-                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image", "toast", "keybind"));
+                List.of("screen", "hud", "server_ui", "hud_v2", "remote_image", "toast", "keybind", "chat_ui_v1"));
         for (String capability : MineUiLocalBridge.capabilities()) {
             if (!capabilities.contains(capability)) {
                 capabilities.add(capability);

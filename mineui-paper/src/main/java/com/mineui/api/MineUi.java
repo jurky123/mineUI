@@ -36,6 +36,13 @@ public interface MineUi {
     /** 能力位：客户端支持服务端声明的通用键位（0.11+）。 */
     String CAPABILITY_KEYBIND = "keybind";
 
+    /**
+     * 能力位：客户端支持聊天式界面所需能力（0.17+）：{@code row/column} 的 {@code grow} 弹性布局、
+     * {@code text.wrap}/{@code maxLines}/{@code lineHeight} 多行文本、{@code list.stickToBottom}
+     * 增量复用与跟随底部、{@code button.submit} 提交输入框内容、{@code input.enabled} 禁用态。
+     */
+    String CAPABILITY_CHAT_UI = "chat_ui_v1";
+
     /** 玩家是否已安装并握手 MineUI 客户端 mod。 */
     boolean hasClient(Player player);
 
@@ -130,6 +137,11 @@ public interface MineUi {
     /** 客户端是否支持服务端声明的键位；不支持时业务应降级（如只提供界面按钮）。 */
     default boolean supportsKeybind(Player player) {
         return capabilities(player).contains(CAPABILITY_KEYBIND);
+    }
+
+    /** 客户端是否支持聊天式界面能力（多行文本/弹性布局/列表跟随，0.17+）。 */
+    default boolean supportsChatUi(Player player) {
+        return capabilities(player).contains(CAPABILITY_CHAT_UI);
     }
 
     /**

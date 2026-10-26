@@ -33,7 +33,7 @@ class VisibilityTest {
         return new NodeStyle("n", SizeSpec.auto(), SizeSpec.auto(), Insets.ZERO, null,
                 CrossAlign.START, MainAlign.START, 0f, 0f, null, 0f, null, 0f, 0f,
                 null, 0, false, false, visible, null, false, null, null, null, null, null, 1f, null,
-                0f, BooleanSpec.TRUE);
+                0f, BooleanSpec.TRUE, 0f);
     }
 
     @Test
@@ -81,7 +81,7 @@ class VisibilityTest {
         NodeStyle modalStyle = new NodeStyle("modal", SizeSpec.px(200), SizeSpec.px(200), Insets.ZERO,
                 0, CrossAlign.START, MainAlign.START, 0f, 0f, null, 0f, null, 0f, 0f,
                 null, 10, false, false, BooleanSpec.TRUE, null, true, null, null, null, null, null, 1f, null,
-                0f, BooleanSpec.TRUE);
+                0f, BooleanSpec.TRUE, 0f);
         BoxNode modal = new BoxNode(modalStyle);
         modal.overrideWidth(200);
         modal.overrideHeight(200);
@@ -108,7 +108,7 @@ class VisibilityTest {
         NodeStyle tooltipStyle = new NodeStyle("t", SizeSpec.px(100), SizeSpec.px(50), Insets.ZERO, null,
                 CrossAlign.START, MainAlign.START, 0f, 0f, null, 0f, null, 0f, 0f,
                 null, 0, false, false, BooleanSpec.TRUE, "提示文本", false, null, null, null, null, null, 1f, null,
-                0f, BooleanSpec.TRUE);
+                0f, BooleanSpec.TRUE, 0f);
         BoxNode child = new BoxNode(tooltipStyle);
         child.overrideWidth(100);
         child.overrideHeight(50);
